@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#00102f">
+  <title>Boberit — prototyp produktu</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles-v2.css">
+  <link rel="stylesheet" href="styles-v3-brand.css">
+  <link rel="icon" type="image/png" href="../branding/boberit-icon.png">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Główna nawigacja">
+      <a class="brand" href="#start" data-route="start" aria-label="Boberit — strona główna">
+        <img class="brand-logo" src="../branding/boberit-icon.png" alt="">
+        <span>
+          <strong>Boberit</strong>
+          <small>Save it now. Find it later.</small>
+        </span>
+      </a>
+
+      <nav class="side-nav">
+        <a class="nav-link" href="#start" data-route="start">
+          <span class="nav-icon"><img class="ui-icon" src="assets/icons/home.svg" alt="" aria-hidden="true"></span> Start
+        </a>
+        <a class="nav-link is-active" href="#items" data-route="items">
+          <span class="nav-icon"><img class="ui-icon" src="assets/icons/package.svg" alt="" aria-hidden="true"></span> Przedmioty
+          <span class="nav-count">24</span>
+        </a>
+        <a class="nav-link" href="#timeline" data-route="timeline">
+          <span class="nav-icon"><img class="ui-icon" src="assets/icons/calendar-event.svg" alt="" aria-hidden="true"></span> Terminy
+          <span class="nav-dot" aria-label="3 wymagają uwagi"></span>
+        </a>
+        <a class="nav-link" href="#inbox" data-route="inbox">
+          <span class="nav-icon"><img class="ui-icon" src="assets/icons/inbox.svg" alt="" aria-hidden="true"></span> Skrzynka
+          <span class="nav-count nav-count--warm">3</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-label">Organizuj</div>
+      <nav class="side-nav side-nav--secondary">
+        <button class="nav-link tag-filter" type="button" data-tag="kuchnia">
+          <img class="ui-icon tag-icon" src="assets/icons/tag.svg" alt="" aria-hidden="true"> Kuchnia
+        </button>
+        <button class="nav-link tag-filter" type="button" data-tag="elektronika">
+          <img class="ui-icon tag-icon" src="assets/icons/tag.svg" alt="" aria-hidden="true"> Elektronika
+        </button>
+        <button class="nav-link tag-filter" type="button" data-tag="warsztat">
+          <img class="ui-icon tag-icon" src="assets/icons/tag.svg" alt="" aria-hidden="true"> Warsztat
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button class="user-card" type="button">
+          <span class="avatar">BK</span>
+          <span><strong>Dom Kowalskich</strong><small>Ustawienia</small></span>
+          <img class="ui-icon" src="assets/icons/dots.svg" alt="" aria-hidden="true">
+        </button>
+        <span class="prototype-badge">Interaktywny koncept · v0.4</span>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <label class="global-search">
+          <img class="ui-icon search-icon" src="assets/icons/search.svg" alt="" aria-hidden="true">
+          <input id="global-search" type="search" placeholder="Szukaj nazwy, modelu, serialu, tagu…" autocomplete="off">
+          <kbd>/</kbd>
+        </label>
+        <button class="icon-button" type="button" aria-label="Powiadomienia">
+          <img class="ui-icon" src="assets/icons/bell.svg" alt="" aria-hidden="true"><span class="notification-dot"></span>
+        </button>
+        <button class="button button--primary open-capture" type="button">
+          <img class="ui-icon" src="assets/icons/plus.svg" alt="" aria-hidden="true"> Zapisz
+        </button>
+      </header>
+
+      <section class="view" data-view="start" aria-labelledby="start-title">
+        <div class="page-heading page-heading--home">
+          <div>
+            <p class="eyebrow">Piątek, 4 września</p>
+            <h1 id="start-title">Dzień dobry, Bartek.</h1>
+            <p>Wszystko ważne jest pod ręką. Dwie rzeczy wymagają uwagi.</p>
+          </div>
+          <div class="heading-metric" aria-label="24 zapisane przedmioty">
+            <strong>24</strong><span>zapisane<br>przedmioty</span>
+          </div>
+        </div>
+
+        <div class="attention-grid">
+          <article class="attention-card attention-card--urgent">
+            <div class="attention-card__icon"><img class="ui-icon" src="assets/icons/shield-check.svg" alt="" aria-hidden="true"></div>
+            <div>
+              <span class="status-label">Gwarancja · 12 dni</span>
+              <h2>Ekspres Barista Pro</h2>
+              <p>Zachowaj paragon pod ręką przed 16 września.</p>
+            </div>
+            <button class="text-button open-detail" type="button">Sprawdź <img class="ui-icon" src="assets/icons/arrow-right.svg" alt="" aria-hidden="true"></button>
+          </article>
+          <article class="attention-card">
+            <div class="attention-card__icon attention-card__icon--green"><img class="ui-icon" src="assets/icons/tool.svg" alt="" aria-hidden="true"></div>
+            <div>
+              <span class="status-label">Konserwacja · jutro</span>
+              <h2>Oczyszczacz AirCare</h2>
+              <p>Wymiana filtra HEPA · co 6 miesięcy</p>
+            </div>
+            <button class="text-button complete-maintenance" type="button">Wykonane <img class="ui-icon" src="assets/icons/check.svg" alt="" aria-hidden="true"></button>
+          </article>
+        </div>
+
+        <div class="section-heading">
+          <div><span class="eyebrow">Kolekcja</span><h2>Ostatnio zapisane</h2></div>
+          <button class="text-button route-button" type="button" data-route-target="items">Wszystkie 24 <img class="ui-icon" src="assets/icons/arrow-right.svg" alt="" aria-hidden="true"></button>
+        </div>
+
+        <div class="asset-grid asset-grid--home">
+          <article class="asset-card open-detail" tabindex="0" data-search="ekspres barista pro sage kuchnia bes878 srebrny agd">
+            <div class="asset-photo asset-photo--coffee" role="img" aria-label="Ekspres do kawy">
+              <span class="photo-object coffee-machine"><i></i></span>
+              <span class="file-count"><img class="ui-icon" src="assets/icons/files.svg" alt="" aria-hidden="true"> 3</span>
+            </div>
+            <div class="asset-card__body">
+              <span class="asset-meta">Sage · BES878</span>
+              <h3>Ekspres Barista Pro</h3>
+              <div class="asset-card__footer"><span class="tag tag--gold">Kuchnia</span><span class="warranty warning">12 dni gwarancji</span></div>
+            </div>
+          </article>
+
+          <article class="asset-card" tabindex="0" data-search="wiertarko wkrętarka bosch gsr 18v warsztat elektronarzędzie">
+            <div class="asset-photo asset-photo--tool" role="img" aria-label="Wiertarko-wkrętarka">
+              <span class="photo-object drill"><i></i></span>
+              <span class="file-count"><img class="ui-icon" src="assets/icons/files.svg" alt="" aria-hidden="true"> 2</span>
+            </div>
+            <div class="asset-card__body">
+              <span class="asset-meta">Bosch · GSR 18V-55</span>
+              <h3>Wiertarko-wkrętarka</h3>
+              <div class="asset-card__footer"><span class="tag tag--blue">Warsztat</span><span class="warranty ok">Do 2028</span></div>
+            </div>
+          </article>
+
+          <article class="asset-card" tabindex="0" data-search="słuchawki quietcomfort ultra bose elektronika czarne">
+            <div class="asset-photo asset-photo--headphones" role="img" aria-label="Słuchawki">
+              <span class="photo-object headphones"><i></i></span>
+              <span class="file-count"><img class="ui-icon" src="assets/icons/files.svg" alt="" aria-hidden="true"> 1</span>
+            </div>
+            <div class="asset-card__body">
+              <span class="asset-meta">Bose · QC Ultra</span>
+              <h3>Słuchawki QuietComfort</h3>
+              <div class="asset-card__footer"><span class="tag tag--green">Elektronika</span><span class="warranty ok">Do 2027</span></div>
+            </div>
+          </article>
+
+          <button class="quick-card open-capture" type="button">
+            <span class="quick-card__icon"><img class="ui-icon" src="assets/icons/plus.svg" alt="" aria-hidden="true"></span>
+            <strong>Zapisz coś nowego</strong>
+            <small>Zdjęcie, plik albo przedmiot</small>
+          </button>
+        </div>
+
+        <div class="inbox-nudge">
+          <div class="inbox-stack" aria-hidden="true"><span></span><span></span><span></span></div>
+          <div><span class="eyebrow">Skrzynka</span><h2>3 zapisy czekają na uporządkowanie</h2><p>Zajmie Ci to około dwóch minut.</p></div>
+          <button class="button button--light route-button" type="button" data-route-target="inbox">Uporządkuj</button>
+        </div>
+      </section>
+
+      <section class="view is-visible" data-view="items" aria-labelledby="items-title">
+        <div class="page-heading">
+          <div><p class="eyebrow">Twoja kolekcja</p><h1 id="items-title">Przedmioty</h1><p>Rzeczy, urządzenia i cały ich kontekst.</p></div>
+          <button class="button button--primary open-capture" type="button"><img class="ui-icon" src="assets/icons/plus.svg" alt="" aria-hidden="true"> Dodaj przedmiot</button>
+        </div>
+        <div class="collection-toolbar">
+          <div class="filter-chips" aria-label="Filtry">
+            <button class="filter-chip is-active" type="button" data-filter="all">Wszystkie <span>24</span></button>
+            <button class="filter-chip" type="button" data-filter="warning">Wymagają uwagi <span>2</span></button>
+            <button class="filter-chip" type="button" data-filter="draft">Do uzupełnienia <span>3</span></button>
+            <button class="filter-chip" type="button" data-filter="warranty">Na gwarancji <span>18</span></button>
+          </div>
+          <div class="view-controls">
+            <button class="icon-button" type="button" aria-label="Widok kart"><img class="ui-icon" src="assets/icons/grid-dots.svg" alt="" aria-hidden="true"></button>
+            <button class="icon-button is-active" type="button" aria-label="Widok listy"><img class="ui-icon" src="assets/icons/list.svg" alt="" aria-hidden="true"></button>
+            <button class="sort-button" type="button">Ostatnio dodane <img class="ui-icon" src="assets/icons/chevron-down.svg" alt="" aria-hidden="true"></button>
+          </div>
+        </div>
+        <div class="active-query" hidden>
+          Wyniki dla: <strong></strong><button type="button" aria-label="Wyczyść wyszukiwanie"><img class="ui-icon" src="assets/icons/x.svg" alt="" aria-hidden="true"></button>
+        </div>
+        <div class="asset-table-head" aria-hidden="true">
+          <span>Przedmiot</span>
+          <span>Tag</span>
+          <span>Status / gwarancja</span>
+          <span></span>
+        </div>
+        <div class="asset-grid asset-grid--collection" id="asset-collection">
+          <article class="asset-card open-detail" tabindex="0" data-state="warning warranty" data-search="ekspres barista pro sage bes878 kuchnia agd paragon">
+            <div class="asset-type-icon"><img class="ui-icon" src="assets/icons/package.svg" alt="" aria-hidden="true"></div>
+            <div class="asset-card__body"><span class="asset-meta">Sage · BES878</span><h3>Ekspres Barista Pro</h3><div class="asset-card__footer"><span class="tag tag--gold">Kuchnia</span><span class="warranty warning">12 dni</span></div></div>
+          </article>
+          <article class="asset-card" tabindex="0" data-state="warranty" data-search="wiertarko wkrętarka bosch gsr 18v-55 warsztat elektronarzędzie serial 88102">
+            <div class="asset-type-icon"><img class="ui-icon" src="assets/icons/package.svg" alt="" aria-hidden="true"></div>
+            <div class="asset-card__body"><span class="asset-meta">Bosch · GSR 18V-55</span><h3>Wiertarko-wkrętarka</h3><div class="asset-card__footer"><span class="tag tag--blue">Warsztat</span><span class="warranty ok">Do 2028</span></div></div>
+          </article>
+          <article class="asset-card" tabindex="0" data-state="warranty" data-search="słuchawki quietcomfort ultra bose qc elektronika audio">
+            <div class="asset-type-icon"><img class="ui-icon" src="assets/icons/package.svg" alt="" aria-hidden="true"></div>
+            <div class="asset-card__body"><span class="asset-meta">Bose · QC Ultra</span><h3>Słuchawki QuietComfort</h3><div class="asset-card__footer"><span class="tag tag--green">Elektronika</span><span class="warranty ok">Do 2027</span></div></div>
+          </article>
+          <article class="asset-card" tabindex="0" data-state="draft" data-search="router tp-link ax55 elektronika sieć do uzupełnienia">
+            <div class="asset-type-icon"><img class="ui-icon" src="assets/icons/package.svg" alt="" aria-hidden="true"></div>
+            <div class="asset-card__body"><span class="asset-meta">TP-Link · AX55</span><h3>Router domowy</h3><div class="asset-card__footer"><span class="tag tag--green">Elektronika</span><span class="warranty muted">Brak gwarancji</span></div></div>
+          </article>
+          <article class="asset-card" tabindex="0" data-state="warranty" data-search="robot sprzątający roborock q revo salon agd">
+            <div class="asset-type-icon"><img class="ui-icon" src="assets/icons/package.svg" alt="" aria-hidden="true"></div>
+            <div class="asset-card__body"><span class="asset-meta">Roborock · Q Revo</span><h3>Robot sprzątający</h3><div class="asset-card__footer"><span class="tag tag--gray">Salon</span><span class="warranty ok">Do 2027</span></div></div>
+          </article>
+          <article class="asset-card" tabindex="0" data-state="draft" data-search="lampa biurkowa xiaomi biuro do uzupełnienia">
+            <div class="asset-type-icon"><img class="ui-icon" src="assets/icons/package.svg" alt="" aria-hidden="true"></div>
+            <div class="asset-card__body"><span class="asset-meta">Xiaomi · brak modelu</span><h3>Lampa biurkowa</h3><div class="asset-card__footer"><span class="tag tag--gray">Biuro</span><span class="warranty muted">Brak danych</span></div></div>
+          </article>
+          <div class="empty-results" hidden><span><img class="ui-icon" src="assets/icons/search.svg" alt="" aria-hidden="true"></span><h2>Nic tu nie pasuje</h2><p>Spróbuj fragmentu nazwy, producenta, modelu albo numeru seryjnego.</p><button class="button button--light clear-search" type="button">Wyczyść wyszukiwanie</button></div>
+        </div>
+      </section>
+
+      <section class="view" data-view="detail" aria-labelledby="detail-title">
+        <button class="back-button route-button" type="button" data-route-target="items"><img class="ui-icon" src="assets/icons/arrow-left.svg" alt="" aria-hidden="true"> Wróć do przedmiotów</button>
+        <div class="detail-hero">
+          <div class="detail-photo asset-photo--coffee"><span class="photo-object coffee-machine coffee-machine--large"><i></i></span><button class="photo-expand" type="button" aria-label="Powiększ zdjęcie"><img class="ui-icon" src="assets/icons/external-link.svg" alt="" aria-hidden="true"></button></div>
+          <div class="detail-title">
+            <div class="detail-flags"><span class="tag tag--gold">Kuchnia</span><span class="status-pill status-pill--warning">Gwarancja kończy się za 12 dni</span></div>
+            <p class="eyebrow">Sage · BES878</p>
+            <h1 id="detail-title">Ekspres Barista Pro</h1>
+            <p class="detail-description">Codzienny ekspres w kuchni. Kupiony w Media Expert.</p>
+            <div class="detail-actions"><button class="button button--primary" type="button">Edytuj</button><button class="button button--light" type="button"><img class="ui-icon" src="assets/icons/dots.svg" alt="" aria-hidden="true"> Więcej</button></div>
+          </div>
+        </div>
+        <div class="detail-layout">
+          <div class="detail-main">
+            <section class="panel">
+              <div class="panel-heading"><div><span class="eyebrow">Informacje</span><h2>Dane przedmiotu</h2></div><button class="text-button" type="button">Edytuj</button></div>
+              <dl class="details-grid">
+                <div><dt>Producent</dt><dd>Sage</dd></div><div><dt>Model</dt><dd>BES878</dd></div>
+                <div><dt>Numer seryjny</dt><dd><code>SES878BSS4EEU1</code> <button class="copy-button" type="button" data-copy="SES878BSS4EEU1">Kopiuj</button></dd></div>
+                <div><dt>Ilość</dt><dd>1 szt.</dd></div><div><dt>Data zakupu</dt><dd>16.09.2024</dd></div><div><dt>Cena</dt><dd>2 799,00 zł</dd></div>
+              </dl>
+            </section>
+            <section class="panel">
+              <div class="panel-heading"><div><span class="eyebrow">Dokumenty</span><h2>Pliki <span class="subtle-count">3</span></h2></div><button class="text-button" type="button"><img class="ui-icon" src="assets/icons/plus.svg" alt="" aria-hidden="true"> Dodaj plik</button></div>
+              <div class="file-list">
+                <article class="file-row"><span class="file-thumb file-thumb--receipt"><img class="ui-icon" src="assets/icons/receipt.svg" alt="" aria-hidden="true"></span><div><strong>Paragon — Media Expert</strong><small>Paragon · PDF · 284 KB</small></div><button class="icon-button" type="button" aria-label="Pobierz paragon"><img class="ui-icon" src="assets/icons/download.svg" alt="" aria-hidden="true"></button></article>
+                <article class="file-row"><span class="file-thumb file-thumb--manual"><img class="ui-icon" src="assets/icons/file-text.svg" alt="" aria-hidden="true"></span><div><strong>Instrukcja BES878 PL</strong><small>Instrukcja · PDF · 4,2 MB</small></div><button class="icon-button" type="button" aria-label="Pobierz instrukcję"><img class="ui-icon" src="assets/icons/download.svg" alt="" aria-hidden="true"></button></article>
+                <article class="file-row"><span class="file-thumb file-thumb--photo"><img class="ui-icon" src="assets/icons/photo.svg" alt="" aria-hidden="true"></span><div><strong>Tabliczka znamionowa</strong><small>Zdjęcie · JPG · 1,8 MB</small></div><button class="icon-button" type="button" aria-label="Pobierz zdjęcie"><img class="ui-icon" src="assets/icons/download.svg" alt="" aria-hidden="true"></button></article>
+              </div>
+            </section>
+            <section class="panel">
+              <div class="panel-heading"><div><span class="eyebrow">Historia</span><h2>Konserwacja</h2></div><button class="text-button" type="button"><img class="ui-icon" src="assets/icons/plus.svg" alt="" aria-hidden="true"> Dodaj plan</button></div>
+              <div class="maintenance-row"><span class="maintenance-icon"><img class="ui-icon" src="assets/icons/tool.svg" alt="" aria-hidden="true"></span><div><strong>Odkamienianie ekspresu</strong><small>Co 3 miesiące · następne 21.10.2026</small></div><button class="button button--compact complete-maintenance" type="button">Oznacz wykonane</button></div>
+              <div class="history-line"><span></span><div><strong>21.07.2026</strong><p>Odkamienianie wykonane · kwasek cytrynowy</p></div></div>
+            </section>
+          </div>
+          <aside class="detail-aside">
+            <section class="warranty-card">
+              <div class="warranty-card__dial"><strong>12</strong><span>dni</span></div>
+              <span class="eyebrow">Gwarancja</span><h2>Do 16 września 2026</h2><p>Pełna gwarancja producenta. Wymagany paragon.</p>
+              <button class="button button--light" type="button">Otwórz paragon</button>
+            </section>
+            <section class="notes-card"><div class="panel-heading"><h2>Notatka</h2><button class="text-button" type="button">Edytuj</button></div><p>Filtr wody: ClaroSwiss. Młynek ustawiony na poziom 8.</p></section>
+            <a class="external-link" href="#" onclick="return false"><span><img class="ui-icon" src="assets/icons/external-link.svg" alt="" aria-hidden="true"></span><div><strong>Strona produktu</strong><small>sageappliances.com</small></div></a>
+          </aside>
+        </div>
+      </section>
+
+      <section class="view" data-view="timeline" aria-labelledby="timeline-title">
+        <div class="page-heading"><div><p class="eyebrow">Nie musisz pamiętać</p><h1 id="timeline-title">Terminy</h1><p>Gwarancje i dbanie o rzeczy w jednym widoku.</p></div><button class="button button--light" type="button">Widok kalendarza</button></div>
+        <div class="timeline-stats"><div class="stat-card stat-card--red"><strong>1</strong><span>zaległy</span></div><div class="stat-card stat-card--amber"><strong>2</strong><span>w ciągu 30 dni</span></div><div class="stat-card"><strong>7</strong><span>później</span></div></div>
+        <div class="timeline-group"><div class="timeline-group__label"><span></span><strong>Zaległe</strong><small>1</small></div>
+          <article class="timeline-item"><div class="date-tile date-tile--red"><strong>02</strong><span>WRZ</span></div><div class="timeline-item__body"><span class="status-label">Konserwacja · 2 dni temu</span><h2>Wyczyść filtr w okapie</h2><p>Okap kuchenny · co 2 miesiące</p></div><button class="button button--compact complete-maintenance" type="button">Wykonane</button></article>
+        </div>
+        <div class="timeline-group"><div class="timeline-group__label"><span></span><strong>Najbliższe 30 dni</strong><small>2</small></div>
+          <article class="timeline-item"><div class="date-tile"><strong>05</strong><span>WRZ</span></div><div class="timeline-item__body"><span class="status-label">Konserwacja · jutro</span><h2>Wymiana filtra HEPA</h2><p>Oczyszczacz AirCare · co 6 miesięcy</p></div><button class="button button--compact complete-maintenance" type="button">Wykonane</button></article>
+          <article class="timeline-item open-detail"><div class="date-tile date-tile--amber"><strong>16</strong><span>WRZ</span></div><div class="timeline-item__body"><span class="status-label">Koniec gwarancji · 12 dni</span><h2>Ekspres Barista Pro</h2><p>Sage · BES878</p></div><button class="button button--compact button--light" type="button">Szczegóły</button></article>
+        </div>
+        <div class="timeline-group"><div class="timeline-group__label"><span></span><strong>Później</strong><small>7</small></div>
+          <article class="timeline-item"><div class="date-tile date-tile--quiet"><strong>21</strong><span>PAŹ</span></div><div class="timeline-item__body"><span class="status-label">Konserwacja</span><h2>Odkamienianie ekspresu</h2><p>Ekspres Barista Pro · co 3 miesiące</p></div><button class="button button--compact button--light" type="button">Zmień</button></article>
+        </div>
+      </section>
+
+      <section class="view" data-view="inbox" aria-labelledby="inbox-title">
+        <div class="page-heading"><div><p class="eyebrow">Zapisane na szybko</p><h1 id="inbox-title">Skrzynka</h1><p>Najpierw zachowaj. Uporządkuj wtedy, kiedy masz chwilę.</p></div><button class="button button--primary open-capture" type="button"><img class="ui-icon" src="assets/icons/plus.svg" alt="" aria-hidden="true"> Zapisz coś</button></div>
+        <div class="inbox-progress"><div><strong>3 elementy</strong><span>około 2 minuty pracy</span></div><div class="progress-track"><span style="width: 42%"></span></div><small>5 uporządkowanych w tym tygodniu</small></div>
+        <div class="inbox-list">
+          <article class="inbox-item"><div class="inbox-preview inbox-preview--receipt"><span>PARAGON</span></div><div class="inbox-item__body"><span class="status-label">Zdjęcie · dziś, 10:24</span><h2>Paragon z RTV Euro AGD</h2><p>Nieprzypisany plik</p><div class="inbox-actions"><button class="button button--compact button--primary" type="button">Przypisz do przedmiotu</button><button class="text-button" type="button">Utwórz nowy</button></div></div></article>
+          <article class="inbox-item"><div class="inbox-preview inbox-preview--box"><span>?</span></div><div class="inbox-item__body"><span class="status-label">Szkic · wczoraj</span><h2>Nowy czajnik</h2><p>Brakuje producenta, modelu i danych zakupu</p><div class="inbox-actions"><button class="button button--compact button--primary" type="button">Uzupełnij 3 pola</button><button class="text-button" type="button">Zostaw na później</button></div></div></article>
+          <article class="inbox-item"><div class="inbox-preview inbox-preview--manual"><span>PDF</span></div><div class="inbox-item__body"><span class="status-label">Plik · 1 września</span><h2>instrukcja_pl.pdf</h2><p>System podpowiada: Robot sprzątający</p><div class="inbox-actions"><button class="button button--compact button--primary" type="button">Połącz z robotem</button><button class="text-button" type="button">Wybierz inny</button></div></div></article>
+        </div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="Nawigacja mobilna">
+      <a href="#start" data-route="start"><span><img class="ui-icon" src="assets/icons/home.svg" alt="" aria-hidden="true"></span>Start</a>
+      <a class="is-active" href="#items" data-route="items"><span><img class="ui-icon" src="assets/icons/package.svg" alt="" aria-hidden="true"></span>Przedmioty</a>
+      <button class="mobile-capture open-capture" type="button" aria-label="Zapisz coś"><img class="ui-icon" src="assets/icons/plus.svg" alt="" aria-hidden="true"></button>
+      <a href="#timeline" data-route="timeline"><span><img class="ui-icon" src="assets/icons/calendar-event.svg" alt="" aria-hidden="true"></span>Terminy</a>
+      <a href="#inbox" data-route="inbox"><span><img class="ui-icon" src="assets/icons/inbox.svg" alt="" aria-hidden="true"></span>Skrzynka</a>
+    </nav>
+  </div>
+
+  <dialog class="capture-dialog" id="capture-dialog">
+    <form method="dialog" class="capture-sheet">
+      <header class="capture-header"><div><span class="eyebrow">Szybki zapis</span><h1>Zachowaj to teraz</h1></div><button class="close-button" value="cancel" aria-label="Zamknij"><img class="ui-icon" src="assets/icons/x.svg" alt="" aria-hidden="true"></button></header>
+      <p class="capture-intro">Wystarczy zdjęcie albo nazwa. Resztę możesz uzupełnić później.</p>
+      <div class="capture-options">
+        <button class="capture-option fake-upload" type="button"><span class="capture-option__icon"><img class="ui-icon" src="assets/icons/camera.svg" alt="" aria-hidden="true"></span><strong>Zrób zdjęcie</strong><small>Aparat telefonu</small></button>
+        <button class="capture-option fake-upload" type="button"><span class="capture-option__icon"><img class="ui-icon" src="assets/icons/upload.svg" alt="" aria-hidden="true"></span><strong>Wybierz plik</strong><small>Zdjęcie lub PDF</small></button>
+      </div>
+      <div class="or-divider"><span>albo dodaj ręcznie</span></div>
+      <label class="field"><span>Nazwa przedmiotu</span><input id="capture-name" type="text" placeholder="np. Ekspres do kawy"></label>
+      <details class="more-fields">
+        <summary>Dodaj szczegóły <span>opcjonalnie</span></summary>
+        <div class="field-row"><label class="field"><span>Producent</span><input type="text" placeholder="np. Sage"></label><label class="field"><span>Model</span><input type="text" placeholder="np. BES878"></label></div>
+        <label class="field"><span>Numer seryjny</span><input type="text" placeholder="Znajdziesz go na tabliczce znamionowej"></label>
+      </details>
+      <div class="upload-demo" hidden><div class="upload-demo__thumb">JPG</div><div><strong>IMG_2841.HEIC</strong><span>Wysyłanie… <b>0%</b></span><div class="progress-track"><i></i></div></div><button type="button" aria-label="Anuluj upload"><img class="ui-icon" src="assets/icons/x.svg" alt="" aria-hidden="true"></button></div>
+      <footer class="capture-footer"><button class="button button--ghost" value="cancel">Anuluj</button><button class="button button--primary save-draft" type="button">Zapisz szkic</button></footer>
+    </form>
+  </dialog>
+
+  <div class="toast" role="status" aria-live="polite"><span><img class="ui-icon" src="assets/icons/check.svg" alt="" aria-hidden="true"></span><div><strong>Zapisano</strong><small></small></div></div>
+  <script src="app.js"></script>
+</body>
+</html>

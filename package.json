@@ -1,0 +1,14 @@
+{
+  "name": "boberit",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": ["apps/*", "packages/*"],
+  "engines": { "node": ">=22.12.0" },
+  "scripts": {
+    "build": "npm run build --workspace @boberit/shared && npm run build --workspace @boberit/web && npm run build --workspace @boberit/server",
+    "check": "npm run check --workspace @boberit/shared && npm run check --workspace @boberit/web && npm run check --workspace @boberit/server",
+    "dev:web": "npm run dev --workspace @boberit/web",
+    "dev:api": "npm run dev --workspace @boberit/server",
+    "start": "npm run start --workspace @boberit/server"
+  }
+}

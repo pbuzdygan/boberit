@@ -1,0 +1,14 @@
+node_modules
+**/node_modules
+**/dist
+.git
+.github
+data
+prototype
+docs
+branding/*
+.env
+.env.*
+*.md
+compose*.yaml
+compose*.yml

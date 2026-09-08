@@ -1,0 +1,15 @@
+services:
+  boberit:
+    build:
+      context: .
+    user: "${PUID:-1000}:${PGID:-1000}"
+    ports:
+      - "${APP_PORT:-3219}:3000"
+    environment:
+      APP_ENC_KEY: ${APP_ENC_KEY:?Ustaw APP_ENC_KEY, np. openssl rand -hex 32}
+    volumes:
+      - boberit-data:/data
+    restart: unless-stopped
+
+volumes:
+  boberit-data:

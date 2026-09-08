@@ -1,0 +1,16 @@
+{
+  "name": "Boberit",
+  "short_name": "Boberit",
+  "description": "Jedno miejsce dla rzeczy, dokumentów, gwarancji i terminów.",
+  "lang": "pl",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f9fe",
+  "theme_color": "#00102f",
+  "icons": [
+    { "src": "/branding/icon-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/branding/icon-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/branding/icon-192x192-maskable.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/branding/icon-512x512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
