@@ -51,5 +51,5 @@ Zmiany opisujemy z perspektywy użytkownika, bez szczegółów implementacyjnych
 ### Distribution
 
 - Obrazy kontenerowe są budowane wyłącznie po opublikowaniu GitHub Release.
-- Release z `main` publikuje `latest` i tag wersji `vX.Y.Z`.
-- Prerelease z `dev` publikuje `dev_latest` i tag `vX.Y.Z-dev.N`, bez modyfikowania tagów produkcyjnych.
+- Release z `main` publikuje `latest` i tag wersji `X.Y.Z`.
+- Prerelease z `dev` publikuje `dev_latest` i tag `devX.Y.Z`, bez modyfikowania tagów produkcyjnych.

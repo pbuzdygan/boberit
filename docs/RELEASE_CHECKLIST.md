@@ -11,7 +11,7 @@
 - [x] Brak niezdefiniowanych zmiennych kolorów CSS.
 - [x] `APP_ENC_KEY` jest wymagany, nie jest zapisany w Compose, a `.env` nie trafia do Git ani kontekstu obrazu.
 - [x] Dokumentacja wdrożenia i changelog odpowiadają zakresowi 0.1.0.
-- [x] Obrazy Docker są budowane wyłącznie po publikacji Release, oddzielnie dla `main` i `dev`.
+- [x] Obrazy Docker są budowane wyłącznie po publikacji Release, z odseparowanymi kanałami `main` i `dev`.
 
 ## Akceptacja ręczna przed oznaczeniem wydania
 

@@ -63,10 +63,10 @@ docker compose up -d
 
 Obrazy kontenerowe są budowane wyłącznie po opublikowaniu GitHub Release. Zwykłe commity i pushe nie uruchamiają budowania obrazu.
 
-- `main`: release produkcyjny `vX.Y.Z` publikuje tagi `latest` i `vX.Y.Z`.
-- `dev`: prerelease `vX.Y.Z-dev.N` publikuje tagi `dev_latest` i `vX.Y.Z-dev.N`.
+- `main`: release produkcyjny `X.Y.Z` publikuje tagi `latest` i `X.Y.Z`.
+- `dev`: prerelease `devX.Y.Z` publikuje tagi `dev_latest` i `devX.Y.Z`.
 
-Obie gałęzie korzystają z oddzielnych workflow i oddzielnych zakresów cache. Szczegółowa procedura oraz wymagane ustawienia GHCR znajdują się w [instrukcji wydań](docs/GITHUB_RELEASES.md).
+Jeden workflow rozpoznaje gałąź docelową Release, ale używa rozdzielonych tagów i zakresów cache dla `main` oraz `dev`. Plik workflow musi być obecny na domyślnej gałęzi `main`, także przed publikacją prerelease z `dev`. Szczegółowa procedura oraz wymagane ustawienia GHCR znajdują się w [instrukcji wydań](docs/GITHUB_RELEASES.md).
 
 ## Materiały projektu
 
