@@ -1,5 +1,9 @@
 import sharp from 'sharp';
 
+// Bound libvips memory on small home servers after large phone photos.
+sharp.cache({ memory: 16, files: 0, items: 32 });
+sharp.concurrency(1);
+
 const imageTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const maxImageDimension = 2000;
 const jpegQuality = 84;

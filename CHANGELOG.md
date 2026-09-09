@@ -24,10 +24,13 @@ Zmiany opisujemy z perspektywy użytkownika, bez szczegółów implementacyjnych
 
 ### Improvements
 
-- Start pokazuje liczbę zapisanych przedmiotów, dokumentów i miejsce wykorzystane przez aktywne gospodarstwo.
+- Ustawienie daty zakupu może automatycznie przygotować dwuletnią gwarancję z określoną datą.
+- Edycja przedmiotu ostrzega przed opuszczeniem widoku z niezapisanymi zmianami.
+- Start pokazuje liczbę zapisanych przedmiotów i dokumentów, wykorzystane miejsce oraz sumę wartości zakupów aktywnego gospodarstwa.
 - Sekcje „Wymagają uwagi” i „Ostatnio zapisane” wykorzystują dwukolumnowy układ na szerokim ekranie oraz spójne, kompaktowe wiersze.
 - Centrum powiadomień pokazuje terminy przypadające na dzisiaj i historię działań UI, a czerwony znacznik znika po odczytaniu dzisiejszych pozycji.
 - Komunikaty po operacjach znikają automatycznie po trzech sekundach.
+- Obróbka zdjęć i OCR ma ograniczoną równoległość oraz pamięć podręczną, aby stabilniej działać na serwerach z mniejszą ilością RAM.
 - Nawigacja używa kolejności Start, Przedmioty, Dokumenty, Terminy i Do przypisania; Kosz znajduje się przy Ustawieniach.
 - Filtry Przedmiotów pokazują liczby pasujących rekordów i są wyrównane do lewej.
 - Dokumenty mają kompaktowe wiersze, czytelne statusy OCR i licznik zaległych operacji OCR.
@@ -38,6 +41,7 @@ Zmiany opisujemy z perspektywy użytkownika, bez szczegółów implementacyjnych
 
 ### Bug fixes
 
+- Układ szczegółów przedmiotu nie nachodzi na pola formularza przy pośrednich szerokościach ekranu.
 - Załączniki dodawane podczas tworzenia przedmiotu lub dokumentu są prawidłowo przypisywane do utworzonego obiektu również w widoku mobilnym.
 - Wykonanie konserwacji zapisuje historię, wylicza kolejny termin planu cyklicznego i usuwa zakończony termin jednorazowy z listy zadań.
 - Usunięcie pliku dokumentu aktualizuje tekst OCR, dzięki czemu usunięta treść nie pozostaje w wynikach wyszukiwania.
@@ -50,6 +54,7 @@ Zmiany opisujemy z perspektywy użytkownika, bez szczegółów implementacyjnych
 
 ### Distribution
 
+- Obrazy wydań zawierają SBOM i informacje o pochodzeniu oraz są sprawdzane pod kątem podatności HIGH i CRITICAL dla AMD64 i ARM64.
 - Obrazy kontenerowe są budowane wyłącznie po opublikowaniu GitHub Release.
 - Release z `main` publikuje `latest` i tag wersji `X.Y.Z`.
 - Prerelease z `dev` publikuje `dev_latest` i tag `devX.Y.Z`, bez modyfikowania tagów produkcyjnych.

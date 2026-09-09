@@ -24,6 +24,18 @@ function formatDate(value: string | null): string {
   return value ? new Intl.DateTimeFormat('pl-PL', { year: 'numeric', month: 'short', day: 'numeric' }).format(new Date(`${value}T12:00:00`)) : '—';
 }
 
+function addYearsToDate(value: string, years: number): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return '';
+  const year = Number(value.slice(0, 4));
+  const month = Number(value.slice(5, 7));
+  const day = Number(value.slice(8, 10));
+  const targetYear = year + years;
+  const lastDay = new Date(Date.UTC(targetYear, month, 0)).getUTCDate();
+  return [targetYear, String(month).padStart(2, '0'), String(Math.min(day, lastDay)).padStart(2, '0')].join('-');
+}
+
+const unsavedAssetMessage = 'Masz niezapisane zmiany w tym przedmiocie. Opuścić widok i je odrzucić?';
+
 const webhookEventLabels: Record<string, string> = {
   'asset.created': 'Utworzono przedmiot',
   'asset.deleted': 'Usunięto przedmiot',
@@ -46,6 +58,7 @@ type TimelineFilter = 'all' | 'maintenance' | 'warranty';
 type CollectionFilter = 'all' | 'warranty' | 'draft';
 type ReminderEntry = { id: string; dueOn: string; kind: 'warranty' | 'maintenance'; asset: AssetSummary; plan?: MaintenancePlan };
 type UiNotification = { id: string; message: string; createdAt: number };
+type PurchaseValue = { currency: string; amountMinor: number };
 
 function localDateKey(): string { const now = new Date(); return [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-'); }
 
@@ -58,10 +71,12 @@ export function App() {
   const [inboxFiles, setInboxFiles] = useState<InboxFile[]>([]);
   const [documents, setDocuments] = useState<BinderDocument[]>([]);
   const [storageBytes, setStorageBytes] = useState(0);
+  const [purchaseValues, setPurchaseValues] = useState<PurchaseValue[]>([]);
   const [selectedDocument, setSelectedDocument] = useState<BinderDocument | null>(null);
   const [trashEntries, setTrashEntries] = useState<TrashEntry[]>([]);
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<AssetSummary | null>(null);
+  const [hasUnsavedAssetChanges, setHasUnsavedAssetChanges] = useState(false);
   const [isQuickAddOpen, setQuickAddOpen] = useState(false);
   const [isLoading, setLoading] = useState(true);
   const [message, setMessageValue] = useState<string | null>(null);
@@ -93,7 +108,7 @@ export function App() {
     try {
       const [response, inboxResponse, documentsResponse, trashResponse, storageResponse] = await Promise.all([api.listAssets(search), api.listInbox(), api.listDocuments(search), api.listTrash(), api.storage()]);
       if (sequence !== refreshSequence.current) return;
-      setAssets(response.data); setInboxFiles(inboxResponse.data); setDocuments(documentsResponse.data); setTrashEntries(trashResponse.data); setStorageBytes(Number(storageResponse.data.bytes));
+      setAssets(response.data); setInboxFiles(inboxResponse.data); setDocuments(documentsResponse.data); setTrashEntries(trashResponse.data); setStorageBytes(Number(storageResponse.data.bytes)); setPurchaseValues(storageResponse.data.purchaseValues ?? []);
       setSelectedDocument((current) => current ? documentsResponse.data.find((document) => document.id === current.id) ?? current : null);
       if (selected) {
         const selectedResponse = await api.getAsset(selected.id);
@@ -105,9 +120,42 @@ export function App() {
   }
 
   useEffect(() => { const loadHouseholds=()=>void api.households().then(r=>{setHouseholds(r.data.households);setActiveHouseholdId(r.data.activeHouseholdId);}).catch(()=>undefined); setAccessToken(accessToken); if (accessToken) { void refresh(''); loadHouseholds(); void api.me().then(r=>setAccount(r.data)).catch(()=>setAccount(null)); window.addEventListener('boberit-households-changed',loadHouseholds); } return ()=>window.removeEventListener('boberit-households-changed',loadHouseholds); }, [accessToken]);
-  async function switchHousehold(id:string) { try { await api.selectHousehold(id); setActiveHouseholdId(id); setSelected(null); setView('start'); await refresh(''); setMessage('Przełączono gospodarstwo.'); } catch (error) { setMessage(error instanceof Error ? error.message : 'Nie udało się przełączyć gospodarstwa.'); } }
-  async function logout(){try{await api.logout();}catch{/* Local removal is still safer after a network error. */}sessionStorage.removeItem('boberit-session');setAccessToken(null);setAccount(null);setToken(null);setSelected(null);setAssets([]);setDocuments([]);setStorageBytes(0);setSelectedDocument(null);setInboxFiles([]);setTrashEntries([]);}
-  function openAccount(section:AccountSection){setAccountSection(section);setSelected(null);setView('account');}
+  function allowDiscardAssetChanges(): boolean {
+    if (!selected || !hasUnsavedAssetChanges) return true;
+    if (!window.confirm(unsavedAssetMessage)) return false;
+    setHasUnsavedAssetChanges(false);
+    return true;
+  }
+
+  function navigateTo(next: View): boolean {
+    if (!allowDiscardAssetChanges()) return false;
+    setSelected(null);
+    setView(next);
+    return true;
+  }
+
+  function openQuickAdd() {
+    if (!allowDiscardAssetChanges()) return;
+    if (selected) {
+      setSelected(null);
+      setView('items');
+    }
+    setQuickAddOpen(true);
+  }
+
+  function updateSearch(value: string) {
+    if (value && selected) {
+      if (!allowDiscardAssetChanges()) return;
+      setSelected(null);
+    }
+    if (value && !query) searchOriginRef.current = view === 'search' ? searchOriginRef.current : view;
+    setQuery(value);
+    setView(value ? 'search' : searchOriginRef.current);
+  }
+
+  async function switchHousehold(id:string) { if (!allowDiscardAssetChanges()) return; try { await api.selectHousehold(id); setActiveHouseholdId(id); setSelected(null); setView('start'); await refresh(''); setMessage('Przełączono gospodarstwo.'); } catch (error) { setMessage(error instanceof Error ? error.message : 'Nie udało się przełączyć gospodarstwa.'); } }
+  async function logout(){if (!allowDiscardAssetChanges()) return; try{await api.logout();}catch{/* Local removal is still safer after a network error. */}sessionStorage.removeItem('boberit-session');setAccessToken(null);setAccount(null);setToken(null);setSelected(null);setAssets([]);setDocuments([]);setStorageBytes(0);setPurchaseValues([]);setSelectedDocument(null);setInboxFiles([]);setTrashEntries([]);}
+  function openAccount(section:AccountSection){if (navigateTo('account')) setAccountSection(section);}
 
   useEffect(() => {
     if (!accessToken) return;
@@ -122,6 +170,16 @@ export function App() {
     const timeout = window.setTimeout(() => setMessage(null), 3_000);
     return () => window.clearTimeout(timeout);
   }, [message]);
+
+  useEffect(() => {
+    if (!hasUnsavedAssetChanges) return;
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warnBeforeUnload);
+    return () => window.removeEventListener('beforeunload', warnBeforeUnload);
+  }, [hasUnsavedAssetChanges]);
 
   useEffect(() => {
     function focusSearch(event: KeyboardEvent) {
@@ -144,6 +202,10 @@ export function App() {
   const collectionAssets = useMemo(() => assets.filter((asset) => filter === 'all' || (filter === 'warranty' && asset.warranty && asset.warranty.kind !== 'unknown') || (filter === 'draft' && asset.completeness !== 'complete')), [assets, filter]);
 
   async function openDetail(id: string) {
+    if (selected?.id !== id) {
+      if (!allowDiscardAssetChanges()) return;
+      setSelected(null);
+    }
     try { setSelected((await api.getAsset(id)).data); } catch (error) { setMessage(error instanceof Error ? error.message : 'Nie udało się otworzyć przedmiotu.'); }
   }
   async function quickAdd(kind: 'asset' | 'document', input: CreateAssetInput | CreateBinderDocumentInput, files: File[]) {
@@ -230,43 +292,43 @@ export function App() {
 
   return <div className="app-shell">
     <aside className="sidebar">
-      <button className="brand" type="button" onClick={() => { setSelected(null); setView('start'); }}><img src="/branding/boberit-icon.png" alt="" /><strong>Boberit</strong></button>
+      <button className="brand" type="button" onClick={() => { void navigateTo('start'); }}><img src="/branding/boberit-icon.png" alt="" /><strong>Boberit</strong></button>
       <nav aria-label="Nawigacja główna">
-        <button className={`nav-item ${view === "start" && !selected ? "active" : ""}`} type="button" onClick={() => { setSelected(null); setView("start"); }}><Icon name="home" /> Start</button>
-        <button className={`nav-item ${view === "items" || selected ? "active" : ""}`} type="button" onClick={() => { setSelected(null); setView("items"); }}><Icon name="package" /> Przedmioty <span>{assets.length}</span></button>
-        <button className={`nav-item ${["binder", "document-ocr"].includes(view) && !selected ? "active" : ""}`} type="button" onClick={() => { setSelected(null); setView("binder"); }}><Icon name="file-text" /> Dokumenty <span>{documents.length}</span></button>
-        <button className={`nav-item ${view === "timeline" && !selected ? "active" : ""}`} type="button" onClick={() => { setSelected(null); setView("timeline"); }}><Icon name="calendar-event" /> Terminy</button>
-        <button className={`nav-item ${view === "inbox" && !selected ? "active" : ""}`} type="button" onClick={() => { setSelected(null); setView("inbox"); }}><Icon name="file-text" /> Do przypisania <span>{inboxFiles.length}</span></button>
+        <button className={`nav-item ${view === "start" && !selected ? "active" : ""}`} type="button" onClick={() => { void navigateTo('start'); }}><Icon name="home" /> Start</button>
+        <button className={`nav-item ${view === "items" || selected ? "active" : ""}`} type="button" onClick={() => { void navigateTo('items'); }}><Icon name="package" /> Przedmioty <span>{assets.length}</span></button>
+        <button className={`nav-item ${["binder", "document-ocr"].includes(view) && !selected ? "active" : ""}`} type="button" onClick={() => { void navigateTo('binder'); }}><Icon name="file-text" /> Dokumenty <span>{documents.length}</span></button>
+        <button className={`nav-item ${view === "timeline" && !selected ? "active" : ""}`} type="button" onClick={() => { void navigateTo('timeline'); }}><Icon name="calendar-event" /> Terminy</button>
+        <button className={`nav-item ${view === "inbox" && !selected ? "active" : ""}`} type="button" onClick={() => { void navigateTo('inbox'); }}><Icon name="file-text" /> Do przypisania <span>{inboxFiles.length}</span></button>
       </nav>
       <div className="sidebar-footer">
-        <button className={`nav-item ${view === "trash" && !selected ? "active" : ""}`} type="button" onClick={() => { setSelected(null); setView("trash"); }}><Icon name="trash" /> Kosz <span>{trashEntries.length}</span></button>
-        <button className={`nav-item sidebar-settings ${view === "settings" && !selected ? "active" : ""}`} type="button" onClick={() => { setSelected(null); setView("settings"); }}><Icon name="dots" /> Ustawienia</button>
+        <button className={`nav-item ${view === "trash" && !selected ? "active" : ""}`} type="button" onClick={() => { void navigateTo('trash'); }}><Icon name="trash" /> Kosz <span>{trashEntries.length}</span></button>
+        <button className={`nav-item sidebar-settings ${view === "settings" && !selected ? "active" : ""}`} type="button" onClick={() => { void navigateTo('settings'); }}><Icon name="dots" /> Ustawienia</button>
       </div>
     </aside>
     <nav className="mobile-nav" aria-label="Nawigacja mobilna">
-      <button className={view === 'start' && !selected ? 'active' : ''} onClick={() => { setSelected(null); setView('start'); }} type="button"><Icon name="home" /><span>Start</span></button>
-      <button className={view === 'items' || selected ? 'active' : ''} onClick={() => { setSelected(null); setView('items'); }} type="button"><Icon name="package" /><span>Przedmioty</span></button>
-      <button className="mobile-add" aria-label="Dodaj przedmiot lub dokument" onClick={() => setQuickAddOpen(true)} type="button"><span><Icon name="plus" /></span><b>Dodaj</b></button>
-      <button className={['binder', 'document-ocr'].includes(view) && !selected ? 'active' : ''} onClick={() => { setSelected(null); setView('binder'); }} type="button"><Icon name="file-text" /><span>Dokumenty</span></button>
+      <button className={view === 'start' && !selected ? 'active' : ''} onClick={() => { void navigateTo('start'); }} type="button"><Icon name="home" /><span>Start</span></button>
+      <button className={view === 'items' || selected ? 'active' : ''} onClick={() => { void navigateTo('items'); }} type="button"><Icon name="package" /><span>Przedmioty</span></button>
+      <button className="mobile-add" aria-label="Dodaj przedmiot lub dokument" onClick={openQuickAdd} type="button"><span><Icon name="plus" /></span><b>Dodaj</b></button>
+      <button className={['binder', 'document-ocr'].includes(view) && !selected ? 'active' : ''} onClick={() => { void navigateTo('binder'); }} type="button"><Icon name="file-text" /><span>Dokumenty</span></button>
       <button className={['timeline','inbox','trash','settings'].includes(view) && !selected ? 'active' : ''} onClick={() => setMobileMenuOpen(true)} type="button"><Icon name="dots" /><span>Więcej</span></button>
     </nav>
 
     <main>
       <header className="topbar">
-        <label className="search"><Icon name="search" /><input ref={searchInputRef} aria-label="Szukaj w Boberit" value={query} onChange={(event) => { const value = event.target.value; if (value && !query) searchOriginRef.current = view === "search" ? searchOriginRef.current : view; setQuery(value); setView(value ? "search" : searchOriginRef.current); }} placeholder="Szukaj nazwy, modelu, serialu, tagu…" /><kbd>/</kbd></label>
+        <label className="search"><Icon name="search" /><input ref={searchInputRef} aria-label="Szukaj w Boberit" value={query} onChange={(event) => updateSearch(event.target.value)} placeholder="Szukaj nazwy, modelu, serialu, tagu…" /><kbd>/</kbd></label>
         <div className="topbar-actions">
-          <button className="primary topbar-save" type="button" onClick={() => setQuickAddOpen(true)}><Icon name="plus" /> Dodaj</button>
+          <button className="primary topbar-save" type="button" onClick={openQuickAdd}><Icon name="plus" /> Dodaj</button>
           <NotificationsMenu hasUnreadToday={hasUnreadToday} history={notifications} onOpenAsset={(id) => void openDetail(id)} onReadToday={markTodayRead} todayReminders={todayReminders} />
           <AccountMenu account={account} active={view==='account'} activeHouseholdId={activeHouseholdId} avatarInitials={avatarInitials} households={households} onLogout={logout} onSelect={openAccount} onSwitch={switchHousehold}/>
         </div>
       </header>
       <section className="content">
-        {selected ? <Detail asset={selected} onBack={() => { setSelected(null); setView('items'); }} onTrash={trashAsset} onUpdate={update} onWarranty={saveWarranty} onPlan={addPlan} onUpdatePlan={updatePlan} onDeletePlan={removePlan} onUpload={uploadFiles} onDeleteFile={removeAssetFile} onComplete={setCompletionPlan} /> : view === 'start' ? <StartPage assets={assets} documentCount={documents.length} storageBytes={storageBytes} attention={attention} reminders={reminders} onCapture={() => setQuickAddOpen(true)} onOpen={openDetail} onAllItems={() => setView('items')} onTimeline={() => setView('timeline')} /> : view === 'timeline' ? <TimelinePage assets={assets} filter={timelineFilter} onFilter={setTimelineFilter} onOpen={openDetail} onComplete={setCompletionPlan} /> : view === 'document-ocr' && selectedDocument ? <DocumentOcrPage document={selectedDocument} onBack={() => setView("binder")} onRun={runOcr} onSave={saveOcr} onDeleteFile={removeDocumentFile} /> : view === 'binder' ? <BinderPage documents={documents} onOpenOcr={(document) => { setSelectedDocument(document); setView("document-ocr"); }} onUpdate={updateDocument} onBatchOcr={batchOcr} onUpload={uploadDocumentFiles} onTrash={trashDocument} /> : view === 'trash' ? <TrashPage entries={trashEntries} onRestore={restoreTrash} onEmpty={emptyTrash} /> : view === 'account' ? <AccountPage section={accountSection} onSection={setAccountSection} onLogout={logout} /> : view === 'settings' ? <SettingsPage /> : view === 'search' ? <SearchPage query={query} assets={assets} documents={documents} onOpenAsset={openDetail} onOpenDocument={(document) => { setSelectedDocument(document); setView("document-ocr"); }} /> : view === 'inbox' ? <InboxPage files={inboxFiles} assets={assets} onUpload={uploadInboxFiles} onAssign={assignInbox} onToDocument={inboxToDocument} onDelete={deleteInboxFile} /> : <ItemsPage allAssets={assets} assets={collectionAssets} attention={attention} isLoading={isLoading} filter={filter} onFilter={setFilter} onCapture={() => setQuickAddOpen(true)} onOpen={openDetail} />}
+        {selected ? <Detail key={selected.id} asset={selected} onBack={() => { void navigateTo('items'); }} onDirtyChange={setHasUnsavedAssetChanges} onTrash={trashAsset} onUpdate={update} onWarranty={saveWarranty} onPlan={addPlan} onUpdatePlan={updatePlan} onDeletePlan={removePlan} onUpload={uploadFiles} onDeleteFile={removeAssetFile} onComplete={setCompletionPlan} /> : view === 'start' ? <StartPage assets={assets} documentCount={documents.length} storageBytes={storageBytes} purchaseValues={purchaseValues} attention={attention} reminders={reminders} onCapture={openQuickAdd} onOpen={openDetail} onAllItems={() => setView('items')} onTimeline={() => setView('timeline')} /> : view === 'timeline' ? <TimelinePage assets={assets} filter={timelineFilter} onFilter={setTimelineFilter} onOpen={openDetail} onComplete={setCompletionPlan} /> : view === 'document-ocr' && selectedDocument ? <DocumentOcrPage document={selectedDocument} onBack={() => setView("binder")} onRun={runOcr} onSave={saveOcr} onDeleteFile={removeDocumentFile} /> : view === 'binder' ? <BinderPage documents={documents} onOpenOcr={(document) => { setSelectedDocument(document); setView("document-ocr"); }} onUpdate={updateDocument} onBatchOcr={batchOcr} onUpload={uploadDocumentFiles} onTrash={trashDocument} /> : view === 'trash' ? <TrashPage entries={trashEntries} onRestore={restoreTrash} onEmpty={emptyTrash} /> : view === 'account' ? <AccountPage section={accountSection} onSection={setAccountSection} onLogout={logout} /> : view === 'settings' ? <SettingsPage /> : view === 'search' ? <SearchPage query={query} assets={assets} documents={documents} onOpenAsset={openDetail} onOpenDocument={(document) => { setSelectedDocument(document); setView("document-ocr"); }} /> : view === 'inbox' ? <InboxPage files={inboxFiles} assets={assets} onUpload={uploadInboxFiles} onAssign={assignInbox} onToDocument={inboxToDocument} onDelete={deleteInboxFile} /> : <ItemsPage allAssets={assets} assets={collectionAssets} attention={attention} isLoading={isLoading} filter={filter} onFilter={setFilter} onCapture={openQuickAdd} onOpen={openDetail} />}
       </section>
     </main>
     {completionPlan && <CompletionDialog plan={completionPlan} onClose={() => setCompletionPlan(null)} onSave={(input) => void completePlan(completionPlan.id, input)} />}
     {isQuickAddOpen && <QuickAddDialog onClose={() => setQuickAddOpen(false)} onSave={quickAdd} />}
-    {isMobileMenuOpen && <MobileMoreMenu inboxCount={inboxFiles.length} onClose={()=>setMobileMenuOpen(false)} onNavigate={(next)=>{setSelected(null);setView(next);setMobileMenuOpen(false)}} trashCount={trashEntries.length}/>}
+    {isMobileMenuOpen && <MobileMoreMenu inboxCount={inboxFiles.length} onClose={()=>setMobileMenuOpen(false)} onNavigate={(next)=>{if(navigateTo(next))setMobileMenuOpen(false)}} trashCount={trashEntries.length}/>}
     {message && <button className="toast" onClick={() => setMessage(null)} type="button"><span>{message}</span><Icon name="x" /></button>}
   </div>;
 }
@@ -400,11 +462,11 @@ function BackupSettings() {
   return <div className="settings-grid settings-grid--single"><section className="settings-card"><span><Icon name="file-text" /></span><div><p className="eyebrow">Backup</p><h2>Pakiet Boberit</h2><p>Pobierz dane i załączniki aktywnego gospodarstwa w jednym pliku JSON.</p><button className="primary" onClick={()=>void download()} type="button">Pobierz backup</button></div></section><section className="settings-card"><span><Icon name="package" /></span><div><p className="eyebrow">Odtwarzanie</p><h2>Przywróć pakiet</h2><p>Ta operacja zastąpi dane i pliki tylko aktywnego gospodarstwa. Najpierw pobierz aktualny backup.</p><label className="restore-file secondary">Wybierz backup<input accept="application/json,.json" onChange={(event) => setFile(event.currentTarget.files?.[0] ?? null)} type="file" /></label>{file && <label>Wpisz <b>ZASTĄP</b>, aby potwierdzić<input value={confirmation} onChange={(event) => setConfirmation(event.target.value)} /></label>}<button className="secondary danger-button" disabled={!file || confirmation !== "ZASTĄP" || busy} onClick={() => void restore()} type="button">{busy ? "Odtwarzanie…" : "Zastąp dane backupem"}</button>{message && <p className="form-error">{message}</p>}</div></section></div>;
 }
 
-function StartPage({ assets, documentCount, storageBytes, attention, reminders, onCapture, onOpen, onAllItems, onTimeline }: { assets: AssetSummary[]; documentCount: number; storageBytes: number; attention: AssetSummary[]; reminders: ReminderEntry[]; onCapture: () => void; onOpen: (id: string) => Promise<void>; onAllItems: () => void; onTimeline: () => void }) {
+function StartPage({ assets, documentCount, storageBytes, purchaseValues, attention, reminders, onCapture, onOpen, onAllItems, onTimeline }: { assets: AssetSummary[]; documentCount: number; storageBytes: number; purchaseValues: PurchaseValue[]; attention: AssetSummary[]; reminders: ReminderEntry[]; onCapture: () => void; onOpen: (id: string) => Promise<void>; onAllItems: () => void; onTimeline: () => void }) {
   const today = new Intl.DateTimeFormat('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
   const drafts = assets.filter((asset) => asset.completeness !== 'complete');
   return <>
-    <div className="page-heading start-heading"><div><p className="eyebrow">{today}</p><h1>Dzień dobry.</h1><p>Wszystko ważne jest pod ręką.</p></div><div className="heading-metrics"><div className="heading-metric"><strong>{assets.length}</strong><span>zapisane<br />przedmioty</span></div><div className="heading-metric"><strong>{documentCount}</strong><span>zapisane<br />dokumenty</span></div><div className="heading-metric heading-metric--storage"><strong>{formatStorage(storageBytes)}</strong><span>wykorzystane<br />miejsce</span></div></div></div>
+    <div className="page-heading start-heading"><div><p className="eyebrow">{today}</p><h1>Dzień dobry.</h1><p>Wszystko ważne jest pod ręką.</p></div><div className="heading-metrics"><div className="heading-metric"><strong>{assets.length}</strong><span>zapisane<br />przedmioty</span></div><div className="heading-metric"><strong>{documentCount}</strong><span>zapisane<br />dokumenty</span></div><div className="heading-metric heading-metric--storage"><strong>{formatStorage(storageBytes)}</strong><span>wykorzystane<br />miejsce</span></div><div className="heading-metric heading-metric--value"><strong title={formatPurchaseValues(purchaseValues)}>{formatPurchaseValues(purchaseValues)}</strong><span>wartość<br />zakupów</span></div></div></div>
     <div className="start-attention">
       {attention.map((asset) => <button className="start-attention-card urgent" onClick={() => void onOpen(asset.id)} key={asset.id} type="button"><span><Icon name="shield-check" /></span><div><small>Gwarancja wymaga uwagi · {warrantyLabel(asset).text}</small><strong>{asset.name}</strong><p>Otwórz przedmiot i sprawdź zakres ochrony oraz dokumenty.</p></div><b>Sprawdź →</b></button>)}
       {drafts.slice(0, Math.max(0, 2 - attention.length)).map((asset) => <button className="start-attention-card" onClick={() => void onOpen(asset.id)} key={asset.id} type="button"><span><Icon name="package" /></span><div><small>Wymaga uzupełnienia</small><strong>{asset.name}</strong><p>Dodaj dane zakupu, gwarancję lub dokumentację.</p></div><b>Uzupełnij →</b></button>)}
@@ -420,6 +482,7 @@ function StartPage({ assets, documentCount, storageBytes, attention, reminders, 
 }
 
 function formatStorage(bytes: number): string { if (bytes < 1024) return bytes + " B"; if (bytes < 1_048_576) return (bytes / 1024).toFixed(bytes < 10_240 ? 1 : 0) + " KB"; if (bytes < 1_073_741_824) return (bytes / 1_048_576).toFixed(bytes < 10_485_760 ? 1 : 0) + " MB"; return (bytes / 1_073_741_824).toFixed(1) + " GB"; }
+function formatPurchaseValues(values: PurchaseValue[]): string { if (!values.length) return "0,00 zł"; return values.map(({currency,amountMinor})=>{try{return new Intl.NumberFormat("pl-PL",{style:"currency",currency}).format(amountMinor/100)}catch{return (amountMinor/100).toFixed(2) + " " + currency}}).join(" + "); }
 function fileSize(bytes: number): string { return bytes < 1_048_576 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1_048_576).toFixed(1)} MB`; }
 function InboxPage({ files, assets, onUpload, onAssign, onToDocument, onDelete }: { files: InboxFile[]; assets: AssetSummary[]; onUpload: (files: File[]) => Promise<void>; onAssign: (id: string, assetId: string, kind: AssetFileKind) => Promise<void>; onToDocument: (id: string, input: CreateBinderDocumentInput) => Promise<void>; onDelete: (id: string) => Promise<void> }) {
   return <>
@@ -573,25 +636,74 @@ function MaintenancePlanDialog({ plan, onClose, onSave }: { plan: MaintenancePla
   return <div className="dialog-backdrop" role="presentation"><form aria-label="Edycja planu konserwacji" className="dialog maintenance-edit-dialog" onSubmit={submit}><header><div><p className="eyebrow">Konserwacja</p><h2>Edytuj plan</h2></div><button className="icon-button" onClick={onClose} type="button"><Icon label="Zamknij" name="x" /></button></header><label>Nazwa czynności<input autoFocus required value={title} onChange={(event) => setTitle(event.target.value)} /></label><div className="form-grid"><label>Typ terminu<select value={scheduleKind} onChange={(event) => setScheduleKind(event.target.value as ScheduleKind)}><option value="recurring">Cyklicznie</option><option value="one_off">Konkretna data</option></select></label><label>Następny termin<input value={nextDueOn} onChange={(event) => setNextDueOn(event.target.value)} type="date" /></label>{scheduleKind === "recurring" && <><label>Co ile<input min="1" required value={intervalValue} onChange={(event) => setIntervalValue(event.target.value)} type="number" /></label><label>Jednostka<select value={intervalUnit} onChange={(event) => setIntervalUnit(event.target.value as IntervalUnit)}><option value="days">Dni</option><option value="weeks">Tygodnie</option><option value="months">Miesiące</option><option value="years">Lata</option></select></label></>}</div><label>Notatka <small>opcjonalnie</small><textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={3} /></label>{error && <p className="form-error">{error}</p>}<footer><button className="secondary" onClick={onClose} type="button">Anuluj</button><button className="primary" disabled={busy || !title.trim()} type="submit">{busy ? "Zapisywanie…" : "Zapisz zmiany"}</button></footer></form></div>;
 }
 
-function Detail({ asset, onBack, onTrash, onUpdate, onWarranty, onPlan, onUpdatePlan, onDeletePlan, onUpload, onDeleteFile, onComplete }: { asset: AssetSummary; onBack: () => void; onTrash: (id: string) => Promise<void>; onUpdate: (id: string, input: Partial<CreateAssetInput>) => Promise<void>; onWarranty: (id: string, kind: WarrantyKind, scope: string, expiresOn: string) => Promise<void>; onPlan: (id: string, input: Pick<MaintenancePlan, "title" | "scheduleKind" | "intervalValue" | "intervalUnit" | "nextDueOn" | "notes">) => Promise<void>; onUpdatePlan: (id: string, input: Pick<MaintenancePlan, "title" | "scheduleKind" | "intervalValue" | "intervalUnit" | "nextDueOn" | "notes">) => Promise<void>; onDeletePlan: (id: string) => Promise<void>; onUpload: (id: string, files: File[], kind: AssetFileKind) => Promise<void>; onDeleteFile: (assetId: string, fileId: string) => Promise<void>; onComplete: (plan: MaintenancePlan) => void }) {
+function Detail({ asset, onBack, onDirtyChange, onTrash, onUpdate, onWarranty, onPlan, onUpdatePlan, onDeletePlan, onUpload, onDeleteFile, onComplete }: { asset: AssetSummary; onBack: () => void; onDirtyChange: (dirty: boolean) => void; onTrash: (id: string) => Promise<void>; onUpdate: (id: string, input: Partial<CreateAssetInput>) => Promise<void>; onWarranty: (id: string, kind: WarrantyKind, scope: string, expiresOn: string) => Promise<void>; onPlan: (id: string, input: Pick<MaintenancePlan, "title" | "scheduleKind" | "intervalValue" | "intervalUnit" | "nextDueOn" | "notes">) => Promise<void>; onUpdatePlan: (id: string, input: Pick<MaintenancePlan, "title" | "scheduleKind" | "intervalValue" | "intervalUnit" | "nextDueOn" | "notes">) => Promise<void>; onDeletePlan: (id: string) => Promise<void>; onUpload: (id: string, files: File[], kind: AssetFileKind) => Promise<void>; onDeleteFile: (assetId: string, fileId: string) => Promise<void>; onComplete: (plan: MaintenancePlan) => void }) {
   const [name, setName] = useState(asset.name); const [manufacturer, setManufacturer] = useState(asset.manufacturer ?? ''); const [model, setModel] = useState(asset.modelNumber ?? '');
   const [serialNumber, setSerialNumber] = useState(asset.serialNumber ?? ''); const [purchaseDate, setPurchaseDate] = useState(asset.purchaseDate ?? ''); const [quantity, setQuantity] = useState(String(asset.quantity));
   const [price, setPrice] = useState(asset.priceMinor === null ? '' : (asset.priceMinor / 100).toFixed(2)); const [currency, setCurrency] = useState(asset.currency ?? 'PLN'); const [externalUrl, setExternalUrl] = useState(asset.externalUrl ?? '');
   const [tags, setTags] = useState(asset.tags.join(', ')); const [notes, setNotes] = useState(asset.notes ?? '');
   const [kind, setKind] = useState<WarrantyKind>(asset.warranty?.kind ?? 'unknown'); const [scope, setScope] = useState(asset.warranty?.scope ?? ''); const [expiresOn, setExpiresOn] = useState(asset.warranty?.expiresOn ?? '');
+  const [warrantyDateIsAutomatic, setWarrantyDateIsAutomatic] = useState(false);
   const [editingPlan, setEditingPlan] = useState<MaintenancePlan | null>(null); const [planTitle, setPlanTitle] = useState(''); const [planDue, setPlanDue] = useState(''); const [planKind, setPlanKind] = useState<ScheduleKind>('recurring'); const [planInterval, setPlanInterval] = useState('3'); const [planUnit, setPlanUnit] = useState<IntervalUnit>('months'); const [planNotes, setPlanNotes] = useState(''); const [fileKind, setFileKind] = useState<AssetFileKind>('receipt');
   const warranty = warrantyLabel(asset);
   const saveDetails = () => void onUpdate(asset.id, { name, manufacturer, modelNumber: model, serialNumber, purchaseDate, quantity: Math.max(1, Number(quantity) || 1), priceMinor: price.trim() ? Math.round(Number(price.replace(',', '.')) * 100) : null, currency, externalUrl, tags: tags.split(',').map((tag) => tag.trim()).filter(Boolean), notes });
+  const formTags = tags.split(',').map((tag) => tag.trim()).filter(Boolean);
+  const formPriceMinor = price.trim() ? Math.round(Number(price.replace(',', '.')) * 100) : null;
+  const detailsDirty =
+    name.trim() !== asset.name ||
+    manufacturer.trim() !== (asset.manufacturer ?? '') ||
+    model.trim() !== (asset.modelNumber ?? '') ||
+    serialNumber.trim() !== (asset.serialNumber ?? '') ||
+    purchaseDate !== (asset.purchaseDate ?? '') ||
+    Math.max(1, Number(quantity) || 1) !== asset.quantity ||
+    formPriceMinor !== asset.priceMinor ||
+    currency.trim() !== (asset.currency ?? 'PLN') ||
+    externalUrl.trim() !== (asset.externalUrl ?? '') ||
+    JSON.stringify(formTags) !== JSON.stringify(asset.tags) ||
+    notes.trim() !== (asset.notes ?? '');
+  const storedWarrantyKind = asset.warranty?.kind ?? 'unknown';
+  const warrantyDirty =
+    kind !== storedWarrantyKind ||
+    scope.trim() !== (asset.warranty?.scope ?? '') ||
+    (kind === 'fixed' && expiresOn !== (asset.warranty?.expiresOn ?? ''));
+  const hasUnsavedChanges = detailsDirty || warrantyDirty;
+
+  useEffect(() => {
+    onDirtyChange(hasUnsavedChanges);
+    return () => onDirtyChange(false);
+  }, [hasUnsavedChanges, onDirtyChange]);
+
+  function changePurchaseDate(value: string) {
+    setPurchaseDate(value);
+    if (!value && warrantyDateIsAutomatic) {
+      setKind('unknown');
+      setExpiresOn('');
+      setWarrantyDateIsAutomatic(false);
+    } else if (value && (kind === 'unknown' || (kind === 'fixed' && (!expiresOn || warrantyDateIsAutomatic)))) {
+      setKind('fixed');
+      setExpiresOn(addYearsToDate(value, 2));
+      setWarrantyDateIsAutomatic(true);
+    }
+  }
+
+  function changeWarrantyKind(next: WarrantyKind) {
+    setKind(next);
+    if (next === 'fixed' && purchaseDate && !expiresOn) {
+      setExpiresOn(addYearsToDate(purchaseDate, 2));
+      setWarrantyDateIsAutomatic(true);
+    } else if (next !== 'fixed') {
+      setWarrantyDateIsAutomatic(false);
+    }
+  }
   return <>
     <button className="back" type="button" onClick={onBack}><Icon name="arrow-left" /> Wróć do przedmiotów</button>
     <div className="detail-heading"><div><p className="eyebrow">{[asset.manufacturer, asset.modelNumber].filter(Boolean).join(' · ') || 'Przedmiot bez pełnych danych'}</p><h1>{asset.name}</h1><p>Dodano {formatDate(asset.createdAt.slice(0, 10))}. {asset.completeness === 'draft' ? 'To szkic — możesz go uzupełnić.' : 'Dane są gotowe do użycia.'}</p></div><div className="detail-heading-actions"><span className={`detail-status ${warranty.state}`}>{warranty.text}</span><button className="text-action danger-action" onClick={() => { if (window.confirm(`Przenieść przedmiot „${asset.name}” do Kosza?`)) void onTrash(asset.id); }} type="button">Usuń</button></div></div>
     <div className="detail-layout"><div className="detail-main">
       <section className="panel"><header className="panel-title"><div><p className="eyebrow">Dane przedmiotu</p><h2>Informacje</h2></div><button className="text-action" onClick={saveDetails} type="button">Zapisz zmiany</button></header><div className="field-grid">
-        <label>Nazwa<input value={name} onChange={(e) => setName(e.target.value)} /></label><label>Producent<input value={manufacturer} onChange={(e) => setManufacturer(e.target.value)} /></label><label>Model<input value={model} onChange={(e) => setModel(e.target.value)} /></label><label>Numer seryjny<input value={serialNumber} onChange={(e) => setSerialNumber(e.target.value)} /></label><label>Data zakupu<input value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} type="date" /></label><label>Ilość<input min="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} type="number" /></label><label>Cena<input min="0" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} type="number" /></label><label>Waluta<input maxLength={3} value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} placeholder="PLN" /></label><label className="span-all">Link<input value={externalUrl} onChange={(e) => setExternalUrl(e.target.value)} placeholder="https://…" type="url" /></label><label className="span-all">Tagi <small>oddziel przecinkami</small><input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="Kuchnia, AGD" /></label><label className="span-all">Notatki<textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Co warto pamiętać?" rows={3} /></label>
+        <label>Nazwa<input value={name} onChange={(e) => setName(e.target.value)} /></label><label>Producent<input value={manufacturer} onChange={(e) => setManufacturer(e.target.value)} /></label><label>Model<input value={model} onChange={(e) => setModel(e.target.value)} /></label><label>Numer seryjny<input value={serialNumber} onChange={(e) => setSerialNumber(e.target.value)} /></label><label>Data zakupu<input value={purchaseDate} onChange={(e) => changePurchaseDate(e.target.value)} type="date" /></label><label>Ilość<input min="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} type="number" /></label><label>Cena<input min="0" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} type="number" /></label><label>Waluta<input maxLength={3} value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} placeholder="PLN" /></label><label className="span-all">Link<input value={externalUrl} onChange={(e) => setExternalUrl(e.target.value)} placeholder="https://…" type="url" /></label><label className="span-all">Tagi <small>oddziel przecinkami</small><input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="Kuchnia, AGD" /></label><label className="span-all">Notatki<textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Co warto pamiętać?" rows={3} /></label>
       </div></section>
       <section className="panel"><header className="panel-title"><div><p className="eyebrow">Pliki</p><h2>Dokumentacja</h2></div><label className="text-action upload-trigger">Dodaj plik<input type="file" multiple onChange={(event) => { const files = Array.from(event.currentTarget.files ?? []); event.currentTarget.value = ''; if (files.length) void onUpload(asset.id, files, fileKind); }} /></label></header><div className="file-toolbar"><label>Typ pliku<select value={fileKind} onChange={(event) => setFileKind(event.target.value as AssetFileKind)}><option value="receipt">Paragon</option><option value="manual">Instrukcja</option><option value="photo">Zdjęcie</option><option value="other">Inne</option></select></label><small>Do 25 MB na plik</small></div>{asset.files?.length ? <div className="file-list">{asset.files.map((file) => <div className="file-row" key={file.id}><Icon name={file.kind === 'receipt' ? 'receipt' : 'file-text'} /><button className="file-download" onClick={()=>void downloadAttachment(file.id,file.originalName)} type="button"><strong>{file.originalName}</strong><small>{file.kind} · {(file.byteSize / 1024 / 1024).toFixed(1)} MB</small></button><button aria-label={"Usuń " + file.originalName} className="text-action danger-action file-delete" onClick={() => { if (window.confirm("Usunąć plik „" + file.originalName + "”?")) void onDeleteFile(asset.id, file.id); }} type="button">Usuń</button></div>)}</div> : <div className="file-placeholder"><Icon name="receipt" /><div><strong>Paragon, instrukcja i zdjęcia</strong><p>Dodaj je z komputera lub telefonu — Boberit przypisze je do tego przedmiotu.</p></div></div>}</section>
       <section className="panel"><header className="panel-title"><div><p className="eyebrow">Czynności</p><h2>Konserwacja</h2></div></header><div className="plan-list">{asset.maintenancePlans?.length ? asset.maintenancePlans.map((plan) => <div className="plan" key={plan.id}><span><Icon name="tool" /></span><div><strong>{plan.title}</strong><small>{plan.status === 'completed' ? 'Czynność zakończona' : `${plan.scheduleKind === 'recurring' ? `Co ${plan.intervalValue} ${plan.intervalUnit} · ` : ''}następny termin: ${formatDate(plan.nextDueOn)}`}</small></div><div className="plan-actions"><button className="text-action" onClick={() => setEditingPlan(plan)} type="button">Edytuj</button>{plan.status === 'active' ? <button className="secondary" type="button" onClick={() => onComplete(plan)}>Wykonane</button> : <span className="plan-completed">Wykonane</span>}<button aria-label={"Usuń plan " + plan.title} className="text-action danger-action" onClick={() => { if (window.confirm("Usunąć plan „" + plan.title + "” wraz z historią wykonań?")) void onDeletePlan(plan.id); }} type="button">Usuń</button></div></div>) : <p className="subtle">Brak planów konserwacji.</p>}</div><div className="maintenance-history"><p className="eyebrow">Historia</p><h3>Wykonane czynności</h3>{asset.maintenanceRecords?.length ? <div className="history-list">{asset.maintenanceRecords.map((record: MaintenanceRecord) => <div className="history-row" key={record.id}><span><Icon name="tool" /></span><div><strong>{record.planTitle}</strong><small>Wykonano {formatDate(record.performedOn)}{record.dueOn ? ` · termin: ${formatDate(record.dueOn)}` : ''}</small>{record.notes && <p>{record.notes}</p>}</div></div>)}</div> : <p className="subtle">Jeszcze nie zapisano wykonanych czynności.</p>}</div><form className="plan-form" onSubmit={(e) => { e.preventDefault(); if (planTitle && planDue) { void onPlan(asset.id, { title: planTitle, scheduleKind: planKind, intervalValue: planKind === 'recurring' ? Math.max(1, Number(planInterval) || 1) : null, intervalUnit: planKind === 'recurring' ? planUnit : null, nextDueOn: planDue, notes: planNotes || null }); setPlanTitle(''); setPlanDue(''); setPlanNotes(''); } }}><div className="plan-form-grid"><label>Nazwa czynności<input value={planTitle} onChange={(e) => setPlanTitle(e.target.value)} placeholder="np. Wymiana filtra" required /></label><label>Typ terminu<select value={planKind} onChange={(e) => setPlanKind(e.target.value as ScheduleKind)}><option value="recurring">Cyklicznie</option><option value="one_off">Konkretna data</option></select></label><label>Następny termin<input value={planDue} onChange={(e) => setPlanDue(e.target.value)} type="date" required /></label>{planKind === 'recurring' && <><label>Co ile<input min="1" value={planInterval} onChange={(e) => setPlanInterval(e.target.value)} type="number" required /></label><label>Jednostka<select value={planUnit} onChange={(e) => setPlanUnit(e.target.value as IntervalUnit)}><option value="days">Dni</option><option value="weeks">Tygodnie</option><option value="months">Miesiące</option><option value="years">Lata</option></select></label></>}<label className="span-all">Notatka <small>opcjonalnie</small><input value={planNotes} onChange={(e) => setPlanNotes(e.target.value)} placeholder="np. filtr HEPA, numer części" /></label></div><button className="secondary plan-submit" type="submit">Dodaj plan</button></form></section>
-    </div><aside className="detail-aside"><section className="warranty-card"><Icon name="shield-check" /><p className="eyebrow">Gwarancja</p><h2>{warranty.text}</h2><p>Ustaw zakres i datę, aby Boberit mógł przypomnieć o końcu ochrony.</p><select value={kind} onChange={(e) => setKind(e.target.value as WarrantyKind)}><option value="unknown">Brak danych</option><option value="fixed">Z określoną datą</option><option value="lifetime">Dożywotnia</option></select><input value={scope} onChange={(e) => setScope(e.target.value)} placeholder="Zakres gwarancji" />{kind === 'fixed' && <input value={expiresOn} onChange={(e) => setExpiresOn(e.target.value)} type="date" required />}<button className="secondary bright" onClick={() => void onWarranty(asset.id, kind, scope, expiresOn)} type="button">Zapisz gwarancję</button></section><section className="notes-card"><p className="eyebrow">Notatka</p><h2>Co warto pamiętać?</h2><p>{asset.notes ?? 'Nie dodano notatki.'}</p></section></aside></div>
+    </div><aside className="detail-aside"><section className="warranty-card"><Icon name="shield-check" /><p className="eyebrow">Gwarancja</p><h2>{warranty.text}</h2><p>Ustaw zakres i datę, aby Boberit mógł przypomnieć o końcu ochrony.</p><select value={kind} onChange={(e) => changeWarrantyKind(e.target.value as WarrantyKind)}><option value="unknown">Brak danych</option><option value="fixed">Z określoną datą</option><option value="lifetime">Dożywotnia</option></select><input value={scope} onChange={(e) => setScope(e.target.value)} placeholder="Zakres gwarancji" />{kind === 'fixed' && <input value={expiresOn} onChange={(e) => { setExpiresOn(e.target.value); setWarrantyDateIsAutomatic(false); }} type="date" required />}<button className="secondary bright" onClick={() => void onWarranty(asset.id, kind, scope, expiresOn)} type="button">Zapisz gwarancję</button></section><section className="notes-card"><p className="eyebrow">Notatka</p><h2>Co warto pamiętać?</h2><p>{asset.notes ?? 'Nie dodano notatki.'}</p></section></aside></div>
     {editingPlan && <MaintenancePlanDialog plan={editingPlan} onClose={() => setEditingPlan(null)} onSave={async (input) => { await onUpdatePlan(editingPlan.id, input); setEditingPlan(null); }} />}
   </>;
 }

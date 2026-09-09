@@ -546,6 +546,8 @@ button.notification-row:hover { background:#f1f8ff; }
 .heading-metrics { display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
 .heading-metric--storage { min-width:164px; }
 .heading-metric--storage strong { font-size:20px; letter-spacing:-.035em; white-space:nowrap; }
+.heading-metric--value { min-width:184px; }
+.heading-metric--value strong { max-width:150px; overflow:hidden; font-size:18px; letter-spacing:-.03em; text-overflow:ellipsis; white-space:nowrap; }
 .file-row > .file-delete { flex:0 0 auto; padding:6px 4px; }
 .plan-actions { display:flex; align-items:center; justify-content:flex-end; gap:7px; flex-wrap:wrap; }
 .plan-actions .secondary { min-height:30px; padding:0 10px; }
@@ -564,9 +566,8 @@ button.notification-row:hover { background:#f1f8ff; }
 .auth-card .auth-submit { justify-self:stretch; justify-content:center; width:100%; min-height:42px; margin-top:3px; }
 .auth-footnote { margin:20px 0 0; color:#8292a5; font-size:8px; text-align:center; }
 @media (max-width:760px) {
-  .heading-metrics { width:100%; justify-content:stretch; }
-  .heading-metric { flex:1 1 120px; min-width:0; }
-  .heading-metric--storage { flex-basis:150px; }
+  .heading-metrics { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); width:100%; }
+  .heading-metric,.heading-metric--storage,.heading-metric--value { width:auto; min-width:0; }
   .plan { grid-template-columns:30px minmax(0,1fr); align-items:start; }
   .plan-actions { grid-column:2; justify-content:flex-start; }
   .auth-screen { padding:0; }
@@ -580,7 +581,16 @@ button.notification-row:hover { background:#f1f8ff; }
   .heading-metric { display:flex; padding:7px 8px; }
   .heading-metric strong { font-size:21px; }
   .heading-metric--storage strong { font-size:16px; }
+  .heading-metric--value strong { max-width:calc(100% - 55px); font-size:15px; }
   .heading-metric span { font-size:8px; }
   .file-row { align-items:flex-start; flex-wrap:wrap; }
   .file-row > .file-delete { margin-left:33px; }
+}
+
+/* Keep the asset form usable between desktop and mobile breakpoints. */
+.detail-layout > *,.detail-main,.detail-aside,.detail-main .panel,.warranty-card,.notes-card { min-width:0; }
+.notes-card p { overflow-wrap:anywhere; }
+@media (min-width:681px) and (max-width:1120px) {
+  .detail-layout { grid-template-columns:minmax(0,1fr); }
+  .detail-aside { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }

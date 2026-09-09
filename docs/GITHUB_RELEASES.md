@@ -4,6 +4,10 @@ Plik `.github/workflows/release.yml` musi znajdować się na domyślnej gałęzi
 
 Obrazy są publikowane do GitHub Container Registry jako `ghcr.io/<owner>/<repository>`. Zwykły commit oraz push nie uruchamiają budowania obrazu. Workflow zaczyna się dopiero po opublikowaniu GitHub Release.
 
+Każdy obraz zawiera SBOM oraz informacje o pochodzeniu (provenance). Po publikacji workflow skanuje warianty AMD64 i ARM64 narzędziem Trivy. Wykrycie naprawialnej podatności o poziomie HIGH lub CRITICAL kończy workflow błędem. Ponieważ skan następuje po przesłaniu obrazu wieloarchitekturowego, przy nieudanym skanie nie należy używać utworzonych tagów do czasu wydania poprawionej wersji.
+
+Akcje workflow i bazowe obrazy są przypięte do niezmiennych identyfikatorów. Dependabot sprawdza ich aktualizacje co tydzień.
+
 ## Wydanie produkcyjne (`main`)
 
 1. Upewnij się, że commit wydania znajduje się na gałęzi `main`.

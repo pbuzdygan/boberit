@@ -7,6 +7,7 @@ import { promisify } from 'node:util';
 const execute = promisify(execFile);
 const maxPages = 12;
 const timeout = 45_000;
+let ocrQueue: Promise<void> = Promise.resolve();
 
 async function command(binary: string, args: string[]): Promise<string> {
   const result = await execute(binary, args, { timeout, maxBuffer: 8 * 1024 * 1024 });
@@ -17,7 +18,7 @@ async function imageText(path: string): Promise<string> {
   return command('tesseract', [path, 'stdout', '-l', 'pol+eng']);
 }
 
-export async function extractDocumentText(path: string, mimeType: string): Promise<{ status: 'completed' | 'unsupported'; text: string }> {
+async function extractDocumentTextNow(path: string, mimeType: string): Promise<{ status: 'completed' | 'unsupported'; text: string }> {
   if (mimeType.startsWith('image/')) {
     return { status: 'completed', text: await imageText(path) };
   }
@@ -39,4 +40,10 @@ export async function extractDocumentText(path: string, mimeType: string): Promi
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
+}
+
+export function extractDocumentText(path: string, mimeType: string): Promise<{ status: 'completed' | 'unsupported'; text: string }> {
+  const task = ocrQueue.then(() => extractDocumentTextNow(path, mimeType));
+  ocrQueue = task.then(() => undefined, () => undefined);
+  return task;
 }
