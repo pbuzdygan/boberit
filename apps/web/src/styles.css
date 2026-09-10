@@ -126,7 +126,8 @@ main { min-height:100vh; margin-left:220px; } .topbar { position:sticky; top:0; 
 .document-type-domain { border-color:#cbdff2; background:#f5faff; }
 .file-row.needs-kind { border-color:#aed3f5; background:#f2f8ff; }
 .file-kind-picker { display:flex; flex:0 0 auto; align-items:center; gap:5px; }
-.file-kind-picker select { width:95px; height:30px; font-size:9px; }
+.file-kind-select { width:95px; }
+.file-kind-select .form-select-trigger { height:30px; font-size:9px; }
 .file-kind-picker .secondary { min-height:30px; padding:0 7px; font-size:9px; }
 .add-asset-file { position:relative; flex:0 0 auto; }
 .add-file-kind-menu { position:absolute; z-index:5; top:calc(100% + 5px); right:0; display:grid; width:140px; padding:4px; border:1px solid #c9dbea; border-radius:7px; background:#fff; box-shadow:0 9px 22px rgba(0,37,79,.15); }
@@ -141,7 +142,7 @@ main { min-height:100vh; margin-left:220px; } .topbar { position:sticky; top:0; 
   .asset-row .category-cell,.asset-row .location-cell,.asset-row .tags,.asset-row .warranty,.asset-row .more { display:none; }
   .asset-row .item-status { justify-self:end; }
   .file-kind-picker { width:calc(100% - 33px); margin-left:33px; }
-  .file-kind-picker select { flex:1; }
+  .file-kind-select { width:auto; flex:1; }
 }
 
 /* Timeline: one operational list for warranty expirations and maintenance. */
@@ -187,7 +188,7 @@ main { min-height:100vh; margin-left:220px; } .topbar { position:sticky; top:0; 
 .inbox-guide > span .icon { filter:brightness(0) invert(1); }
 .inbox-guide strong { display:block; font-size:11px; }
 .inbox-guide p { margin:3px 0 0; color:var(--muted); font-size:10px; line-height:1.45; }
-.inbox-list { overflow:hidden; border:1px solid var(--line); border-radius:9px; background:#fff; }
+.inbox-list { overflow:visible; border:1px solid var(--line); border-radius:9px; background:#fff; }
 .inbox-row { display:grid; grid-template-columns:36px minmax(180px,1fr) minmax(330px,.9fr); align-items:center; gap:11px; min-height:74px; padding:10px 11px; border-bottom:1px solid var(--line); }
 .inbox-row:last-child { border-bottom:0; }
 .inbox-file-icon { display:grid; place-items:center; width:32px; height:32px; border-radius:7px; background:#eaf5ff; }
@@ -198,7 +199,8 @@ main { min-height:100vh; margin-left:220px; } .topbar { position:sticky; top:0; 
 .inbox-file-copy small { margin-top:3px; color:var(--muted); font-size:9px; }
 .inbox-file-copy a { display:inline-block; margin-top:4px; color:#0064dc; font-size:9px; font-weight:700; text-decoration:none; }
 .inbox-assign { display:grid; grid-template-columns:minmax(120px,1fr) 96px auto; gap:6px; align-items:center; }
-.inbox-assign select { height:32px; min-width:0; }
+.inbox-assign .form-select-field { min-width:0; }
+.inbox-assign .form-select-trigger { height:32px; }
 @media (max-width:900px) { .inbox-row { grid-template-columns:36px minmax(0,1fr); } .inbox-assign { grid-column:2; } }
 @media (max-width:560px) { .inbox-guide { align-items:flex-start; } .inbox-row { align-items:start; } .inbox-assign { grid-template-columns:1fr 1fr; } .inbox-assign .secondary { grid-column:1 / -1; justify-self:start; } }
 
@@ -209,7 +211,7 @@ main { min-height:100vh; margin-left:220px; } .topbar { position:sticky; top:0; 
 .inbox-target-tabs button { min-height:25px; padding:0 8px; border:1px solid var(--line); border-radius:5px; color:#60748b; background:#fff; font-size:8px; font-weight:700; }
 .inbox-target-tabs button.active { color:#005fda; border-color:#9ac7f4; background:#eaf5ff; }
 .inbox-document-fields { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
-.inbox-document-fields input { height:31px; }
+.inbox-document-fields input,.inbox-document-fields .form-select-trigger { height:31px; }
 .inbox-document-fields .secondary { grid-column:1 / -1; justify-self:start; min-height:30px; }
 /* Trash: recoverable deletion for 30 days. */
 .detail-heading-actions,.binder-row-actions { display:flex; align-items:center; gap:10px; }
@@ -334,7 +336,7 @@ main { min-height:100vh; margin-left:220px; } .topbar { position:sticky; top:0; 
 
 .inline-form{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.inline-form input{flex:1;min-width:180px}
 
-.member-actions{display:flex;gap:8px;align-items:center;margin-top:7px}.member-actions select{font:inherit;font-size:12px;padding:4px 6px}
+.member-actions{display:flex;gap:8px;align-items:center;margin-top:7px}.member-role-select{width:130px}.member-role-select .form-select-trigger{font-size:12px}
 
 .file-download{border:0;background:transparent;text-align:left;padding:0;color:inherit;cursor:pointer;display:grid;gap:3px;font:inherit}.file-download small{color:var(--muted)}
 
@@ -345,7 +347,7 @@ main { min-height:100vh; margin-left:220px; } .topbar { position:sticky; top:0; 
 .section-heading h2 em { display:inline-flex; min-width:20px; justify-content:center; margin-left:5px; padding:2px 6px; border-radius:999px; color:#526b85; background:#eaf1f7; font-size:9px; font-style:normal; vertical-align:middle; }
 .settings-grid { align-items:start; }
 .settings-card > div { min-width:0; }
-.settings-card > div > input,.settings-card > div > select { margin-top:7px; }
+.settings-card > div > input,.settings-card > div > .settings-inline-select { margin-top:7px; }
 .settings-actions { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-top:8px; }
 .webhook-list > div { min-width:0; flex-wrap:wrap; }
 .webhook-list > div > small { min-width:150px; overflow-wrap:anywhere; }
@@ -404,7 +406,7 @@ main { min-height:100vh; margin-left:220px; } .topbar { position:sticky; top:0; 
 .topbar-avatar,.account-menu-avatar { display:grid; place-items:center; border-radius:9px; color:#fff; background:linear-gradient(145deg,#0068e8,#0044af); font-weight:800; letter-spacing:.03em; }
 .topbar-avatar { width:36px; height:36px; border:1px solid rgba(0,80,180,.18); box-shadow:0 5px 13px rgba(0,68,175,.18); font-size:10px; }
 .topbar-avatar:hover,.topbar-avatar.active { box-shadow:0 0 0 3px rgba(0,104,232,.13),0 5px 13px rgba(0,68,175,.18); }
-.account-menu { position:absolute; z-index:14; top:45px; right:0; width:310px; overflow:hidden; padding:8px; border:1px solid #cdddeb; border-radius:11px; background:#fff; box-shadow:0 20px 55px rgba(0,25,65,.22); }
+.account-menu { position:absolute; z-index:14; top:45px; right:0; width:310px; overflow:visible; padding:8px; border:1px solid #cdddeb; border-radius:11px; background:#fff; box-shadow:0 20px 55px rgba(0,25,65,.22); }
 .account-menu > header { display:grid; grid-template-columns:38px minmax(0,1fr); align-items:center; gap:10px; padding:8px 8px 11px; }
 .account-menu-avatar { width:38px; height:38px; font-size:10px; }
 .account-menu header strong,.account-menu header small,.account-menu > button strong,.account-menu > button small { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -696,6 +698,23 @@ button.notification-row:hover { background:#f1f8ff; }
 
 /* Kompaktowe dane przedmiotu oraz formularz konserwacji dopasowany do połowy widoku. */
 .asset-info-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+.form-select-field { display:grid; min-width:0; gap:5px; color:#51677f; font-size:9px; font-weight:700; }
+.form-select-field.is-label-hidden { gap:0; }
+.form-select { position:relative; min-width:0; }
+.form-select-trigger { display:flex; width:100%; height:34px; min-width:0; align-items:center; justify-content:space-between; gap:8px; padding:0 10px; border:1px solid #d4e0eb; border-radius:7px; color:var(--ink); background:#fff; font-size:11px; font-weight:400; text-align:left; }
+.form-select-trigger > span:first-child { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.form-select-trigger:focus-visible,.form-select-options button:focus-visible { outline:3px solid rgba(0,136,248,.32); outline-offset:2px; }
+.form-select-trigger[aria-expanded="true"] { border-color:#79b9f8; }
+.form-select-chevron { width:7px; height:7px; flex:0 0 auto; border-right:1.5px solid #708297; border-bottom:1.5px solid #708297; transform:translateY(-2px) rotate(45deg); }
+.form-select-options { position:absolute; z-index:20; top:calc(100% + 4px); right:0; left:0; display:grid; max-height:210px; padding:4px; overflow-y:auto; border:1px solid #cbdbe9; border-radius:8px; background:#fff; box-shadow:0 10px 28px rgba(11,42,75,.16); }
+.form-select-field.opens-up .form-select-options { top:auto; bottom:calc(100% + 4px); }
+.form-select-options button { width:100%; min-height:30px; padding:6px 8px; border:0; border-radius:5px; color:#334c67; background:transparent; font-size:10px; font-weight:500; text-align:left; }
+.form-select-options button:hover,.form-select-options button:focus-visible { background:#edf6ff; }
+.form-select-options button.is-selected { color:#075baa; background:#e4f2ff; font-weight:700; }
+.warranty-card { overflow:visible; }
+.warranty-card > .warranty-kind-select { margin-bottom:7px; }
+.warranty-kind-select .form-select-trigger { border-color:rgba(167,211,255,.34); color:#eff8ff; background:rgba(0,14,47,.28); }
+.warranty-kind-select .form-select-chevron { border-color:#c5dcf5; }
 .detail-main > .panel:nth-child(3) { display:flex; flex-direction:column; align-items:stretch; }
 .detail-main > .panel:nth-child(3) .plan-form { order:2; padding-top:15px; border-top:1px solid var(--line); }
 .detail-main > .panel:nth-child(3) .plan-form::before { display:block; margin-bottom:9px; color:#263f5b; content:"Dodaj czynność"; font-size:13px; font-weight:700; }
