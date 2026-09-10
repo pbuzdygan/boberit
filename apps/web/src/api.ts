@@ -59,7 +59,7 @@ export const api = {
   removeMember: (id:string) => emptyRequest(`/household/members/${id}`,{method:'DELETE'}),
   listWebhookDeliveries: () => request<ApiEnvelope<{webhook_name:string;event:string;status:number|null;error:string|null;created_at:string}[]>>('/settings/webhook-deliveries'),
   listWebhooks: () => request<ApiEnvelope<{ id:string; name:string; url:string; events:string[]; scopeAll:boolean; householdIds:string[]; createdAt:string }[]>>('/settings/webhooks'),
-  createWebhook: (input:{name:string;url:string;secret?:string;events:string[];householdIds?:string[]}) => request<ApiEnvelope<unknown>>('/settings/webhooks',{method:'POST',body:JSON.stringify(input)}),
+  createWebhook: (input:{name:string;url:string;secret?:string;events:string[];householdIds?:string[]}) => request<ApiEnvelope<{id:string}>>('/settings/webhooks',{method:'POST',body:JSON.stringify(input)}),
   updateWebhook: (id:string,input:{name:string;url:string;secret?:string;events:string[];householdIds?:string[]}) => request<ApiEnvelope<{updated:boolean}>>("/settings/webhooks/" + id,{method:"PATCH",body:JSON.stringify(input)}),
   deleteWebhook: (id:string) => emptyRequest(`/settings/webhooks/${id}`,{method:'DELETE'}),
   downloadBackup: async () => { const response=await fetch('/api/v1/settings/export',{headers:authHeaders()}); if(!response.ok) throw new Error('Nie udało się pobrać backupu.'); return response.blob(); },
