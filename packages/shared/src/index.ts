@@ -1,4 +1,12 @@
 export type AssetStatus = 'active' | 'archived' | 'disposed' | 'sold' | 'lost';
+export type ItemStatus = 'available' | 'reserved' | 'in_use' | 'in_repair' | 'retired';
+export type AssetOptionKind = 'category' | 'location';
+
+export interface AssetOption {
+  id: string;
+  kind: AssetOptionKind;
+  name: string;
+}
 export type Completeness = 'draft' | 'partial' | 'complete';
 export type WarrantyKind = 'fixed' | 'lifetime' | 'unknown';
 export type ScheduleKind = 'one_off' | 'recurring';
@@ -16,6 +24,7 @@ export interface AssetFile {
   id: string;
   assetId: string;
   kind: AssetFileKind;
+  kindLocked: boolean;
   originalName: string;
   mimeType: string;
   byteSize: number;
@@ -43,6 +52,7 @@ export interface BinderDocument {
   id: string;
   name: string;
   type: string | null;
+  typeId: string | null;
   tags: string[];
   notes: string | null;
   createdAt: string;
@@ -55,8 +65,14 @@ export interface BinderDocument {
 export interface CreateBinderDocumentInput {
   name: string;
   type?: string;
+  typeId?: string | null;
   tags?: string[];
   notes?: string;
+}
+
+export interface DocumentType {
+  id: string;
+  name: string;
 }
 
 export type TrashKind = 'asset' | 'document';
@@ -106,6 +122,11 @@ export interface AssetSummary {
   notes: string | null;
   tags: string[];
   status: AssetStatus;
+  itemStatus: ItemStatus;
+  categoryId: string | null;
+  categoryName: string | null;
+  locationId: string | null;
+  locationName: string | null;
   completeness: Completeness;
   createdAt: string;
   updatedAt: string;
@@ -127,6 +148,9 @@ export interface CreateAssetInput {
   externalUrl?: string;
   notes?: string;
   tags?: string[];
+  itemStatus?: ItemStatus;
+  categoryId?: string | null;
+  locationId?: string | null;
 }
 
 export interface ApiError {

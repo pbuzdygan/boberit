@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, renameSync } from 'node:fs';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
-import type { AssetFile, AssetFileKind, AssetSummary, BinderDocument, CreateBinderDocumentInput, DocumentFile, InboxFile, TrashEntry, TrashKind, Completeness, CreateAssetInput, IntervalUnit, MaintenancePlan, MaintenanceRecord, ScheduleKind, Warranty, WarrantyKind } from '@boberit/shared';
+import type { AssetFile, AssetFileKind, AssetOption, AssetOptionKind, AssetSummary, BinderDocument, CreateBinderDocumentInput, DocumentFile, DocumentType, InboxFile, TrashEntry, TrashKind, Completeness, CreateAssetInput, IntervalUnit, ItemStatus, MaintenancePlan, MaintenanceRecord, ScheduleKind, Warranty, WarrantyKind } from '@boberit/shared';
 import { nextDueDate, today } from './maintenance.js';
 
 type Row = Record<string, unknown>;
@@ -45,11 +45,22 @@ database.exec(`
     notes TEXT,
     tags_json TEXT NOT NULL DEFAULT '[]',
     status TEXT NOT NULL DEFAULT 'active',
+    item_status TEXT NOT NULL DEFAULT 'available',
+    category_id TEXT,
+    location_id TEXT,
     completeness TEXT NOT NULL DEFAULT 'draft',
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     archived_at TEXT,
     deleted_at TEXT
+  );
+  CREATE TABLE IF NOT EXISTS asset_options (
+    id TEXT PRIMARY KEY,
+    household_id TEXT NOT NULL REFERENCES households(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL CHECK(kind IN ('category', 'location')),
+    name TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    UNIQUE(household_id, kind, name COLLATE NOCASE)
   );
   CREATE TABLE IF NOT EXISTS warranties (
     asset_id TEXT PRIMARY KEY REFERENCES assets(id) ON DELETE CASCADE,
@@ -86,6 +97,7 @@ database.exec(`
     id TEXT PRIMARY KEY,
     asset_id TEXT NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
     kind TEXT NOT NULL CHECK(kind IN ('photo', 'receipt', 'manual', 'other')),
+    kind_locked INTEGER NOT NULL DEFAULT 1 CHECK(kind_locked IN (0, 1)),
     original_name TEXT NOT NULL,
     stored_name TEXT NOT NULL UNIQUE,
     mime_type TEXT NOT NULL,
@@ -106,11 +118,19 @@ database.exec(`
     household_id TEXT,
     name TEXT NOT NULL,
     type TEXT,
+    document_type_id TEXT,
     tags_json TEXT NOT NULL DEFAULT '[]',
     notes TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     deleted_at TEXT
+  );
+  CREATE TABLE IF NOT EXISTS document_types (
+    id TEXT PRIMARY KEY,
+    household_id TEXT NOT NULL REFERENCES households(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    UNIQUE(household_id, name COLLATE NOCASE)
   );
   CREATE TABLE IF NOT EXISTS webhook_deliveries (id TEXT PRIMARY KEY, webhook_id TEXT NOT NULL, event TEXT NOT NULL, status INTEGER, error TEXT, created_at TEXT NOT NULL);
   CREATE TABLE IF NOT EXISTS webhooks (
@@ -134,10 +154,15 @@ database.exec(`
   CREATE VIRTUAL TABLE IF NOT EXISTS assets_fts USING fts5(asset_id UNINDEXED, search_text);
 `);
 // Existing installations receive the soft-delete columns without losing data.
-for (const statement of ['ALTER TABLE assets ADD COLUMN deleted_at TEXT', 'ALTER TABLE documents ADD COLUMN deleted_at TEXT', 'ALTER TABLE assets ADD COLUMN household_id TEXT', 'ALTER TABLE documents ADD COLUMN household_id TEXT', 'ALTER TABLE inbox_files ADD COLUMN household_id TEXT', 'ALTER TABLE sessions ADD COLUMN active_household_id TEXT', 'ALTER TABLE webhooks ADD COLUMN user_id TEXT', 'ALTER TABLE webhooks ADD COLUMN scope_all INTEGER NOT NULL DEFAULT 1', "ALTER TABLE webhooks ADD COLUMN household_ids_json TEXT NOT NULL DEFAULT '[]'"]) {
+for (const statement of ['ALTER TABLE assets ADD COLUMN deleted_at TEXT', 'ALTER TABLE documents ADD COLUMN deleted_at TEXT', 'ALTER TABLE assets ADD COLUMN household_id TEXT', 'ALTER TABLE documents ADD COLUMN household_id TEXT', 'ALTER TABLE inbox_files ADD COLUMN household_id TEXT', 'ALTER TABLE sessions ADD COLUMN active_household_id TEXT', 'ALTER TABLE webhooks ADD COLUMN user_id TEXT', 'ALTER TABLE webhooks ADD COLUMN scope_all INTEGER NOT NULL DEFAULT 1', "ALTER TABLE webhooks ADD COLUMN household_ids_json TEXT NOT NULL DEFAULT '[]'", "ALTER TABLE assets ADD COLUMN item_status TEXT NOT NULL DEFAULT 'available'", 'ALTER TABLE assets ADD COLUMN category_id TEXT', 'ALTER TABLE assets ADD COLUMN location_id TEXT', 'ALTER TABLE asset_files ADD COLUMN kind_locked INTEGER NOT NULL DEFAULT 1', 'ALTER TABLE documents ADD COLUMN document_type_id TEXT']) {
   try { database.exec(statement); } catch { /* Column already exists. */ }
 }
 database.exec("UPDATE document_ocr SET status='pending', error=NULL WHERE status='processing'; UPDATE assets SET household_id=(SELECT id FROM households ORDER BY created_at LIMIT 1) WHERE household_id IS NULL AND EXISTS(SELECT 1 FROM households); UPDATE documents SET household_id=(SELECT id FROM households ORDER BY created_at LIMIT 1) WHERE household_id IS NULL AND EXISTS(SELECT 1 FROM households); UPDATE inbox_files SET household_id=(SELECT id FROM households ORDER BY created_at LIMIT 1) WHERE household_id IS NULL AND EXISTS(SELECT 1 FROM households); UPDATE sessions SET active_household_id=(SELECT m.household_id FROM household_members m WHERE m.user_id=sessions.user_id ORDER BY m.created_at LIMIT 1) WHERE active_household_id IS NULL; UPDATE webhooks SET user_id=(SELECT id FROM users ORDER BY created_at LIMIT 1) WHERE user_id IS NULL AND EXISTS(SELECT 1 FROM users);");
+for (const row of database.prepare("SELECT DISTINCT household_id,type FROM documents WHERE household_id IS NOT NULL AND type IS NOT NULL AND TRIM(type)<>'' AND document_type_id IS NULL").all() as Row[]) {
+  let option = database.prepare('SELECT id FROM document_types WHERE household_id=? AND name=? COLLATE NOCASE').get(String(row.household_id),String(row.type)) as Row|undefined;
+  if(!option){const id=randomUUID();database.prepare('INSERT INTO document_types(id,household_id,name,created_at) VALUES(?,?,?,?)').run(id,String(row.household_id),String(row.type).trim(),new Date().toISOString());option={id};}
+  database.prepare('UPDATE documents SET document_type_id=? WHERE household_id=? AND type=? AND document_type_id IS NULL').run(String(option.id),String(row.household_id),String(row.type));
+}
 
 function now(): string { return new Date().toISOString(); }
 function nullable(value: unknown): string | null {
@@ -160,7 +185,7 @@ function warrantyFor(assetId: string): Warranty | null {
 }
 function filesFor(assetId: string): AssetFile[] {
   return (database.prepare('SELECT * FROM asset_files WHERE asset_id = ? ORDER BY created_at DESC').all(assetId) as Row[]).map((row) => ({
-    id: String(row.id), assetId: String(row.asset_id), kind: row.kind as AssetFileKind, originalName: String(row.original_name),
+    id: String(row.id), assetId: String(row.asset_id), kind: row.kind as AssetFileKind, kindLocked: Number(row.kind_locked ?? 1) === 1, originalName: String(row.original_name),
     mimeType: String(row.mime_type), byteSize: Number(row.byte_size), createdAt: String(row.created_at),
   }));
 }
@@ -181,12 +206,17 @@ function recordsFor(assetId: string): MaintenanceRecord[] {
   }));
 }
 function assetFromRow(row: Row, includePlans = false): AssetSummary {
+  const category = row.category_id ? database.prepare("SELECT name FROM asset_options WHERE id=? AND kind='category'").get(String(row.category_id)) as Row | undefined : undefined;
+  const location = row.location_id ? database.prepare("SELECT name FROM asset_options WHERE id=? AND kind='location'").get(String(row.location_id)) as Row | undefined : undefined;
   const asset: AssetSummary = {
     id: String(row.id), name: String(row.name), manufacturer: nullable(row.manufacturer),
     modelNumber: nullable(row.model_number), serialNumber: nullable(row.serial_number),
     purchaseDate: nullable(row.purchase_date), priceMinor: typeof row.price_minor === 'number' ? row.price_minor : null,
     currency: nullable(row.currency), quantity: Number(row.quantity), externalUrl: nullable(row.external_url),
     notes: nullable(row.notes), tags: parseTags(row.tags_json), status: row.status as AssetSummary['status'],
+    itemStatus: itemStatus(row.item_status),
+    categoryId: category ? String(row.category_id) : null, categoryName: category ? String(category.name) : null,
+    locationId: location ? String(row.location_id) : null, locationName: location ? String(location.name) : null,
     completeness: row.completeness as Completeness, createdAt: String(row.created_at), updatedAt: String(row.updated_at),
     warranty: warrantyFor(String(row.id)),
   };
@@ -195,24 +225,30 @@ function assetFromRow(row: Row, includePlans = false): AssetSummary {
   return asset;
 }
 function syncSearch(assetId: string): void {
-  const row = database.prepare('SELECT name, manufacturer, model_number, serial_number, notes, tags_json FROM assets WHERE id = ?').get(assetId) as Row | undefined;
+  const row = database.prepare(`SELECT a.name,a.manufacturer,a.model_number,a.serial_number,a.notes,a.tags_json,a.item_status,c.name AS category_name,l.name AS location_name FROM assets a LEFT JOIN asset_options c ON c.id=a.category_id LEFT JOIN asset_options l ON l.id=a.location_id WHERE a.id=?`).get(assetId) as Row | undefined;
   if (!row) return;
-  const text = [row.name, row.manufacturer, row.model_number, row.serial_number, row.notes, ...parseTags(row.tags_json)].filter(Boolean).join(' ');
+  const text = [row.name, row.manufacturer, row.model_number, row.serial_number, row.notes, row.category_name, row.location_name, row.item_status, ...parseTags(row.tags_json)].filter(Boolean).join(' ');
   database.prepare('DELETE FROM assets_fts WHERE asset_id = ?').run(assetId);
   database.prepare('INSERT INTO assets_fts(asset_id, search_text) VALUES (?, ?)').run(assetId, text);
 }
-export function addAssetFile(householdId: string, assetId: string, input: { kind: AssetFileKind; originalName: string; storedName: string; mimeType: string; byteSize: number }): AssetFile | null {
+export function addAssetFile(householdId: string, assetId: string, input: { kind: AssetFileKind; kindLocked?: boolean; originalName: string; storedName: string; mimeType: string; byteSize: number }): AssetFile | null {
   if (!getAsset(householdId, assetId)) return null;
   const id = randomUUID();
   const createdAt = now();
-  database.prepare('INSERT INTO asset_files(id, asset_id, kind, original_name, stored_name, mime_type, byte_size, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-    .run(id, assetId, input.kind, input.originalName, input.storedName, input.mimeType, input.byteSize, createdAt);
-  return { id, assetId, kind: input.kind, originalName: input.originalName, mimeType: input.mimeType, byteSize: input.byteSize, createdAt };
+  const kindLocked = input.kindLocked !== false;
+  database.prepare('INSERT INTO asset_files(id, asset_id, kind, kind_locked, original_name, stored_name, mime_type, byte_size, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(id, assetId, input.kind, kindLocked ? 1 : 0, input.originalName, input.storedName, input.mimeType, input.byteSize, createdAt);
+  return { id, assetId, kind: input.kind, kindLocked, originalName: input.originalName, mimeType: input.mimeType, byteSize: input.byteSize, createdAt };
+}
+
+export function classifyAssetFile(householdId: string, assetId: string, fileId: string, kind: AssetFileKind): AssetFile | null {
+  const result = database.prepare(`UPDATE asset_files SET kind=?,kind_locked=1 WHERE id=? AND asset_id=? AND kind_locked=0 AND EXISTS(SELECT 1 FROM assets WHERE id=? AND household_id=? AND deleted_at IS NULL)`).run(kind,fileId,assetId,assetId,householdId);
+  return result.changes ? getAssetFile(householdId,fileId) : null;
 }
 
 export function getAssetFile(householdId: string, id: string): (AssetFile & { storedName: string }) | null {
   const row = database.prepare('SELECT f.* FROM asset_files f JOIN assets a ON a.id=f.asset_id WHERE f.id = ? AND a.household_id = ? AND a.deleted_at IS NULL').get(id, householdId) as Row | undefined;
-  return row ? { id: String(row.id), assetId: String(row.asset_id), kind: row.kind as AssetFileKind, originalName: String(row.original_name), storedName: String(row.stored_name), mimeType: String(row.mime_type), byteSize: Number(row.byte_size), createdAt: String(row.created_at) } : null;
+  return row ? { id: String(row.id), assetId: String(row.asset_id), kind: row.kind as AssetFileKind, kindLocked: Number(row.kind_locked ?? 1) === 1, originalName: String(row.original_name), storedName: String(row.stored_name), mimeType: String(row.mime_type), byteSize: Number(row.byte_size), createdAt: String(row.created_at) } : null;
 }
 
 export function deleteAssetFile(householdId: string, assetId: string, fileId: string): string | null {
@@ -253,12 +289,12 @@ export function assignInboxFile(householdId: string, id: string, assetId: string
   if (!source) return null;
   database.exec('BEGIN');
   try {
-    database.prepare('INSERT INTO asset_files(id, asset_id, kind, original_name, stored_name, mime_type, byte_size, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+    database.prepare('INSERT INTO asset_files(id, asset_id, kind, kind_locked, original_name, stored_name, mime_type, byte_size, created_at) VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?)')
       .run(source.id, assetId, kind, source.originalName, source.storedName, source.mimeType, source.byteSize, source.createdAt);
     database.prepare('DELETE FROM inbox_files WHERE id = ?').run(id);
     database.exec('COMMIT');
   } catch (error) { database.exec('ROLLBACK'); throw error; }
-  return { id: source.id, assetId, kind, originalName: source.originalName, mimeType: source.mimeType, byteSize: source.byteSize, createdAt: source.createdAt };
+  return { id: source.id, assetId, kind, kindLocked: true, originalName: source.originalName, mimeType: source.mimeType, byteSize: source.byteSize, createdAt: source.createdAt };
 }
 
 function documentFilesFor(documentId: string): DocumentFile[] {
@@ -266,7 +302,8 @@ function documentFilesFor(documentId: string): DocumentFile[] {
 }
 function documentFromRow(row: Row): BinderDocument {
   const id = String(row.id);
-  const ocr=database.prepare('SELECT status,text FROM document_ocr WHERE document_id=?').get(id) as Row|undefined; return { id, name: String(row.name), type: nullable(row.type), tags: parseTags(row.tags_json), notes: nullable(row.notes), createdAt: String(row.created_at), updatedAt: String(row.updated_at), files: documentFilesFor(id), ocrStatus: ocr?String(ocr.status):null, ocrTextPreview: ocr?.text?String(ocr.text).slice(0,180):null } as BinderDocument;
+  const documentType=row.document_type_id?database.prepare('SELECT name FROM document_types WHERE id=?').get(String(row.document_type_id)) as Row|undefined:undefined;
+  const ocr=database.prepare('SELECT status,text FROM document_ocr WHERE document_id=?').get(id) as Row|undefined; return { id, name: String(row.name), type: documentType?String(documentType.name):nullable(row.type), typeId:documentType?String(row.document_type_id):null, tags: parseTags(row.tags_json), notes: nullable(row.notes), createdAt: String(row.created_at), updatedAt: String(row.updated_at), files: documentFilesFor(id), ocrStatus: ocr?String(ocr.status):null, ocrTextPreview: ocr?.text?String(ocr.text).slice(0,180):null } as BinderDocument;
 }
 function syncDocumentSearch(documentId: string): void {
   const row = database.prepare('SELECT d.name, d.type, d.tags_json, d.notes, o.text AS ocr_text FROM documents d LEFT JOIN document_ocr o ON o.document_id=d.id WHERE d.id = ?').get(documentId) as Row | undefined;
@@ -286,11 +323,17 @@ export function listDocuments(householdId: string, query = ''): BinderDocument[]
     : database.prepare('SELECT * FROM documents WHERE household_id = ? AND deleted_at IS NULL ORDER BY updated_at DESC').all(householdId) as Row[];
   return rows.map(documentFromRow);
 }
+function documentTypeValue(householdId:string,idValue:unknown):{id:string;name:string}|null{const id=nullable(idValue);if(!id)return null;const row=database.prepare('SELECT id,name FROM document_types WHERE id=? AND household_id=?').get(id,householdId) as Row|undefined;if(!row)throw new Error('Wybrany typ dokumentu nie istnieje.');return{id:String(row.id),name:String(row.name)}}
+export function listDocumentTypes(householdId:string):DocumentType[]{return(database.prepare('SELECT id,name FROM document_types WHERE household_id=? ORDER BY name COLLATE NOCASE').all(householdId) as Row[]).map(row=>({id:String(row.id),name:String(row.name)}))}
+export function createDocumentType(householdId:string,nameValue:string):DocumentType{const name=nameValue.trim();if(!name||name.length>80)throw new Error('Nazwa musi mieć od 1 do 80 znaków.');const id=randomUUID();database.prepare('INSERT INTO document_types(id,household_id,name,created_at) VALUES(?,?,?,?)').run(id,householdId,name,now());return{id,name}}
+export function updateDocumentType(householdId:string,id:string,nameValue:string):DocumentType|null{const name=nameValue.trim();if(!name||name.length>80)throw new Error('Nazwa musi mieć od 1 do 80 znaków.');const result=database.prepare('UPDATE document_types SET name=? WHERE id=? AND household_id=?').run(name,id,householdId);if(!result.changes)return null;database.prepare('UPDATE documents SET type=?,updated_at=? WHERE household_id=? AND document_type_id=?').run(name,now(),householdId,id);for(const row of database.prepare('SELECT id FROM documents WHERE household_id=? AND document_type_id=?').all(householdId,id) as Row[])syncDocumentSearch(String(row.id));return{id,name}}
+export function deleteDocumentType(householdId:string,id:string):boolean{const affected=(database.prepare('SELECT id FROM documents WHERE household_id=? AND document_type_id=?').all(householdId,id) as Row[]).map(row=>String(row.id));database.exec('BEGIN');try{database.prepare('UPDATE documents SET type=NULL,document_type_id=NULL,updated_at=? WHERE household_id=? AND document_type_id=?').run(now(),householdId,id);const result=database.prepare('DELETE FROM document_types WHERE id=? AND household_id=?').run(id,householdId);database.exec('COMMIT');for(const documentId of affected)syncDocumentSearch(documentId);return result.changes>0}catch(error){database.exec('ROLLBACK');throw error}}
 export function createDocument(householdId: string, input: CreateBinderDocumentInput): BinderDocument {
   const name = input.name.trim(); if (!name) throw new Error('Nazwa dokumentu jest wymagana.');
   const id = randomUUID(); const timestamp = now();
-  database.prepare('INSERT INTO documents(id, household_id, name, type, tags_json, notes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-    .run(id, householdId, name, nullable(input.type), JSON.stringify(tags(input.tags)), nullable(input.notes), timestamp, timestamp);
+  const documentType=input.typeId===undefined?null:documentTypeValue(householdId,input.typeId);
+  database.prepare('INSERT INTO documents(id, household_id, name, type, document_type_id, tags_json, notes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(id, householdId, name, documentType?.name??nullable(input.type), documentType?.id??null, JSON.stringify(tags(input.tags)), nullable(input.notes), timestamp, timestamp);
   syncDocumentSearch(id);
   return documentFromRow(database.prepare('SELECT * FROM documents WHERE id = ?').get(id) as Row);
 }
@@ -299,11 +342,13 @@ export function updateDocument(householdId: string, id: string, input: Partial<C
   if (!current) return null;
   const name = input.name === undefined ? String(current.name) : input.name.trim();
   if (!name) throw new Error('Nazwa dokumentu jest wymagana.');
-  const type = input.type === undefined ? nullable(current.type) : nullable(input.type);
+  const selectedType=input.typeId===undefined?undefined:documentTypeValue(householdId,input.typeId);
+  const type = selectedType===undefined?(input.type===undefined?nullable(current.type):nullable(input.type)):selectedType?.name??null;
+  const typeId=selectedType===undefined?(input.type===undefined?nullable(current.document_type_id):null):selectedType?.id??null;
   const nextTags = input.tags === undefined ? parseTags(current.tags_json) : tags(input.tags);
   const notes = input.notes === undefined ? nullable(current.notes) : nullable(input.notes);
-  database.prepare('UPDATE documents SET name=?, type=?, tags_json=?, notes=?, updated_at=? WHERE id=?')
-    .run(name, type, JSON.stringify(nextTags), notes, now(), id);
+  database.prepare('UPDATE documents SET name=?, type=?, document_type_id=?, tags_json=?, notes=?, updated_at=? WHERE id=?')
+    .run(name, type, typeId, JSON.stringify(nextTags), notes, now(), id);
   syncDocumentSearch(id);
   return documentFromRow(database.prepare('SELECT * FROM documents WHERE id = ?').get(id) as Row);
 }
@@ -367,15 +412,62 @@ export function getAsset(householdId: string, id: string): AssetSummary | null {
   return row ? assetFromRow(row, true) : null;
 }
 
+const itemStatuses: ItemStatus[] = ['available', 'reserved', 'in_use', 'in_repair', 'retired'];
+function itemStatus(value: unknown, fallback: ItemStatus = 'available'): ItemStatus {
+  if (value === undefined || value === null || value === '') return fallback;
+  if (!itemStatuses.includes(value as ItemStatus)) throw new Error('Wybrany status przedmiotu jest nieprawidłowy.');
+  return value as ItemStatus;
+}
+function optionId(householdId: string, kind: AssetOptionKind, value: unknown): string | null {
+  const id = nullable(value);
+  if (!id) return null;
+  const row = database.prepare('SELECT id FROM asset_options WHERE id=? AND household_id=? AND kind=?').get(id, householdId, kind) as Row | undefined;
+  if (!row) throw new Error(kind === 'category' ? 'Wybrana kategoria nie istnieje.' : 'Wybrana lokalizacja nie istnieje.');
+  return id;
+}
+
+export function listAssetOptions(householdId: string): AssetOption[] {
+  return (database.prepare('SELECT id,kind,name FROM asset_options WHERE household_id=? ORDER BY kind,name COLLATE NOCASE').all(householdId) as Row[])
+    .map((row) => ({ id: String(row.id), kind: row.kind as AssetOptionKind, name: String(row.name) }));
+}
+export function createAssetOption(householdId: string, kind: AssetOptionKind, nameValue: string): AssetOption {
+  const name = nameValue.trim();
+  if (!name || name.length > 80) throw new Error('Nazwa musi mieć od 1 do 80 znaków.');
+  const id = randomUUID();
+  database.prepare('INSERT INTO asset_options(id,household_id,kind,name,created_at) VALUES(?,?,?,?,?)').run(id, householdId, kind, name, now());
+  return { id, kind, name };
+}
+export function updateAssetOption(householdId: string, id: string, nameValue: string): AssetOption | null {
+  const name = nameValue.trim();
+  if (!name || name.length > 80) throw new Error('Nazwa musi mieć od 1 do 80 znaków.');
+  const result = database.prepare('UPDATE asset_options SET name=? WHERE id=? AND household_id=?').run(name, id, householdId);
+  if (!result.changes) return null;
+  const row = database.prepare('SELECT kind FROM asset_options WHERE id=?').get(id) as Row;
+  for (const asset of database.prepare('SELECT id FROM assets WHERE household_id=? AND (category_id=? OR location_id=?)').all(householdId, id, id) as Row[]) syncSearch(String(asset.id));
+  return { id, kind: row.kind as AssetOptionKind, name };
+}
+export function deleteAssetOption(householdId: string, id: string): boolean {
+  const affected = (database.prepare('SELECT id FROM assets WHERE household_id=? AND (category_id=? OR location_id=?)').all(householdId, id, id) as Row[]).map((row) => String(row.id));
+  database.exec('BEGIN');
+  try {
+    database.prepare('UPDATE assets SET category_id=NULL WHERE household_id=? AND category_id=?').run(householdId, id);
+    database.prepare('UPDATE assets SET location_id=NULL WHERE household_id=? AND location_id=?').run(householdId, id);
+    const result = database.prepare('DELETE FROM asset_options WHERE id=? AND household_id=?').run(id, householdId);
+    database.exec('COMMIT');
+    for (const assetId of affected) syncSearch(assetId);
+    return result.changes > 0;
+  } catch (error) { database.exec('ROLLBACK'); throw error; }
+}
+
 export function createAsset(householdId: string, input: CreateAssetInput): AssetSummary {
   const name = input.name.trim();
   if (!name) throw new Error('Nazwa przedmiotu jest wymagana.');
   const id = randomUUID();
   const timestamp = now();
   const normalizedTags = tags(input.tags);
-  database.prepare(`INSERT INTO assets (id, household_id, name, manufacturer, model_number, serial_number, purchase_date, price_minor, currency, quantity, external_url, notes, tags_json, status, completeness, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)`)
-    .run(id, householdId, name, nullable(input.manufacturer), nullable(input.modelNumber), nullable(input.serialNumber), nullable(input.purchaseDate), Number.isFinite(input.priceMinor) ? Math.max(0, Math.trunc(input.priceMinor!)) : null, nullable(input.currency), Math.max(1, Number(input.quantity ?? 1)), nullable(input.externalUrl), nullable(input.notes), JSON.stringify(normalizedTags), completeness(input), timestamp, timestamp);
+  database.prepare(`INSERT INTO assets (id, household_id, name, manufacturer, model_number, serial_number, purchase_date, price_minor, currency, quantity, external_url, notes, tags_json, status, item_status, category_id, location_id, completeness, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?)`)
+    .run(id, householdId, name, nullable(input.manufacturer), nullable(input.modelNumber), nullable(input.serialNumber), nullable(input.purchaseDate), Number.isFinite(input.priceMinor) ? Math.max(0, Math.trunc(input.priceMinor!)) : null, nullable(input.currency), Math.max(1, Number(input.quantity ?? 1)), nullable(input.externalUrl), nullable(input.notes), JSON.stringify(normalizedTags), itemStatus(input.itemStatus), optionId(householdId, 'category', input.categoryId), optionId(householdId, 'location', input.locationId), completeness(input), timestamp, timestamp);
   syncSearch(id);
   return getAsset(householdId, id)!;
 }
@@ -395,10 +487,13 @@ export function updateAsset(householdId: string, id: string, input: Partial<Crea
     quantity: input.quantity === undefined ? current.quantity : Math.max(1, Number(input.quantity)),
     notes: input.notes === undefined ? current.notes : nullable(input.notes),
     tags: input.tags === undefined ? current.tags : tags(input.tags),
+    itemStatus: input.itemStatus === undefined ? current.itemStatus : itemStatus(input.itemStatus, current.itemStatus),
+    categoryId: input.categoryId === undefined ? current.categoryId : optionId(householdId, 'category', input.categoryId),
+    locationId: input.locationId === undefined ? current.locationId : optionId(householdId, 'location', input.locationId),
   };
   if (!next.name) throw new Error('Nazwa przedmiotu jest wymagana.');
-  database.prepare(`UPDATE assets SET name=?, manufacturer=?, model_number=?, serial_number=?, purchase_date=?, price_minor=?, currency=?, quantity=?, external_url=?, notes=?, tags_json=?, completeness=?, updated_at=? WHERE id=?`)
-    .run(next.name, next.manufacturer, next.modelNumber, next.serialNumber, next.purchaseDate, next.priceMinor, next.currency, next.quantity, next.externalUrl, next.notes, JSON.stringify(next.tags), completeness(next), now(), id);
+  database.prepare(`UPDATE assets SET name=?, manufacturer=?, model_number=?, serial_number=?, purchase_date=?, price_minor=?, currency=?, quantity=?, external_url=?, notes=?, tags_json=?, item_status=?, category_id=?, location_id=?, completeness=?, updated_at=? WHERE id=?`)
+    .run(next.name, next.manufacturer, next.modelNumber, next.serialNumber, next.purchaseDate, next.priceMinor, next.currency, next.quantity, next.externalUrl, next.notes, JSON.stringify(next.tags), next.itemStatus, next.categoryId, next.locationId, completeness(next), now(), id);
   syncSearch(id);
   return getAsset(householdId, id);
 }
@@ -561,6 +656,8 @@ export function permanentlyDeleteHouseholdTrash(householdId: string): string[] {
 
 export function exportBackupData(householdId: string): { tables: Record<string, Row[]>; storedNames: string[] } {
   const tables: Record<string, Row[]> = {};
+  tables.asset_options = database.prepare('SELECT * FROM asset_options WHERE household_id=?').all(householdId) as Row[];
+  tables.document_types = database.prepare('SELECT * FROM document_types WHERE household_id=?').all(householdId) as Row[];
   tables.assets = database.prepare('SELECT * FROM assets WHERE household_id=?').all(householdId) as Row[];
   tables.documents = database.prepare('SELECT * FROM documents WHERE household_id=?').all(householdId) as Row[];
   const assetIds = tables.assets.map(row => String(row.id)); const documentIds = tables.documents.map(row => String(row.id));
@@ -578,7 +675,7 @@ export function exportBackupData(householdId: string): { tables: Record<string, 
 }
 
 export function restoreBackupData(householdId: string, tables: Record<string, Row[]>): string[] {
-  const order=['assets','warranties','maintenance_plans','maintenance_records','asset_files','inbox_files','documents','document_files','document_ocr'];
+  const order=['asset_options','document_types','assets','warranties','maintenance_plans','maintenance_records','asset_files','inbox_files','documents','document_files','document_ocr'];
   const old=exportBackupData(householdId).storedNames;
   database.exec('BEGIN');
   try {
@@ -589,14 +686,16 @@ export function restoreBackupData(householdId: string, tables: Record<string, Ro
     database.prepare('DELETE FROM warranties WHERE asset_id IN (SELECT id FROM assets WHERE household_id=?)').run(householdId);
     database.prepare('DELETE FROM maintenance_plans WHERE asset_id IN (SELECT id FROM assets WHERE household_id=?)').run(householdId);
     database.prepare('DELETE FROM assets WHERE household_id=?').run(householdId);
+    database.prepare('DELETE FROM asset_options WHERE household_id=?').run(householdId);
     database.prepare('DELETE FROM document_files WHERE document_id IN (SELECT id FROM documents WHERE household_id=?)').run(householdId);
     database.prepare('DELETE FROM documents WHERE household_id=?').run(householdId);
+    database.prepare('DELETE FROM document_types WHERE household_id=?').run(householdId);
     database.prepare('DELETE FROM inbox_files WHERE household_id=?').run(householdId);
     for (const table of order) {
       const rows=tables[table]??[]; if(!Array.isArray(rows)) throw new Error(`Nieprawidłowa tabela backupu: ${table}.`);
       const columns=(database.prepare(`PRAGMA table_info(${table})`).all() as Row[]).map(row=>String(row.name));
       for (const source of rows) {
-        const row={...source}; if(table==='assets'||table==='documents'||table==='inbox_files') row.household_id=householdId;
+        const row={...source}; if(table==='asset_options'||table==='document_types'||table==='assets'||table==='documents'||table==='inbox_files') row.household_id=householdId;
         const used=columns.filter(column=>Object.prototype.hasOwnProperty.call(row,column)); if(!used.length) continue;
         database.prepare(`INSERT INTO ${table}(${used.join(',')}) VALUES (${used.map(()=>'?').join(',')})`).run(...used.map(column=>row[column] as string|number|null|Uint8Array));
       }

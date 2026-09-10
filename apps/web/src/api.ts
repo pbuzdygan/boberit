@@ -1,4 +1,4 @@
-import type { AssetFile, AssetFileKind, AssetSummary, BinderDocument, CreateBinderDocumentInput, InboxFile, CreateAssetInput, MaintenancePlan, TrashEntry, TrashKind, Warranty } from '@boberit/shared';
+import type { AssetFile, AssetFileKind, AssetOption, AssetOptionKind, AssetSummary, BinderDocument, CreateBinderDocumentInput, DocumentType, InboxFile, CreateAssetInput, MaintenancePlan, TrashEntry, TrashKind, Warranty } from '@boberit/shared';
 
 type ApiEnvelope<T> = { data: T };
 let accessToken: string | null = null;
@@ -38,6 +38,14 @@ export const api = {
   selectHousehold: (householdId:string) => request<ApiEnvelope<{activeHouseholdId:string}>>('/households/active',{method:'POST',body:JSON.stringify({householdId})}),
   createHousehold: (name:string) => request<ApiEnvelope<{id:string;name:string;role:string}>>('/households',{method:'POST',body:JSON.stringify({name})}),
   renameHousehold: (id:string,name:string) => request<ApiEnvelope<{renamed:boolean}>>(`/households/${id}`,{method:'PATCH',body:JSON.stringify({name})}),
+  listAssetOptions: () => request<ApiEnvelope<AssetOption[]>>('/household/asset-options'),
+  createAssetOption: (kind:AssetOptionKind,name:string) => request<ApiEnvelope<AssetOption>>('/household/asset-options',{method:'POST',body:JSON.stringify({kind,name})}),
+  updateAssetOption: (id:string,name:string) => request<ApiEnvelope<AssetOption>>(`/household/asset-options/${id}`,{method:'PATCH',body:JSON.stringify({name})}),
+  deleteAssetOption: (id:string) => emptyRequest(`/household/asset-options/${id}`,{method:'DELETE'}),
+  listDocumentTypes: () => request<ApiEnvelope<DocumentType[]>>('/household/document-types'),
+  createDocumentType: (name:string) => request<ApiEnvelope<DocumentType>>('/household/document-types',{method:'POST',body:JSON.stringify({name})}),
+  updateDocumentType: (id:string,name:string) => request<ApiEnvelope<DocumentType>>(`/household/document-types/${id}`,{method:'PATCH',body:JSON.stringify({name})}),
+  deleteDocumentType: (id:string) => emptyRequest(`/household/document-types/${id}`,{method:'DELETE'}),
   listAssets: (query = '') => request<ApiEnvelope<AssetSummary[]>>(`/assets${query ? `?q=${encodeURIComponent(query)}` : ''}`),
   listInbox: () => request<ApiEnvelope<InboxFile[]>>('/inbox'),
   listTrash: (kind?: TrashKind) => request<ApiEnvelope<TrashEntry[]>>(`/trash${kind ? `?kind=${kind}` : ''}`),
@@ -72,6 +80,7 @@ export const api = {
   updatePlan: (id: string, input: Pick<MaintenancePlan, "title" | "scheduleKind" | "intervalValue" | "intervalUnit" | "nextDueOn" | "notes">) => request<ApiEnvelope<MaintenancePlan>>("/maintenance-plans/" + id, { method: "PATCH", body: JSON.stringify(input) }),
   deletePlan: (id: string) => emptyRequest("/maintenance-plans/" + id, { method: "DELETE" }),
   deleteAssetFile: (assetId: string, fileId: string) => emptyRequest("/assets/" + assetId + "/files/" + fileId, { method: "DELETE" }),
+  classifyAssetFile: (assetId:string,fileId:string,kind:AssetFileKind) => request<ApiEnvelope<AssetFile>>(`/assets/${assetId}/files/${fileId}`,{method:'PATCH',body:JSON.stringify({kind})}),
   completePlan: (id: string, input: { performedOn?: string; notes?: string } = {}) => request<ApiEnvelope<MaintenancePlan>>(`/maintenance-plans/${id}/complete`, { method: 'POST', body: JSON.stringify(input) }),
   uploadInboxFile: async (file: File) => {
     const form = new FormData(); form.set('file', file);
@@ -89,8 +98,8 @@ export const api = {
     if (!response.ok) { const body = await response.json().catch(() => null) as ApiErrorEnvelope | null; throw new Error(body?.error.message ?? 'Nie udało się dodać pliku do dokumentu.'); }
     return response.json() as Promise<ApiEnvelope<AssetFile>>;
   },
-  uploadFile: async (id: string, file: File, kind: AssetFileKind) => {
-    const form = new FormData(); form.set('file', file); form.set('kind', kind);
+  uploadFile: async (id: string, file: File, kind: AssetFileKind, provisional = false) => {
+    const form = new FormData(); form.set('file', file); form.set('kind', kind); if(provisional)form.set('provisional','true');
     const response = await fetch(`/api/v1/assets/${id}/files`, { method: 'POST', headers: authHeaders(), body: form });
     if (!response.ok) { const body = await response.json().catch(() => null) as ApiErrorEnvelope | null; throw new Error(body?.error.message ?? 'Nie udało się dodać pliku.'); }
     return response.json() as Promise<ApiEnvelope<AssetFile>>;
