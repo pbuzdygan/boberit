@@ -683,7 +683,7 @@ button.notification-row:hover { background:#f1f8ff; }
 /* Wspólny zapis danych przedmiotu i gwarancji. */
 .save-asset-changes { width:auto; min-width:112px; color:#08386e; border-color:#cfe2f4; background:#f4f9ff; }
 .save-asset-changes:disabled { cursor:default; opacity:.55; }
-.save-asset-changes.is-pending { animation:save-pending-pulse 2.4s ease-in-out infinite; }
+.save-asset-changes.is-pending,.save-changes-button.is-pending { animation:save-pending-pulse 2.4s ease-in-out infinite; }
 @keyframes save-pending-pulse { 0%,100% { border-color:#bcdcf7; box-shadow:0 0 0 0 rgba(0,104,232,0); } 50% { border-color:#79b9f8; box-shadow:0 0 0 4px rgba(0,104,232,.11); } }
 @media (prefers-reduced-motion: reduce) { .save-asset-changes.is-pending { animation:none; } }
 
