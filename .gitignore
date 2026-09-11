@@ -1,0 +1,31 @@
+# Dependencies and build output
+node_modules/
+**/node_modules/
+**/dist/
+coverage/
+
+# Local secrets and runtime data
+.env
+.env.*
+!.env.example
+data/
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.log
+
+# Temporary and editor files
+.tmp/
+tmp/
+.vscode/
+.idea/
+*.swp
+*.orig
+*.bak
+.DS_Store
+Thumbs.db
+
+# Unselected branding source exports
+branding/nowe_loga/
+branding/*_old.*

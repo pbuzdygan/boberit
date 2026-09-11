@@ -1,0 +1,23 @@
+{
+  "name": "@boberit/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc --noEmit -p tsconfig.json",
+    "dev": "node --watch --import tsx src/index.ts",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@boberit/shared": "file:../../packages/shared",
+    "@hono/node-server": "^2.1.1",
+    "hono": "^4.12.27",
+    "sharp": "^0.35.4"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}
