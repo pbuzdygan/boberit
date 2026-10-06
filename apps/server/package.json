@@ -1,9 +1,10 @@
 {
   "name": "@boberit/server",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "scripts": {
+    "test": "node --import tsx tests/search.test.mjs",
     "build": "tsc -p tsconfig.json",
     "check": "tsc --noEmit -p tsconfig.json",
     "dev": "node --watch --import tsx src/index.ts",

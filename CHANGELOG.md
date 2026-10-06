@@ -2,7 +2,19 @@
 
 Zmiany opisujemy z perspektywy użytkownika, bez szczegółów implementacyjnych.
 
-## 0.1.0 — Unreleased
+## 0.1.1
+
+### Improvements
+
+- Lokalne budowanie obrazów i skanowanie podatności mają polecenia z limitami RAM i CPU oraz blokadą równoczesnych ciężkich zadań.
+- Obrazy wydań pobierają aktualizacje pakietów Debiana przy każdym budowaniu, również dla bibliotek odziedziczonych z obrazu bazowego.
+
+### Bug fixes
+
+- Wyszukiwanie znajduje fragmenty ze środka słów, także w OCR, niezależnie od wielkości liter.
+- Wyniki wyszukiwania nie zmieniają liczników kolekcji ani zawartości innych ekranów; przejście przez menu kończy wyszukiwanie, a pole można wyczyścić przyciskiem × lub klawiszem Escape.
+
+## 0.1.0
 
 ### Features
 

@@ -1,6 +1,6 @@
 # Boberit — koncept produktu i plan wdrożenia
 
-Status: utrwalony koncept i długoterminowy plan; bieżący stan: kandydat 0.1.0  
+Status: utrwalony koncept i długoterminowy plan; bieżący stan: wersja 0.1.1 w przygotowaniu
 Zakres wdrożony: rzeczy domowe, niezależne dokumenty, OCR, konta i gospodarstwa  
 Język startowy: polski, architektura gotowa na i18n  
 Model dystrybucji: self-hosted, Docker, mobile-first PWA

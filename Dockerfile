@@ -19,7 +19,11 @@ ENV APP_DATA_DIR=/data
 ENV WEB_DIST=/app/apps/web/dist
 ENV MALLOC_ARENA_MAX=2
 
-RUN apt-get update && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-pol poppler-utils && rm -rf /var/lib/apt/lists/*
+# Refresh packages inherited from the pinned base image as well as OCR tools.
+RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
+    && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-pol poppler-utils \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build --chown=node:node /app/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/package.json ./package.json

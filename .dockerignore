@@ -12,3 +12,5 @@ branding/*
 *.md
 compose*.yaml
 compose*.yml
+
+.tmp

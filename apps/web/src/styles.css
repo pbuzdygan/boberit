@@ -732,3 +732,6 @@ button.notification-row:hover { background:#f1f8ff; }
   .detail-main > .panel:nth-child(3) .plan-form-grid > label:first-child,
   .detail-main > .panel:nth-child(3) .plan-form-grid > .span-all { grid-column:auto; }
 }
+
+.search-clear { display:inline-flex; align-items:center; justify-content:center; padding:4px; border:0; background:transparent; border-radius:4px; }
+.search-clear:hover { background:#e3edf7; }

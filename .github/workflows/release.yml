@@ -63,6 +63,8 @@ jobs:
         with:
           context: .
           platforms: linux/amd64,linux/arm64
+          # Re-run apt update/upgrade for every release instead of reusing old OS packages.
+          no-cache-filters: runtime
           push: true
           tags: |
             ${{ steps.image.outputs.name }}:${{ steps.image.outputs.channel }}

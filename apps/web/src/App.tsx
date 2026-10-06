@@ -158,6 +158,12 @@ export function App() {
   const [selectedDocument, setSelectedDocument] = useState<BinderDocument | null>(null);
   const [trashEntries, setTrashEntries] = useState<TrashEntry[]>([]);
   const [query, setQuery] = useState('');
+  const [searchAssets, setSearchAssets] = useState<AssetSummary[]>([]);
+  const [searchDocuments, setSearchDocuments] = useState<BinderDocument[]>([]);
+  const [isSearching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState('');
+  const searchSequence = useRef(0);
+  const queryRef = useRef('');
   const [selected, setSelected] = useState<AssetSummary | null>(null);
   const [hasUnsavedAssetChanges, setHasUnsavedAssetChanges] = useState(false);
   const [hasUnsavedDocumentChanges, setHasUnsavedDocumentChanges] = useState(false);
@@ -186,14 +192,15 @@ export function App() {
     setNotifications((current) => [{ id: String(Date.now()) + '-' + String(Math.random()), message: next, createdAt: Date.now() }, ...current].slice(0, 50));
   }
 
-  async function refresh(search = query) {
+  async function refresh() {
     const sequence = ++refreshSequence.current;
     setLoading(true);
     try {
-      const [response, inboxResponse, documentsResponse, trashResponse, storageResponse] = await Promise.all([api.listAssets(search), api.listInbox(), api.listDocuments(search), api.listTrash(), api.storage()]);
+      const [response, inboxResponse, documentsResponse, trashResponse, storageResponse] = await Promise.all([api.listAssets(), api.listInbox(), api.listDocuments(), api.listTrash(), api.storage()]);
       if (sequence !== refreshSequence.current) return;
       setAssets(response.data); setInboxFiles(inboxResponse.data); setDocuments(documentsResponse.data); setTrashEntries(trashResponse.data); setStorageBytes(Number(storageResponse.data.bytes)); setPurchaseValues(storageResponse.data.purchaseValues ?? []);
       setSelectedDocument((current) => current ? documentsResponse.data.find((document) => document.id === current.id) ?? current : null);
+      if (queryRef.current.trim()) void refreshSearch(queryRef.current);
       if (selected) {
         const selectedResponse = await api.getAsset(selected.id);
         if (sequence === refreshSequence.current) setSelected(selectedResponse.data);
@@ -203,7 +210,7 @@ export function App() {
     } finally { if (sequence === refreshSequence.current) setLoading(false); }
   }
 
-  useEffect(() => { const loadHouseholds=()=>void api.households().then(r=>{setHouseholds(r.data.households);setActiveHouseholdId(r.data.activeHouseholdId);}).catch(()=>undefined);const reloadDictionaries=()=>void refresh(''); setAccessToken(accessToken); if (accessToken) { void refresh(''); loadHouseholds(); void api.me().then(r=>setAccount(r.data)).catch(()=>setAccount(null)); window.addEventListener('boberit-households-changed',loadHouseholds);window.addEventListener('boberit-data-dictionaries-changed',reloadDictionaries); } return ()=>{window.removeEventListener('boberit-households-changed',loadHouseholds);window.removeEventListener('boberit-data-dictionaries-changed',reloadDictionaries)}; }, [accessToken]);
+  useEffect(() => { const loadHouseholds=()=>void api.households().then(r=>{setHouseholds(r.data.households);setActiveHouseholdId(r.data.activeHouseholdId);}).catch(()=>undefined);const reloadDictionaries=()=>void refresh(); setAccessToken(accessToken); if (accessToken) { void refresh(); loadHouseholds(); void api.me().then(r=>setAccount(r.data)).catch(()=>setAccount(null)); window.addEventListener('boberit-households-changed',loadHouseholds);window.addEventListener('boberit-data-dictionaries-changed',reloadDictionaries); } return ()=>{window.removeEventListener('boberit-households-changed',loadHouseholds);window.removeEventListener('boberit-data-dictionaries-changed',reloadDictionaries)}; }, [accessToken]);
   function allowDiscardAssetChanges(): boolean {
     if (!selected || !hasUnsavedAssetChanges) return true;
     if (!window.confirm(unsavedAssetMessage)) return false;
@@ -219,8 +226,36 @@ export function App() {
     return true;
   }
 
+  function clearSearch() {
+    queryRef.current = '';
+    ++searchSequence.current;
+    setQuery('');
+    setSearchAssets([]);
+    setSearchDocuments([]);
+    setSearching(false);
+    setSearchError('');
+  }
+
+  async function refreshSearch(search: string) {
+    if (!search.trim() || search !== queryRef.current) return;
+    const sequence = ++searchSequence.current;
+    setSearching(true);
+    setSearchError('');
+    try {
+      const [assetResponse, documentResponse] = await Promise.all([api.listAssets(search), api.listDocuments(search)]);
+      if (sequence !== searchSequence.current || search !== queryRef.current) return;
+      setSearchAssets(assetResponse.data);
+      setSearchDocuments(documentResponse.data);
+    } catch (error) {
+      if (sequence === searchSequence.current) setSearchError(error instanceof Error ? error.message : 'Nie udało się wyszukać.');
+    } finally {
+      if (sequence === searchSequence.current) setSearching(false);
+    }
+  }
+
   function navigateTo(next: View): boolean {
     if (!allowDiscardChanges()) return false;
+    clearSearch();
     setSelected(null);
     setView(next);
     return true;
@@ -239,19 +274,30 @@ export function App() {
     if ((selected || view === 'document-ocr') && !allowDiscardChanges()) return;
     if (selected) setSelected(null);
     if (value && !query) searchOriginRef.current = view === 'search' ? searchOriginRef.current : view;
+    if (!value.trim()) {
+      clearSearch();
+      setView(searchOriginRef.current);
+      return;
+    }
+    queryRef.current = value;
+    ++searchSequence.current;
+    setSearchAssets([]);
+    setSearchDocuments([]);
+    setSearchError('');
+    setSearching(true);
     setQuery(value);
-    setView(value ? 'search' : searchOriginRef.current);
+    setView('search');
   }
 
-  async function switchHousehold(id:string) { if (!allowDiscardChanges()) return; try { await api.selectHousehold(id); setActiveHouseholdId(id); setSelected(null); setView('start'); await refresh(''); setMessage('Przełączono gospodarstwo.'); } catch (error) { setMessage(error instanceof Error ? error.message : 'Nie udało się przełączyć gospodarstwa.'); } }
-  async function logout(){if (!allowDiscardChanges()) return; try{await api.logout();}catch{/* Local removal is still safer after a network error. */}sessionStorage.removeItem('boberit-session');setAccessToken(null);setAccount(null);setToken(null);setSelected(null);setAssets([]);setDocuments([]);setStorageBytes(0);setPurchaseValues([]);setSelectedDocument(null);setInboxFiles([]);setTrashEntries([]);}
+  async function switchHousehold(id:string) { if (!allowDiscardChanges()) return; try { await api.selectHousehold(id); clearSearch(); setActiveHouseholdId(id); setSelected(null); setView('start'); await refresh(); setMessage('Przełączono gospodarstwo.'); } catch (error) { setMessage(error instanceof Error ? error.message : 'Nie udało się przełączyć gospodarstwa.'); } }
+  async function logout(){if (!allowDiscardChanges()) return; try{await api.logout();}catch{/* Local removal is still safer after a network error. */}clearSearch(); ++refreshSequence.current; sessionStorage.removeItem('boberit-session');setAccessToken(null);setAccount(null);setToken(null);setSelected(null);setAssets([]);setDocuments([]);setStorageBytes(0);setPurchaseValues([]);setSelectedDocument(null);setInboxFiles([]);setTrashEntries([]);}
   function openAccount(section:AccountSection){if (navigateTo('account')) setAccountSection(section);}
 
   useEffect(() => {
-    if (!accessToken) return;
-    const timeout = window.setTimeout(() => { void refresh(query); }, 180);
+    if (!accessToken || !query.trim()) return;
+    const timeout = window.setTimeout(() => { void refreshSearch(query); }, 180);
     return () => window.clearTimeout(timeout);
-  }, [query]);
+  }, [query, accessToken]);
 
   useEffect(() => { try { localStorage.setItem('boberit-ui-notifications', JSON.stringify(notifications)); } catch { /* Browser storage is optional. */ } }, [notifications]);
 
@@ -308,7 +354,7 @@ export function App() {
       const created = await api.createDocument(input as CreateBinderDocumentInput);
       for (const file of files) await api.uploadDocumentFile(created.data.id, file);
       if (files.length) await api.runDocumentOcr(created.data.id);
-      await refresh(); setSelected(null); setView('binder');
+      await refresh(); navigateTo('binder');
       setMessage(files.length ? 'Dokument i pliki trafiły do Dokumentów.' : 'Dokument trafił do Dokumentów.');
     }
     setQuickAddOpen(false);
@@ -366,7 +412,7 @@ export function App() {
   }
   async function removeDocumentFile(documentId: string, fileId: string) { await api.deleteDocumentFile(documentId, fileId); await refresh(); setMessage("Załącznik usunięto, a treść OCR zaktualizowano."); }
   async function deleteInboxFile(id: string) { await api.deleteInboxFile(id); await refresh(); setMessage('Plik usunięto z listy Do przypisania.'); }
-  async function trashAsset(id: string) { await api.trashAsset(id); setSelected(null); await refresh(); setView('items'); setMessage('Przedmiot przeniesiono do Kosza na 30 dni.'); }
+  async function trashAsset(id: string) { await api.trashAsset(id); setSelected(null); clearSearch(); await refresh(); setView('items'); setMessage('Przedmiot przeniesiono do Kosza na 30 dni.'); }
   async function trashDocument(id: string) { await api.trashDocument(id); await refresh(); setMessage('Dokument przeniesiono do Kosza na 30 dni.'); }
   async function restoreTrash(kind: TrashKind, id: string) { await api.restoreTrash(kind, id); await refresh(); setMessage('Element przywrócono.'); }
   async function emptyTrash() { await api.emptyTrash(); await refresh(); setMessage('Kosz został opróżniony trwale.'); }
@@ -406,7 +452,7 @@ export function App() {
 
     <main>
       <header className="topbar">
-        <label className="search"><Icon name="search" /><input ref={searchInputRef} aria-label="Szukaj w Boberit" value={query} onChange={(event) => updateSearch(event.target.value)} placeholder="Szukaj nazwy, modelu, serialu, tagu…" /><kbd>/</kbd></label>
+        <label className="search"><Icon name="search" /><input ref={searchInputRef} aria-label="Szukaj w Boberit" value={query} onChange={(event) => updateSearch(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape" && query) updateSearch(''); }} placeholder="Szukaj nazwy, modelu, serialu, tagu, OCR…" />{query && <button className="search-clear" aria-label="Wyczyść wyszukiwanie" onClick={() => updateSearch('')} type="button"><Icon name="x" /></button>}<kbd>/</kbd></label>
         <div className="topbar-actions">
           <button className="primary topbar-save" type="button" onClick={openQuickAdd}><Icon name="plus" /> Dodaj</button>
           <NotificationsMenu hasUnreadToday={hasUnreadToday} history={notifications} onOpenAsset={(id) => void openDetail(id)} onReadToday={markTodayRead} todayReminders={todayReminders} />
@@ -414,7 +460,7 @@ export function App() {
         </div>
       </header>
       <section className="content">
-        {selected ? <Detail key={selected.id} asset={selected} onBack={() => { void navigateTo('items'); }} onDirtyChange={setHasUnsavedAssetChanges} onTrash={trashAsset} onUpdate={update} onWarranty={saveWarranty} onPlan={addPlan} onUpdatePlan={updatePlan} onDeletePlan={removePlan} onUpload={uploadFiles} onDeleteFile={removeAssetFile} onClassifyFile={classifyFile} onComplete={setCompletionPlan} /> : view === 'start' ? <StartPage assets={assets} documentCount={documents.length} storageBytes={storageBytes} purchaseValues={purchaseValues} attention={attention} reminders={reminders} onCapture={openQuickAdd} onOpen={openDetail} onAllItems={() => setView('items')} onTimeline={() => setView('timeline')} /> : view === 'timeline' ? <TimelinePage assets={assets} filter={timelineFilter} onFilter={setTimelineFilter} onOpen={openDetail} onComplete={setCompletionPlan} /> : view === 'document-ocr' && selectedDocument ? <DocumentOcrPage document={selectedDocument} onBack={() => { void navigateTo('binder'); }} onDirtyChange={setHasUnsavedDocumentChanges} onRun={runOcr} onSave={saveOcr} onUpdate={updateDocument} onDeleteFile={removeDocumentFile} /> : view === 'binder' ? <BinderPage documents={documents} onOpenOcr={(document) => { setSelectedDocument(document); setView("document-ocr"); }} onUpdate={updateDocument} onBatchOcr={batchOcr} onUpload={uploadDocumentFiles} onTrash={trashDocument} /> : view === 'trash' ? <TrashPage entries={trashEntries} onRestore={restoreTrash} onEmpty={emptyTrash} /> : view === 'account' ? <AccountPage section={accountSection} onSection={setAccountSection} onLogout={logout} /> : view === 'settings' ? <SettingsPage /> : view === 'search' ? <SearchPage query={query} assets={assets} documents={documents} onOpenAsset={openDetail} onOpenDocument={(document) => { setSelectedDocument(document); setView("document-ocr"); }} /> : view === 'inbox' ? <InboxPage files={inboxFiles} assets={assets} onUpload={uploadInboxFiles} onAssign={assignInbox} onToDocument={inboxToDocument} onDelete={deleteInboxFile} /> : <ItemsPage allAssets={assets} assets={collectionAssets} attention={attention} isLoading={isLoading} filter={filter} onFilter={setFilter} onOpen={openDetail} />}
+        {selected ? <Detail key={selected.id} asset={selected} onBack={() => { void navigateTo('items'); }} onDirtyChange={setHasUnsavedAssetChanges} onTrash={trashAsset} onUpdate={update} onWarranty={saveWarranty} onPlan={addPlan} onUpdatePlan={updatePlan} onDeletePlan={removePlan} onUpload={uploadFiles} onDeleteFile={removeAssetFile} onClassifyFile={classifyFile} onComplete={setCompletionPlan} /> : view === 'start' ? <StartPage assets={assets} documentCount={documents.length} storageBytes={storageBytes} purchaseValues={purchaseValues} attention={attention} reminders={reminders} onCapture={openQuickAdd} onOpen={openDetail} onAllItems={() => navigateTo('items')} onTimeline={() => navigateTo('timeline')} /> : view === 'timeline' ? <TimelinePage assets={assets} filter={timelineFilter} onFilter={setTimelineFilter} onOpen={openDetail} onComplete={setCompletionPlan} /> : view === 'document-ocr' && selectedDocument ? <DocumentOcrPage document={selectedDocument} onBack={() => { void navigateTo('binder'); }} onDirtyChange={setHasUnsavedDocumentChanges} onRun={runOcr} onSave={saveOcr} onUpdate={updateDocument} onDeleteFile={removeDocumentFile} /> : view === 'binder' ? <BinderPage documents={documents} onOpenOcr={(document) => { setSelectedDocument(document); setView("document-ocr"); }} onUpdate={updateDocument} onBatchOcr={batchOcr} onUpload={uploadDocumentFiles} onTrash={trashDocument} /> : view === 'trash' ? <TrashPage entries={trashEntries} onRestore={restoreTrash} onEmpty={emptyTrash} /> : view === 'account' ? <AccountPage section={accountSection} onSection={setAccountSection} onLogout={logout} /> : view === 'settings' ? <SettingsPage /> : view === 'search' ? <SearchPage query={query} assets={searchAssets} documents={searchDocuments} isLoading={isSearching} error={searchError} onOpenAsset={openDetail} onOpenDocument={(document) => { setSelectedDocument(document); setView("document-ocr"); }} /> : view === 'inbox' ? <InboxPage files={inboxFiles} assets={assets} onUpload={uploadInboxFiles} onAssign={assignInbox} onToDocument={inboxToDocument} onDelete={deleteInboxFile} /> : <ItemsPage allAssets={assets} assets={collectionAssets} attention={attention} isLoading={isLoading} filter={filter} onFilter={setFilter} onOpen={openDetail} />}
       </section>
     </main>
     {completionPlan && <CompletionDialog plan={completionPlan} onClose={() => setCompletionPlan(null)} onSave={(input) => void completePlan(completionPlan.id, input)} />}
@@ -714,7 +760,7 @@ function TimelinePage({ assets, filter, onFilter, onOpen, onComplete }: { assets
   </>;
 }
 
-function SearchPage({query,assets,documents,onOpenAsset,onOpenDocument}:{query:string;assets:AssetSummary[];documents:BinderDocument[];onOpenAsset:(id:string)=>Promise<void>;onOpenDocument:(document:BinderDocument)=>void}){return <><div className="page-heading"><div><p className="eyebrow">Wyniki wyszukiwania</p><h1>„{query}”</h1><p>Przedmioty oraz dokumenty — również dopasowania z OCR.</p></div></div><div className="search-results"><section><div className="section-heading"><h2>Przedmioty <em>{assets.length}</em></h2></div>{assets.map(asset=><button className="recent-row" key={asset.id} onClick={()=>void onOpenAsset(asset.id)} type="button"><span className="asset-icon"><Icon name="package"/></span><span><strong>{asset.name}</strong><small>{[asset.manufacturer,asset.modelNumber].filter(Boolean).join(' · ')||'Przedmiot'}</small></span></button>)}</section><section><div className="section-heading"><h2>Dokumenty <em>{documents.length}</em></h2></div>{documents.map(doc=><button className="recent-row" key={doc.id} onClick={() => onOpenDocument(doc)} type="button"><span className="asset-icon"><Icon name="file-text"/></span><span><strong>{doc.name}</strong><small>{doc.ocrTextPreview||[doc.type,...doc.tags].filter(Boolean).join(' · ')||'Dokument'}</small></span></button>)}</section>{!assets.length&&!documents.length&&<div className="empty"><Icon name="search"/><strong>Brak wyników</strong><p>Spróbuj innego słowa lub fragmentu tekstu.</p></div>}</div></>;}
+function SearchPage({query,assets,documents,isLoading,error,onOpenAsset,onOpenDocument}:{query:string;assets:AssetSummary[];documents:BinderDocument[];isLoading:boolean;error:string;onOpenAsset:(id:string)=>Promise<void>;onOpenDocument:(document:BinderDocument)=>void}){return <><div className="page-heading"><div><p className="eyebrow">Wyniki wyszukiwania</p><h1>„{query}”</h1><p>Przedmioty oraz dokumenty — również dopasowania z OCR.</p></div></div><div className="search-results" aria-live="polite" aria-busy={isLoading}>{isLoading ? <div className="empty">Wyszukiwanie…</div> : error ? <p className="form-error">{error}</p> : <><section><div className="section-heading"><h2>Przedmioty <em>{assets.length}</em></h2></div>{assets.map(asset=><button className="recent-row" key={asset.id} onClick={()=>void onOpenAsset(asset.id)} type="button"><span className="asset-icon"><Icon name="package"/></span><span><strong>{asset.name}</strong><small>{[asset.manufacturer,asset.modelNumber].filter(Boolean).join(' · ')||'Przedmiot'}</small></span></button>)}</section><section><div className="section-heading"><h2>Dokumenty <em>{documents.length}</em></h2></div>{documents.map(doc=><button className="recent-row" key={doc.id} onClick={() => onOpenDocument(doc)} type="button"><span className="asset-icon"><Icon name="file-text"/></span><span><strong>{doc.name}</strong><small>{doc.ocrTextPreview||[doc.type,...doc.tags].filter(Boolean).join(' · ')||'Dokument'}</small></span></button>)}</section>{!assets.length&&!documents.length&&<div className="empty"><Icon name="search"/><strong>Brak wyników</strong><p>Spróbuj innego słowa lub fragmentu tekstu.</p></div>}</>}</div></>;}
 
 type AssetGroupBy = 'category' | 'status' | 'location';
 function AssetColumnHeader({filterValue,grouped,label,onFilter,onGroup,options}:{filterValue:string;grouped:boolean;label:string;onFilter:(value:string)=>void;onGroup:()=>void;options:{value:string;label:string}[]}) {
