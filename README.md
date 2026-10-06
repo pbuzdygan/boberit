@@ -3,7 +3,7 @@
 **One place for everything that matters.**  
 **Save it now. Find it later.**
 
-![Baner Boberit](branding/boberit-banner.png)
+![Baner Boberit](branding/boberit_banner.png)
 
 Boberit to samodzielnie hostowane domowe archiwum przedmiotów i dokumentów. Łączy dane zakupu, gwarancje, konserwację, załączniki, niezależne dokumenty i lokalne OCR w jednym, zwartym interfejsie dostosowanym do telefonu i komputera.
 
