@@ -24,6 +24,7 @@ Zmiany opisujemy z perspektywy użytkownika, bez szczegółów implementacyjnych
 
 ### Improvements
 
+- Obrazy wydań pobierają aktualizacje pakietów Debiana przy każdym budowaniu, również dla bibliotek odziedziczonych z obrazu bazowego.
 - Wyszukiwanie znajduje fragmenty ze środka słów, także w OCR, niezależnie od wielkości liter.
 - Wyniki wyszukiwania nie zmieniają liczników kolekcji ani zawartości innych ekranów; przejście przez menu kończy wyszukiwanie, a pole można wyczyścić przyciskiem × lub klawiszem Escape.
 - Ustawienie daty zakupu może automatycznie przygotować dwuletnią gwarancję z określoną datą.

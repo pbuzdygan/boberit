@@ -8,6 +8,10 @@ Każdy obraz zawiera SBOM oraz informacje o pochodzeniu (provenance). Po publika
 
 Akcje workflow i bazowe obrazy są przypięte do niezmiennych identyfikatorów. Dependabot sprawdza ich aktualizacje co tydzień.
 
+Etap `runtime` aktualizuje również pakiety Debiana odziedziczone z obrazu bazowego (`apt-get update` oraz `apt-get upgrade`), zanim zainstaluje narzędzia OCR. Workflow nie używa cache dla tego etapu, aby każde wydanie pobierało dostępne poprawki systemowe; etap kompilacji nadal korzysta z cache. Samo `apt-get update` odświeża listę pakietów, ale nie aktualizuje zainstalowanych bibliotek.
+
+Jeśli Trivy zgłasza błąd, sprawdź kolumny `Installed Version` i `Fixed Version`. Popraw Dockerfile lub zależności i opublikuj nowy Release z nowym tagiem wskazującym poprawiony commit. Ponowienie starego workflow nadal pobiera kod ze starego taga. Nie wyłączaj skanowania ani blokady HIGH/CRITICAL, aby ominąć dostępne poprawki.
+
 ## Wydanie produkcyjne (`main`)
 
 1. Upewnij się, że commit wydania znajduje się na gałęzi `main`.
