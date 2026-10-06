@@ -1,7 +1,7 @@
-# Boberit 0.1.0 — stan wdrożenia
+# Boberit 0.1.1 — stan wdrożenia
 
-Status: **kandydat do pierwszego prywatnego wydania**  
-Data przeglądu: 8 września 2026
+Status: **wersja 0.1.1 w przygotowaniu**
+Data aktualizacji dokumentu: 6 października 2026
 
 ## Gotowy zakres produktu
 

@@ -7,7 +7,7 @@
 
 Boberit to samodzielnie hostowane domowe archiwum przedmiotów i dokumentów. Łączy dane zakupu, gwarancje, konserwację, załączniki, niezależne dokumenty i lokalne OCR w jednym, zwartym interfejsie dostosowanym do telefonu i komputera.
 
-## Zakres wersji 0.1.0
+## Zakres wersji 0.1.1
 
 - Przedmioty z danymi zakupu, gwarancją, tagami, notatkami i załącznikami, które można pobierać oraz pojedynczo usuwać.
 - Terminy gwarancji oraz jednorazowa i cykliczna konserwacja z edycją planów, oznaczaniem wykonania i historią czynności.
@@ -24,6 +24,8 @@ Boberit to samodzielnie hostowane domowe archiwum przedmiotów i dokumentów. Ł
 - Responsywna, instalowalna PWA z szybkim dodawaniem zdjęć, plików, przedmiotów i dokumentów.
 
 Szczegółowy stan znajduje się w [dokumencie wdrożenia](docs/IMPLEMENTATION.md), a decyzje produktowe w [blueprincie](docs/PRODUCT_BLUEPRINT.md).
+
+Na współdzielonej maszynie deweloperskiej lokalne obrazy buduj przez `npm run image:build -- boberit:local`, a skanuj przez `npm run image:scan -- boberit:local`. Te polecenia ograniczają RAM i CPU oraz blokują równoczesne ciężkie zadania. Konfigurację i zakres zabezpieczeń opisuje [instrukcja wydań](docs/GITHUB_RELEASES.md#lokalne-ciężkie-zadania-na-maszynie-deweloperskiej).
 
 ## Uruchomienie
 
@@ -71,7 +73,7 @@ Jeden workflow rozpoznaje gałąź docelową Release, ale używa rozdzielonych t
 ## Materiały projektu
 
 - [Stan wdrożenia i weryfikacja](docs/IMPLEMENTATION.md)
-- [Lista kontrolna wydania 0.1.0](docs/RELEASE_CHECKLIST.md)
+- [Lista kontrolna wydania 0.1.1](docs/RELEASE_CHECKLIST.md)
 - [Koncept produktu i długoterminowy plan](docs/PRODUCT_BLUEPRINT.md)
 - [System kolorów](docs/COLOR_SYSTEM.md)
 - [Branding](branding/README.md)

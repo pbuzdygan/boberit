@@ -12,6 +12,24 @@ Etap `runtime` aktualizuje również pakiety Debiana odziedziczone z obrazu bazo
 
 Jeśli Trivy zgłasza błąd, sprawdź kolumny `Installed Version` i `Fixed Version`. Popraw Dockerfile lub zależności i opublikuj nowy Release z nowym tagiem wskazującym poprawiony commit. Ponowienie starego workflow nadal pobiera kod ze starego taga. Nie wyłączaj skanowania ani blokady HIGH/CRITICAL, aby ominąć dostępne poprawki.
 
+## Lokalne ciężkie zadania na maszynie deweloperskiej
+
+Maszyna Incus ma 6 GiB RAM i współdzieli zasoby z edytorem oraz innymi aplikacjami. Lokalne obrazy należy budować i skanować przez polecenia z limitami:
+
+```bash
+npm run heavy:setup
+npm run heavy:status
+npm run image:build -- boberit:local
+npm run image:scan -- boberit:local
+```
+
+- Builder `boberit-local-limited`: 1,5 GiB RAM, bez swapu, 1 CPU, jeden krok budowania naraz. Skrypt weryfikuje limity kontenera i zatrzymuje builder po zakończeniu, również przy błędzie lub przerwaniu.
+- Trivy: 1 GiB RAM, bez swapu, 1 CPU, `--parallel 1`, limit skanowania 10 minut. Wyjście z przekroczeniem pamięci, czasu lub wykrytą podatnością oznacza nieudany skan.
+- Wspólna blokada `flock` dopuszcza jedno ciężkie zadanie na użytkownika, także między checkoutami projektu. Przed rozpoczęciem skrypt wymaga wolnego budżetu cgroup na limit zadania oraz dodatkowy 1 GiB rezerwy. Jest to kontrola wstępna, a nie gwarancja przeciw równoczesnemu wzrostowi pamięci innych procesów.
+- Obraz do skanu jest eksportowany do `.tmp`, skan nie otrzymuje dostępu do socketu Dockera. Pliki robocze są usuwane po zakończeniu, a baza Trivy pozostaje w `.tmp/trivy-cache`.
+
+Limity dotyczą tych poleceń i ich kontenerów. Nie ograniczają innych aplikacji, dowolnych poleceń Dockera, procesu `docker save` ani całego demona Dockera. Zwykłe `docker build` i `docker compose up --build` omijają zabezpieczenia. W przypadku braku zasobów pełny build/skan należy wykonać na GitHub Actions, bez podnoszenia lokalnych limitów. Konfiguracja hosta Incusa i przydział swapu nie są zmieniane przez skrypty.
+
 ## Wydanie produkcyjne (`main`)
 
 1. Upewnij się, że commit wydania znajduje się na gałęzi `main`.
