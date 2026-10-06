@@ -23,6 +23,16 @@ if (!existsSync(databasePath) && existsSync(legacyDatabasePath)) {
 
 export const database = new DatabaseSync(databasePath);
 database.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
+// Search literal fragments anywhere in a word, including Unicode case variants.
+// Keep accent folding consistent with the existing FTS5 index.
+function normalizeSearch(text: string): string {
+  return text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+}
+database.function('search_matches', { deterministic: true }, (text, query) => {
+  const normalizedText = normalizeSearch(String(text ?? ''));
+  return normalizeSearch(String(query ?? '')).trim().split(/\s+/)
+    .every((fragment) => normalizedText.includes(fragment)) ? 1 : 0;
+});
 
 database.exec(`
   CREATE TABLE IF NOT EXISTS audit_events (id TEXT PRIMARY KEY, household_id TEXT NOT NULL, user_id TEXT, action TEXT NOT NULL, entity_kind TEXT NOT NULL, entity_id TEXT, label TEXT, created_at TEXT NOT NULL);
@@ -319,7 +329,7 @@ export function saveDocumentOcrText(householdId:string,documentId:string,text:st
 export function documentsNeedingOcr(householdId:string,limit=1000):Row[]{return database.prepare("SELECT d.id FROM documents d WHERE d.household_id=? AND d.deleted_at IS NULL AND EXISTS(SELECT 1 FROM document_files f WHERE f.document_id=d.id) AND (NOT EXISTS(SELECT 1 FROM document_ocr o WHERE o.document_id=d.id) OR EXISTS(SELECT 1 FROM document_ocr o WHERE o.document_id=d.id AND o.status IN ('pending','failed'))) ORDER BY d.updated_at DESC LIMIT ?").all(householdId,limit) as Row[];}
 export function listDocuments(householdId: string, query = ''): BinderDocument[] {
   const rows = query.trim()
-    ? database.prepare('SELECT d.* FROM documents d WHERE d.household_id = ? AND d.deleted_at IS NULL AND d.id IN (SELECT document_id FROM documents_fts WHERE documents_fts MATCH ?) ORDER BY d.updated_at DESC').all(householdId, ftsQuery(query)) as Row[]
+    ? database.prepare('SELECT d.* FROM documents_fts s JOIN documents d ON d.id = s.document_id WHERE d.household_id = ? AND d.deleted_at IS NULL AND search_matches(s.search_text, ?) ORDER BY d.updated_at DESC').all(householdId, query) as Row[]
     : database.prepare('SELECT * FROM documents WHERE household_id = ? AND deleted_at IS NULL ORDER BY updated_at DESC').all(householdId) as Row[];
   return rows.map(documentFromRow);
 }
@@ -393,14 +403,10 @@ export function assignInboxToDocument(householdId: string, id: string, input: Cr
   return documentFromRow(database.prepare('SELECT * FROM documents WHERE id = ?').get(documentId) as Row);
 }
 
-function ftsQuery(query: string): string {
-  return query.trim().split(/\s+/).map((token) => `"${token.replaceAll('"', '')}"*`).join(' AND ');
-}
-
 export function listAssets(householdId: string, query = ''): AssetSummary[] {
   let rows: Row[];
   if (query.trim()) {
-    rows = database.prepare(`SELECT a.* FROM assets a WHERE a.household_id = ? AND a.archived_at IS NULL AND a.deleted_at IS NULL AND a.id IN (SELECT asset_id FROM assets_fts WHERE assets_fts MATCH ?) ORDER BY a.updated_at DESC`).all(householdId, ftsQuery(query)) as Row[];
+    rows = database.prepare(`SELECT a.* FROM assets_fts s JOIN assets a ON a.id = s.asset_id WHERE a.household_id = ? AND a.archived_at IS NULL AND a.deleted_at IS NULL AND search_matches(s.search_text, ?) ORDER BY a.updated_at DESC`).all(householdId, query) as Row[];
   } else {
     rows = database.prepare('SELECT * FROM assets WHERE household_id = ? AND archived_at IS NULL AND deleted_at IS NULL ORDER BY updated_at DESC').all(householdId) as Row[];
   }

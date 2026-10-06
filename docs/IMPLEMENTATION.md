@@ -28,7 +28,9 @@ Data przeglądu: 8 września 2026
 - lokalny Tesseract OCR w języku polskim i angielskim;
 - odczyt obrazów, PDF z warstwą tekstową i skanowanych PDF do 12 stron;
 - korekta pełnego tekstu OCR i zbiorcze przetwarzanie oczekujących dokumentów;
-- SQLite FTS5 dla Przedmiotów, metadanych dokumentów i treści OCR;
+- tekst wyszukiwawczy Przedmiotów, metadanych dokumentów i OCR przechowywany w SQLite FTS5; dopasowanie dosłownych fragmentów w dowolnym miejscu słowa, bez rozróżniania wielkości liter;
+- zapytanie z kilkoma fragmentami wymaga obecności każdego z nich; dopasowanie przegląda tekst rekordów i dla dużych archiwów może wymagać optymalizacji indeksu;
+- wyniki niezależne od pełnej kolekcji i liczników menu; nawigacja kończy wyszukiwanie, a przycisk × i Escape czyszczą zapytanie;
 - wspólne wyniki wyszukiwania Przedmiotów i dokumentów.
 
 ### Konta i gospodarstwa

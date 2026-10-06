@@ -24,6 +24,8 @@ Zmiany opisujemy z perspektywy użytkownika, bez szczegółów implementacyjnych
 
 ### Improvements
 
+- Wyszukiwanie znajduje fragmenty ze środka słów, także w OCR, niezależnie od wielkości liter.
+- Wyniki wyszukiwania nie zmieniają liczników kolekcji ani zawartości innych ekranów; przejście przez menu kończy wyszukiwanie, a pole można wyczyścić przyciskiem × lub klawiszem Escape.
 - Ustawienie daty zakupu może automatycznie przygotować dwuletnią gwarancję z określoną datą.
 - Edycja przedmiotu ostrzega przed opuszczeniem widoku z niezapisanymi zmianami.
 - Start pokazuje liczbę zapisanych przedmiotów i dokumentów, wykorzystane miejsce oraz sumę wartości zakupów aktywnego gospodarstwa.
