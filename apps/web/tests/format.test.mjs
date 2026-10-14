@@ -1,0 +1,62 @@
+import assert from 'node:assert/strict';
+import { mock, test } from 'node:test';
+import { addYearsToDate, fileSize, formatPurchaseValues, formatStorage } from '../src/format.ts';
+import { eventLabel, warrantyLabel } from '../src/labels.ts';
+
+test('adding years keeps the day or clamps it to the end of the month', () => {
+  assert.equal(addYearsToDate('2024-05-10', 2), '2026-05-10');
+  assert.equal(addYearsToDate('2024-02-29', 1), '2025-02-28');
+  assert.equal(addYearsToDate('2024-02-29', 4), '2028-02-29');
+  assert.equal(addYearsToDate('10.05.2024', 1), '');
+});
+
+test('storage and file sizes use readable units', () => {
+  assert.equal(formatStorage(512), '512 B');
+  assert.equal(formatStorage(2048), '2.0 KB');
+  assert.equal(formatStorage(20_480), '20 KB');
+  assert.equal(formatStorage(5 * 1_048_576), '5.0 MB');
+  assert.equal(formatStorage(2 * 1_073_741_824), '2.0 GB');
+  assert.equal(fileSize(10), '1 KB');
+  assert.equal(fileSize(3 * 1_048_576), '3.0 MB');
+});
+
+test('purchase values are formatted per currency with a safe fallback', () => {
+  assert.equal(formatPurchaseValues([]), '0,00 zł');
+  assert.match(formatPurchaseValues([{ currency: 'PLN', amountMinor: 1234 }]), /^12,34\s*zł$/u);
+  assert.match(
+    formatPurchaseValues([
+      { currency: 'PLN', amountMinor: 100 },
+      { currency: 'EUR', amountMinor: 250 },
+    ]),
+    / \+ /,
+  );
+  assert.equal(formatPurchaseValues([{ currency: 'INVALID', amountMinor: 100 }]), '1.00 INVALID');
+});
+
+test('warranty labels follow the remaining time', () => {
+  mock.timers.enable({ apis: ['Date'], now: new Date(2026, 5, 1, 12) });
+  try {
+    const asset = (warranty) => ({ warranty });
+    assert.deepEqual(warrantyLabel(asset(null)), { text: 'Brak danych', state: 'quiet' });
+    assert.deepEqual(warrantyLabel(asset({ kind: 'lifetime', expiresOn: null })), {
+      text: 'Dożywotnia',
+      state: 'good',
+    });
+    assert.deepEqual(warrantyLabel(asset({ kind: 'fixed', expiresOn: '2026-05-31' })), {
+      text: 'Po gwarancji',
+      state: 'quiet',
+    });
+    assert.deepEqual(warrantyLabel(asset({ kind: 'fixed', expiresOn: '2026-06-11' })), {
+      text: '10 dni',
+      state: 'warning',
+    });
+    assert.equal(warrantyLabel(asset({ kind: 'fixed', expiresOn: '2027-06-11' })).state, 'good');
+  } finally {
+    mock.timers.reset();
+  }
+});
+
+test('unknown webhook events fall back to their identifier', () => {
+  assert.equal(eventLabel('asset.created'), 'Utworzono przedmiot');
+  assert.equal(eventLabel('custom.event'), 'custom.event');
+});

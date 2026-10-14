@@ -15,4 +15,5 @@
 - Release channels: release `X.Y.Z` targeting `main` publishes `latest`; prerelease `devX.Y.Z` targeting `dev` publishes `dev_latest`. The workflow file must also exist on `main`.
 - Changelog: add entries only when asked; the user specifies the target version.
 - Server layout: HTTP routes live in `apps/server/src/routes/` (one Hono router per area, mounted in `index.ts`); data access lives in `apps/server/src/db/`. Keep the single `DatabaseSync` instance, schema, and migrations in `db/database.ts`; other modules import it, never open their own connection.
+- Web layout: screens in `apps/web/src/pages/`, shared UI in `apps/web/src/components/`, pure helpers in `labels.ts` and `format.ts`. Those helpers are unit-tested directly with `node --test`, so their relative value imports need the `.ts` extension; they may import components only as types.
 - UI colors: [docs/COLOR_SYSTEM.md](../docs/COLOR_SYSTEM.md), implemented as CSS variables in `apps/web/src/styles.css`.
