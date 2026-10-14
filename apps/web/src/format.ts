@@ -1,3 +1,4 @@
+import { localDate } from '@boberit/shared';
 import type { PurchaseValue } from './types';
 
 export function formatDate(value: string | null): string {
@@ -6,6 +7,14 @@ export function formatDate(value: string | null): string {
         new Date(`${value}T12:00:00`),
       )
     : '—';
+}
+
+/**
+ * Calendar date of a stored timestamp (ISO 8601 with zone) in the browser's time zone. Slicing the
+ * ISO string would show the UTC date, which is the previous day shortly after local midnight.
+ */
+export function formatTimestampDate(value: string): string {
+  return formatDate(localDate(new Date(value)));
 }
 
 export function addYearsToDate(value: string, years: number): string {

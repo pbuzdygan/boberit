@@ -14,9 +14,10 @@ import { FormSelect } from '../components/FormSelect';
 import { Icon } from '../components/Icon';
 import { MaintenancePanel } from '../components/MaintenancePanel';
 import { MaintenancePlanDialog } from '../components/MaintenancePlanDialog';
-import { formatDate, fileSize } from '../format';
+import { fileSize, formatTimestampDate } from '../format';
 import { useAssetForm } from '../hooks/useAssetForm';
 import { useAssetOptions } from '../hooks/useAssetOptions';
+import { useReportError } from '../hooks/useReportError';
 import { warrantyLabel, itemStatusMeta, fileKindLabels } from '../labels';
 
 export function Detail({
@@ -52,6 +53,7 @@ export function Detail({
   const { details, warranty: warrantyForm } = form;
   const assetOptions = useAssetOptions();
   const [editingPlan, setEditingPlan] = useState<MaintenancePlan | null>(null);
+  const reportError = useReportError();
   const warranty = warrantyLabel(asset);
   return (
     <>
@@ -66,14 +68,15 @@ export function Detail({
           <h1>{asset.name}</h1>
           {/* One line keeps a single text node; a formatter break would emit {' '} instead. */}
           {/* prettier-ignore */}
-          <p>Dodano {formatDate(asset.createdAt.slice(0, 10))}. {asset.completeness === 'draft' ? 'To szkic — możesz go uzupełnić.' : 'Dane są gotowe do użycia.'}</p>
+          <p>Dodano {formatTimestampDate(asset.createdAt)}. {asset.completeness === 'draft' ? 'To szkic — możesz go uzupełnić.' : 'Dane są gotowe do użycia.'}</p>
         </div>
         <div className="detail-heading-actions">
           <span className={`detail-status ${warranty.state}`}>{warranty.text}</span>
           <button
             className="text-action danger-action"
             onClick={() => {
-              if (window.confirm(`Przenieść przedmiot „${asset.name}” do Kosza?`)) void onTrash(asset.id);
+              if (window.confirm(`Przenieść przedmiot „${asset.name}” do Kosza?`))
+                void onTrash(asset.id).catch(reportError('Nie udało się przenieść przedmiotu do Kosza.'));
             }}
             type="button"
           >
@@ -92,7 +95,7 @@ export function Detail({
               <button
                 className={`secondary bright save-asset-changes${form.hasUnsavedChanges ? ' is-pending' : ''}`}
                 disabled={!form.hasUnsavedChanges || form.isSaving}
-                onClick={() => void form.saveChanges()}
+                onClick={() => void form.saveChanges().catch(reportError('Nie udało się zapisać zmian.'))}
                 type="button"
               >
                 {form.isSaving ? 'Zapisywanie…' : 'Zapisz zmiany'}
@@ -216,7 +219,11 @@ export function Detail({
                     <Icon name={file.kind === 'receipt' ? 'receipt' : 'file-text'} />
                     <button
                       className="file-download"
-                      onClick={() => void downloadAttachment(file.id, file.originalName)}
+                      onClick={() =>
+                        void downloadAttachment(file.id, file.originalName).catch(
+                          reportError('Nie udało się pobrać pliku.'),
+                        )
+                      }
                       type="button"
                     >
                       <strong>{file.originalName}</strong>
@@ -232,7 +239,7 @@ export function Detail({
                       className="text-action danger-action file-delete"
                       onClick={() => {
                         if (window.confirm('Usunąć plik „' + file.originalName + '”?'))
-                          void onDeleteFile(asset.id, file.id);
+                          void onDeleteFile(asset.id, file.id).catch(reportError('Nie udało się usunąć pliku.'));
                       }}
                       type="button"
                     >

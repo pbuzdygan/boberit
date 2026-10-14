@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { mock, test } from 'node:test';
-import { addYearsToDate, fileSize, formatPurchaseValues, formatStorage } from '../src/format.ts';
+import { addYearsToDate, fileSize, formatPurchaseValues, formatStorage, formatTimestampDate } from '../src/format.ts';
 import { eventLabel, warrantyLabel } from '../src/labels.ts';
 
 test('adding years keeps the day or clamps it to the end of the month', () => {
@@ -8,6 +8,19 @@ test('adding years keeps the day or clamps it to the end of the month', () => {
   assert.equal(addYearsToDate('2024-02-29', 1), '2025-02-28');
   assert.equal(addYearsToDate('2024-02-29', 4), '2028-02-29');
   assert.equal(addYearsToDate('10.05.2024', 1), '');
+});
+
+test('timestamps show the local calendar date, not the UTC date', () => {
+  const previous = process.env.TZ;
+  process.env.TZ = 'Europe/Warsaw';
+  try {
+    // 23:30 UTC on 14 October is 01:30 on 15 October in Warsaw (CEST).
+    assert.equal(formatTimestampDate('2026-10-14T23:30:00.000Z'), formatTimestampDate('2026-10-15T10:00:00.000Z'));
+    assert.match(formatTimestampDate('2026-10-14T23:30:00.000Z'), /^15 paź 2026$/u);
+  } finally {
+    if (previous === undefined) delete process.env.TZ;
+    else process.env.TZ = previous;
+  }
 });
 
 test('storage and file sizes use readable units', () => {

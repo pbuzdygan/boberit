@@ -19,6 +19,7 @@ export function DocumentEditDialog({
   const [tags, setTags] = useState(document.tags.join(', '));
   const [notes, setNotes] = useState(document.notes ?? '');
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
   const formTags = tags
     .split(',')
     .map((tag) => tag.trim())
@@ -35,9 +36,12 @@ export function DocumentEditDialog({
     event.preventDefault();
     if (!hasChanges) return;
     setBusy(true);
+    setError('');
     try {
       await onSave(document.id, { name, typeId: typeId || null, tags: formTags, notes });
       onClose();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Nie udało się zapisać zmian dokumentu.');
     } finally {
       setBusy(false);
     }
@@ -77,6 +81,7 @@ export function DocumentEditDialog({
             <textarea rows={3} value={notes} onChange={(event) => setNotes(event.target.value)} />
           </label>
         </div>
+        {error && <p className="form-error">{error}</p>}
         <footer>
           <button className="secondary" onClick={onClose} type="button">
             Anuluj

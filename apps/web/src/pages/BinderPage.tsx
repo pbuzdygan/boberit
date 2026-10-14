@@ -4,7 +4,8 @@ import { api } from '../api';
 import { DocumentEditDialog } from '../components/DocumentEditDialog';
 import { Icon } from '../components/Icon';
 import { OcrStatusIcon } from '../components/OcrStatusIcon';
-import { formatDate } from '../format';
+import { formatTimestampDate } from '../format';
+import { useReportError } from '../hooks/useReportError';
 import { AssetColumnHeader } from './ItemsPage';
 
 export function BinderPage({
@@ -25,6 +26,7 @@ export function BinderPage({
   const [types, setTypes] = useState<DocumentType[]>([]);
   const [typeFilter, setTypeFilter] = useState('');
   const [groupByType, setGroupByType] = useState(false);
+  const reportError = useReportError();
   useEffect(() => {
     void api.listDocumentTypes().then((r) => setTypes(r.data));
   }, []);
@@ -57,7 +59,12 @@ export function BinderPage({
           <h1>Dokumenty</h1>
           <p>Umowy, faktury, potwierdzenia i pełnotekstowe wyszukiwanie OCR.</p>
         </div>
-        <button className="secondary" disabled={!overdueOcrCount} onClick={() => void onBatchOcr()} type="button">
+        <button
+          className="secondary"
+          disabled={!overdueOcrCount}
+          onClick={() => void onBatchOcr().catch(reportError('Nie udało się uruchomić OCR.'))}
+          type="button"
+        >
           OCR zaległych dokumentów <span className="ocr-batch-count">{overdueOcrCount}</span>
         </button>
       </div>
@@ -134,6 +141,7 @@ function DocumentTableRow({
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [editing, setEditing] = useState(false);
+  const reportError = useReportError();
   const menuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!menuOpen) return;
@@ -178,9 +186,16 @@ function DocumentTableRow({
           {document.tags.length ? document.tags.map((tag) => <i key={tag}>{tag}</i>) : '—'}
         </span>
       </td>
-      <td data-label="Dodano">{formatDate(document.createdAt.slice(0, 10))}</td>
+      <td data-label="Dodano">{formatTimestampDate(document.createdAt)}</td>
       <td className="document-ocr-cell" data-label="OCR">
-        <OcrStatusIcon status={document.ocrStatus} />
+        {/* Without a file there is nothing to recognize, so no OCR status applies. */}
+        {document.files.length ? (
+          <OcrStatusIcon status={document.ocrStatus} />
+        ) : (
+          <span aria-label="OCR: brak pliku" title="Brak pliku do rozpoznania">
+            —
+          </span>
+        )}
       </td>
       <td
         className="document-actions-cell"
@@ -207,7 +222,10 @@ function DocumentTableRow({
                   onChange={(event) => {
                     const files = Array.from(event.currentTarget.files ?? []);
                     event.currentTarget.value = '';
-                    if (files.length) void onUpload(document.id, files).then(() => setMenuOpen(false));
+                    if (files.length)
+                      void onUpload(document.id, files)
+                        .then(() => setMenuOpen(false))
+                        .catch(reportError('Nie udało się dodać pliku do dokumentu.'));
                   }}
                   type="file"
                 />
@@ -226,7 +244,8 @@ function DocumentTableRow({
                 className="danger-action"
                 onClick={() => {
                   setMenuOpen(false);
-                  if (window.confirm('Przenieść dokument „' + document.name + '” do Kosza?')) void onTrash(document.id);
+                  if (window.confirm('Przenieść dokument „' + document.name + '” do Kosza?'))
+                    void onTrash(document.id).catch(reportError('Nie udało się przenieść dokumentu do Kosza.'));
                 }}
                 role="menuitem"
                 type="button"

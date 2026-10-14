@@ -196,6 +196,7 @@ function BackupSettings({ isOwner }: { isOwner: boolean }) {
           </label>
           {file && (
             <>
+              <p>Wybrany plik: {file.name}</p>
               <label>
                 Wpisz <b>ZASTĄP</b>, aby potwierdzić
                 <input value={confirmation} onChange={(event) => setConfirmation(event.target.value)} />

@@ -26,8 +26,17 @@ function authHeaders(): HeadersInit {
 
 type ApiErrorEnvelope = { error: { code: string; message: string } };
 
+/** `fetch` that reports an unreachable server in the UI language instead of the browser's "Failed to fetch". */
+async function send(input: string, init?: RequestInit): Promise<Response> {
+  try {
+    return await fetch(input, init);
+  } catch {
+    throw new Error('Brak połączenia z Boberit. Sprawdź sieć i spróbuj ponownie.');
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`/api/v1${path}`, {
+  const response = await send(`/api/v1${path}`, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
@@ -43,7 +52,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 async function emptyRequest(path: string, init: RequestInit): Promise<void> {
-  const response = await fetch(`/api/v1${path}`, {
+  const response = await send(`/api/v1${path}`, {
     ...init,
     headers: { ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}), ...init.headers },
   });
@@ -194,7 +203,7 @@ export const api = {
     }),
   deleteWebhook: (id: string) => emptyRequest(`/settings/webhooks/${id}`, { method: 'DELETE' }),
   downloadBackup: async (password: string) => {
-    const response = await fetch('/api/v1/settings/export', {
+    const response = await send('/api/v1/settings/export', {
       method: 'POST',
       headers: { ...authHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ password }),
@@ -206,7 +215,7 @@ export const api = {
     return response.blob();
   },
   fileBlob: async (id: string, mode: 'download' | 'preview') => {
-    const response = await fetch(`/api/v1/files/${id}/${mode}`, { headers: authHeaders() });
+    const response = await send(`/api/v1/files/${id}/${mode}`, { headers: authHeaders() });
     if (!response.ok) throw new Error('Nie udało się pobrać pliku.');
     return response.blob();
   },
@@ -215,7 +224,7 @@ export const api = {
     form.set('file', file);
     form.set('confirmation', 'ZASTĄP');
     form.set('password', password);
-    const response = await fetch('/api/v1/settings/import', { method: 'POST', headers: authHeaders(), body: form });
+    const response = await send('/api/v1/settings/import', { method: 'POST', headers: authHeaders(), body: form });
     if (!response.ok) {
       const body = (await response.json().catch(() => null)) as ApiErrorEnvelope | null;
       throw new Error(body?.error.message ?? 'Nie udało się odtworzyć backupu.');
@@ -256,7 +265,7 @@ export const api = {
   uploadInboxFile: async (file: File) => {
     const form = new FormData();
     form.set('file', file);
-    const response = await fetch('/api/v1/inbox/files', { method: 'POST', headers: authHeaders(), body: form });
+    const response = await send('/api/v1/inbox/files', { method: 'POST', headers: authHeaders(), body: form });
     if (!response.ok) {
       const body = (await response.json().catch(() => null)) as ApiErrorEnvelope | null;
       throw new Error(body?.error.message ?? 'Nie udało się dodać pliku do Skrzynki.');
@@ -273,7 +282,7 @@ export const api = {
   uploadDocumentFile: async (id: string, file: File) => {
     const form = new FormData();
     form.set('file', file);
-    const response = await fetch(`/api/v1/documents/${id}/files`, {
+    const response = await send(`/api/v1/documents/${id}/files`, {
       method: 'POST',
       headers: authHeaders(),
       body: form,
@@ -289,7 +298,7 @@ export const api = {
     form.set('file', file);
     form.set('kind', kind);
     if (provisional) form.set('provisional', 'true');
-    const response = await fetch(`/api/v1/assets/${id}/files`, { method: 'POST', headers: authHeaders(), body: form });
+    const response = await send(`/api/v1/assets/${id}/files`, { method: 'POST', headers: authHeaders(), body: form });
     if (!response.ok) {
       const body = (await response.json().catch(() => null)) as ApiErrorEnvelope | null;
       throw new Error(body?.error.message ?? 'Nie udało się dodać pliku.');

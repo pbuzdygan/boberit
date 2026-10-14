@@ -4,7 +4,8 @@ import { api } from '../api';
 import { downloadAttachment } from '../attachments';
 import { FormSelect } from '../components/FormSelect';
 import { Icon } from '../components/Icon';
-import { formatDate, fileSize } from '../format';
+import { fileSize, formatTimestampDate } from '../format';
+import { useReportError } from '../hooks/useReportError';
 
 export function InboxPage({
   files,
@@ -22,6 +23,7 @@ export function InboxPage({
   onDelete: (id: string) => Promise<void>;
 }) {
   const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
+  const reportError = useReportError();
   useEffect(() => {
     void api.listDocumentTypes().then((r) => setDocumentTypes(r.data));
   }, []);
@@ -43,7 +45,7 @@ export function InboxPage({
               onChange={(event) => {
                 const files = Array.from(event.currentTarget.files ?? []);
                 event.currentTarget.value = '';
-                if (files.length) void onUpload(files);
+                if (files.length) void onUpload(files).catch(reportError('Nie udało się dodać plików.'));
               }}
             />
           </label>
@@ -103,6 +105,7 @@ function InboxRow({
   const [tags, setTags] = useState('');
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
+  const reportError = useReportError();
   async function submit() {
     setBusy(true);
     try {
@@ -117,6 +120,8 @@ function InboxRow({
             .filter(Boolean),
           notes,
         });
+    } catch (error) {
+      reportError(target === 'asset' ? 'Nie udało się przypisać pliku.' : 'Nie udało się utworzyć dokumentu.')(error);
     } finally {
       setBusy(false);
     }
@@ -129,12 +134,14 @@ function InboxRow({
       <div className="inbox-file-copy">
         <strong>{file.originalName}</strong>
         <small>
-          {file.mimeType || 'plik'} · {fileSize(file.byteSize)} · dodano {formatDate(file.createdAt.slice(0, 10))}
+          {file.mimeType || 'plik'} · {fileSize(file.byteSize)} · dodano {formatTimestampDate(file.createdAt)}
         </small>
         <span className="inbox-file-links">
           <button
             className="text-action"
-            onClick={() => void downloadAttachment(file.id, file.originalName)}
+            onClick={() =>
+              void downloadAttachment(file.id, file.originalName).catch(reportError('Nie udało się pobrać pliku.'))
+            }
             type="button"
           >
             Pobierz
@@ -147,7 +154,7 @@ function InboxRow({
                   `Usunąć plik „${file.originalName}” z listy Do przypisania? Tej operacji nie można cofnąć.`,
                 )
               )
-                void onDelete(file.id);
+                void onDelete(file.id).catch(reportError('Nie udało się usunąć pliku.'));
             }}
             type="button"
           >

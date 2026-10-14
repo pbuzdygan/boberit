@@ -92,9 +92,14 @@ export function WebhookSettings() {
   }
   async function remove(hook: WebhookRecord) {
     if (!window.confirm('Usunąć webhook „' + hook.name + '”?')) return;
-    await api.deleteWebhook(hook.id);
-    if (editingId === hook.id) reset();
-    load();
+    try {
+      setError('');
+      await api.deleteWebhook(hook.id);
+      if (editingId === hook.id) reset();
+      load();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Nie udało się usunąć webhooka.');
+    }
   }
   return (
     <div className="webhook-settings-stack">

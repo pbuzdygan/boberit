@@ -243,14 +243,22 @@ export function DocumentOcrPage({
                   <div className="ocr-file-actions">
                     <button
                       className="text-action"
-                      onClick={() => void previewAttachment(file.id, file.originalName)}
+                      onClick={() =>
+                        void previewAttachment(file.id, file.originalName).catch((reason: unknown) =>
+                          setError(reason instanceof Error ? reason.message : 'Nie udało się otworzyć podglądu.'),
+                        )
+                      }
                       type="button"
                     >
                       Podgląd
                     </button>
                     <button
                       className="text-action"
-                      onClick={() => void downloadAttachment(file.id, file.originalName)}
+                      onClick={() =>
+                        void downloadAttachment(file.id, file.originalName).catch((reason: unknown) =>
+                          setError(reason instanceof Error ? reason.message : 'Nie udało się pobrać pliku.'),
+                        )
+                      }
                       type="button"
                     >
                       Pobierz

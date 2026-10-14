@@ -816,6 +816,10 @@ textarea:focus {
   filter: brightness(0) invert(1);
   opacity: 0.72;
 }
+/* Errors keep the toast colors and add an accent; the message text itself states the failure. */
+.toast--error {
+  border-left: 4px solid var(--danger);
+}
 
 .span-all {
   grid-column: 1 / -1;
@@ -950,9 +954,6 @@ textarea {
   }
   .page-heading {
     align-items: flex-start;
-  }
-  .page-heading .primary {
-    display: none;
   }
   h1 {
     font-size: 26px;
@@ -2112,6 +2113,15 @@ textarea {
   font-size: 9px;
   cursor: pointer;
 }
+/* Placed after .inbox-row--expanded, which would otherwise keep three columns (and overflow) on narrow screens. */
+@media (max-width: 900px) {
+  .inbox-row--expanded {
+    grid-template-columns: 36px minmax(0, 1fr);
+  }
+  .inbox-row--expanded .inbox-target {
+    grid-column: 2;
+  }
+}
 @media (max-width: 560px) {
   .inbox-row--expanded .inbox-target {
     grid-column: 1 / -1;
@@ -2732,6 +2742,23 @@ textarea {
 .settings-card > div > input,
 .settings-card > div > .settings-inline-select {
   margin-top: 7px;
+}
+/* Backup file picker: the native input stays focusable but invisible, and the label acts as the button. */
+.restore-file {
+  position: relative;
+  width: max-content;
+  cursor: pointer;
+}
+.restore-file input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.restore-file:focus-within {
+  outline: 3px solid rgba(0, 136, 248, 0.32);
+  outline-offset: 2px;
 }
 .settings-actions {
   display: flex;

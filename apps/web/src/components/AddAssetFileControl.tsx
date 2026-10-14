@@ -1,5 +1,6 @@
 import type { AssetFileKind } from '@boberit/shared';
 import { useEffect, useRef, useState } from 'react';
+import { useReportError } from '../hooks/useReportError';
 import { fileKindLabels } from '../labels';
 import { FormSelect } from './FormSelect';
 
@@ -14,6 +15,7 @@ export function ProvisionalFileKind({
 }) {
   const [kind, setKind] = useState<AssetFileKind>('photo');
   const [busy, setBusy] = useState(false);
+  const reportError = useReportError();
   return (
     <span className="file-kind-picker">
       <FormSelect
@@ -34,7 +36,9 @@ export function ProvisionalFileKind({
         disabled={busy}
         onClick={() => {
           setBusy(true);
-          void onSave(assetId, fileId, kind).finally(() => setBusy(false));
+          void onSave(assetId, fileId, kind)
+            .catch(reportError('Nie udało się zapisać typu pliku.'))
+            .finally(() => setBusy(false));
         }}
         type="button"
       >
@@ -55,6 +59,7 @@ export function AddAssetFileControl({
   const wrapperRef = useRef<HTMLSpanElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const kindRef = useRef<AssetFileKind>('other');
+  const reportError = useReportError();
   useEffect(() => {
     if (!open) return;
     const close = (event: MouseEvent) => {
@@ -96,7 +101,8 @@ export function AddAssetFileControl({
         onChange={(event) => {
           const files = Array.from(event.currentTarget.files ?? []);
           event.currentTarget.value = '';
-          if (files.length) void onUpload(assetId, files, kindRef.current);
+          if (files.length)
+            void onUpload(assetId, files, kindRef.current).catch(reportError('Nie udało się dodać pliku.'));
         }}
       />
     </span>

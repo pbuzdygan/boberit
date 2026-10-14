@@ -8,6 +8,7 @@ import type {
 } from '@boberit/shared';
 import { api } from '../api';
 import { batchOcrMessage } from '../labels';
+import type { SetMessage } from '../types';
 import type { useCollections } from './useCollections';
 import type { NavigationState } from './useNavigation';
 import type { SearchState } from './useSearch';
@@ -27,7 +28,7 @@ export function useLibraryActions({
   collections: ReturnType<typeof useCollections>;
   navigation: NavigationState;
   search: SearchState;
-  setMessage: (message: string | null) => void;
+  setMessage: SetMessage;
   closeQuickAdd: () => void;
   closeCompletion: () => void;
 }) {

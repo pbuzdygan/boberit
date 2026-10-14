@@ -14,6 +14,7 @@ import { useCollections } from './hooks/useCollections';
 import { useLibraryActions } from './hooks/useLibraryActions';
 import { useNavigation } from './hooks/useNavigation';
 import { useNotifications } from './hooks/useNotifications';
+import { ReportErrorContext } from './hooks/useReportError';
 import { useSearch } from './hooks/useSearch';
 import { useSession } from './hooks/useSession';
 import { AccountPage } from './pages/AccountPage';
@@ -34,7 +35,7 @@ export function App() {
   // Hook order matters: the session hook's effect sets the API token before data loads.
   const session = useSession();
   const { accessToken, account, households, activeHouseholdId, isOwner } = session;
-  const { message, setMessage, notifications, todayReadOn, markTodayRead } = useNotifications();
+  const { toast, setMessage, showError, notifications, todayReadOn, markTodayRead } = useNotifications();
   const search = useSearch(accessToken);
   const { query, searchAssets, searchDocuments, isSearching, searchError, searchInputRef, clearSearch } = search;
   const navigation = useNavigation(search, setMessage);
@@ -77,7 +78,7 @@ export function App() {
       await refresh();
       setMessage('Przełączono gospodarstwo.');
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Nie udało się przełączyć gospodarstwa.');
+      setMessage(error instanceof Error ? error.message : 'Nie udało się przełączyć gospodarstwa.', 'error');
     }
   }
   async function logout() {
@@ -104,201 +105,203 @@ export function App() {
   if (!accessToken) return <AuthScreen onAuthenticated={session.signIn} />;
 
   return (
-    <div className="app-shell">
-      <Sidebar
-        view={view}
-        hasSelection={Boolean(selected)}
-        itemCount={assets.length}
-        documentCount={documents.length}
-        inboxCount={inboxFiles.length}
-        trashCount={trashEntries.length}
-        onNavigate={(next) => void navigateTo(next)}
-      />
-      <MobileNav
-        view={view}
-        hasSelection={Boolean(selected)}
-        onNavigate={(next) => void navigateTo(next)}
-        onQuickAdd={openQuickAdd}
-        onMore={() => setMobileMenuOpen(true)}
-      />
-
-      <main>
-        <header className="topbar">
-          <label className="search">
-            <Icon name="search" />
-            <input
-              ref={searchInputRef}
-              aria-label="Szukaj w Boberit"
-              value={query}
-              onChange={(event) => updateSearch(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Escape' && query) updateSearch('');
-              }}
-              placeholder="Szukaj nazwy, modelu, serialu, tagu, OCR…"
-            />
-            {query && (
-              <button
-                className="search-clear"
-                aria-label="Wyczyść wyszukiwanie"
-                onClick={() => updateSearch('')}
-                type="button"
-              >
-                <Icon name="x" />
-              </button>
-            )}
-            <kbd>/</kbd>
-          </label>
-          <div className="topbar-actions">
-            <button className="primary topbar-save" type="button" onClick={openQuickAdd}>
-              <Icon name="plus" /> Dodaj
-            </button>
-            <NotificationsMenu
-              hasUnreadToday={hasUnreadToday}
-              history={notifications}
-              onOpenAsset={(id) => void openDetail(id)}
-              onReadToday={markTodayRead}
-              todayReminders={todayReminders}
-            />
-            <AccountMenu
-              account={account}
-              active={view === 'account'}
-              activeHouseholdId={activeHouseholdId}
-              avatarInitials={avatarInitials(account?.login)}
-              households={households}
-              onLogout={logout}
-              onSelect={openAccount}
-              onSwitch={switchHousehold}
-            />
-          </div>
-        </header>
-        <section className="content">
-          {selected ? (
-            <Detail
-              key={selected.id}
-              asset={selected}
-              onBack={() => {
-                void navigateTo('items');
-              }}
-              onDirtyChange={navigation.setHasUnsavedAssetChanges}
-              onTrash={actions.trashAsset}
-              onUpdate={actions.update}
-              onWarranty={actions.saveWarranty}
-              onPlan={actions.addPlan}
-              onUpdatePlan={actions.updatePlan}
-              onDeletePlan={actions.removePlan}
-              onUpload={actions.uploadFiles}
-              onDeleteFile={actions.removeAssetFile}
-              onClassifyFile={actions.classifyFile}
-              onComplete={setCompletionPlan}
-            />
-          ) : view === 'start' ? (
-            <StartPage
-              assets={assets}
-              documentCount={documents.length}
-              storageBytes={storageBytes}
-              purchaseValues={purchaseValues}
-              attention={attention}
-              reminders={reminders}
-              onOpen={openDetail}
-              onAllItems={() => navigateTo('items')}
-              onTimeline={() => navigateTo('timeline')}
-            />
-          ) : view === 'timeline' ? (
-            <TimelinePage
-              assets={assets}
-              filter={timelineFilter}
-              onFilter={setTimelineFilter}
-              onOpen={openDetail}
-              onComplete={setCompletionPlan}
-            />
-          ) : view === 'document-ocr' && selectedDocument ? (
-            <DocumentOcrPage
-              document={selectedDocument}
-              onBack={() => {
-                void navigateTo('binder');
-              }}
-              onDirtyChange={navigation.setHasUnsavedDocumentChanges}
-              onRun={actions.runOcr}
-              onSave={actions.saveOcr}
-              onUpdate={actions.updateDocument}
-              onDeleteFile={actions.removeDocumentFile}
-            />
-          ) : view === 'binder' ? (
-            <BinderPage
-              documents={documents}
-              onOpenOcr={openDocument}
-              onUpdate={actions.updateDocument}
-              onBatchOcr={actions.batchOcr}
-              onUpload={actions.uploadDocumentFiles}
-              onTrash={actions.trashDocument}
-            />
-          ) : view === 'trash' ? (
-            <TrashPage
-              canEmpty={isOwner}
-              entries={trashEntries}
-              onRestore={actions.restoreTrash}
-              onEmpty={actions.emptyTrash}
-            />
-          ) : view === 'account' ? (
-            <AccountPage section={accountSection} onSection={setAccountSection} onLogout={logout} />
-          ) : view === 'settings' ? (
-            <SettingsPage isOwner={isOwner} />
-          ) : view === 'search' ? (
-            <SearchPage
-              query={query}
-              assets={searchAssets}
-              documents={searchDocuments}
-              isLoading={isSearching}
-              error={searchError}
-              onOpenAsset={openDetail}
-              onOpenDocument={openDocument}
-            />
-          ) : view === 'inbox' ? (
-            <InboxPage
-              files={inboxFiles}
-              assets={assets}
-              onUpload={actions.uploadInboxFiles}
-              onAssign={actions.assignInbox}
-              onToDocument={actions.inboxToDocument}
-              onDelete={actions.deleteInboxFile}
-            />
-          ) : (
-            <ItemsPage
-              allAssets={assets}
-              assets={collectionAssets}
-              attention={attention}
-              isLoading={isLoading}
-              filter={filter}
-              onFilter={setFilter}
-              onOpen={openDetail}
-            />
-          )}
-        </section>
-      </main>
-      {completionPlan && (
-        <CompletionDialog
-          plan={completionPlan}
-          onClose={() => setCompletionPlan(null)}
-          onSave={(input) => void actions.completePlan(completionPlan.id, input)}
-        />
-      )}
-      {isQuickAddOpen && <QuickAddDialog onClose={() => setQuickAddOpen(false)} onSave={actions.quickAdd} />}
-      {isMobileMenuOpen && (
-        <MobileMoreMenu
+    <ReportErrorContext.Provider value={showError}>
+      <div className="app-shell">
+        <Sidebar
+          view={view}
+          hasSelection={Boolean(selected)}
+          itemCount={assets.length}
+          documentCount={documents.length}
           inboxCount={inboxFiles.length}
-          onClose={() => setMobileMenuOpen(false)}
-          onNavigate={(next) => {
-            if (navigateTo(next)) setMobileMenuOpen(false);
-          }}
           trashCount={trashEntries.length}
+          onNavigate={(next) => void navigateTo(next)}
         />
-      )}
-      {message && (
-        <button className="toast" onClick={() => setMessage(null)} type="button">
-          <span>{message}</span>
-          <Icon name="x" />
-        </button>
-      )}
-    </div>
+        <MobileNav
+          view={view}
+          hasSelection={Boolean(selected)}
+          onNavigate={(next) => void navigateTo(next)}
+          onQuickAdd={openQuickAdd}
+          onMore={() => setMobileMenuOpen(true)}
+        />
+
+        <main>
+          <header className="topbar">
+            <label className="search">
+              <Icon name="search" />
+              <input
+                ref={searchInputRef}
+                aria-label="Szukaj w Boberit"
+                value={query}
+                onChange={(event) => updateSearch(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Escape' && query) updateSearch('');
+                }}
+                placeholder="Szukaj nazwy, modelu, serialu, tagu, OCR…"
+              />
+              {query && (
+                <button
+                  className="search-clear"
+                  aria-label="Wyczyść wyszukiwanie"
+                  onClick={() => updateSearch('')}
+                  type="button"
+                >
+                  <Icon name="x" />
+                </button>
+              )}
+              <kbd>/</kbd>
+            </label>
+            <div className="topbar-actions">
+              <button className="primary topbar-save" type="button" onClick={openQuickAdd}>
+                <Icon name="plus" /> Dodaj
+              </button>
+              <NotificationsMenu
+                hasUnreadToday={hasUnreadToday}
+                history={notifications}
+                onOpenAsset={(id) => void openDetail(id)}
+                onReadToday={markTodayRead}
+                todayReminders={todayReminders}
+              />
+              <AccountMenu
+                account={account}
+                active={view === 'account'}
+                activeHouseholdId={activeHouseholdId}
+                avatarInitials={avatarInitials(account?.login)}
+                households={households}
+                onLogout={logout}
+                onSelect={openAccount}
+                onSwitch={switchHousehold}
+              />
+            </div>
+          </header>
+          <section className="content">
+            {selected ? (
+              <Detail
+                key={selected.id}
+                asset={selected}
+                onBack={() => {
+                  void navigateTo('items');
+                }}
+                onDirtyChange={navigation.setHasUnsavedAssetChanges}
+                onTrash={actions.trashAsset}
+                onUpdate={actions.update}
+                onWarranty={actions.saveWarranty}
+                onPlan={actions.addPlan}
+                onUpdatePlan={actions.updatePlan}
+                onDeletePlan={actions.removePlan}
+                onUpload={actions.uploadFiles}
+                onDeleteFile={actions.removeAssetFile}
+                onClassifyFile={actions.classifyFile}
+                onComplete={setCompletionPlan}
+              />
+            ) : view === 'start' ? (
+              <StartPage
+                assets={assets}
+                documentCount={documents.length}
+                storageBytes={storageBytes}
+                purchaseValues={purchaseValues}
+                attention={attention}
+                reminders={reminders}
+                onOpen={openDetail}
+                onAllItems={() => navigateTo('items')}
+                onTimeline={() => navigateTo('timeline')}
+              />
+            ) : view === 'timeline' ? (
+              <TimelinePage
+                assets={assets}
+                filter={timelineFilter}
+                onFilter={setTimelineFilter}
+                onOpen={openDetail}
+                onComplete={setCompletionPlan}
+              />
+            ) : view === 'document-ocr' && selectedDocument ? (
+              <DocumentOcrPage
+                document={selectedDocument}
+                onBack={() => {
+                  void navigateTo('binder');
+                }}
+                onDirtyChange={navigation.setHasUnsavedDocumentChanges}
+                onRun={actions.runOcr}
+                onSave={actions.saveOcr}
+                onUpdate={actions.updateDocument}
+                onDeleteFile={actions.removeDocumentFile}
+              />
+            ) : view === 'binder' ? (
+              <BinderPage
+                documents={documents}
+                onOpenOcr={openDocument}
+                onUpdate={actions.updateDocument}
+                onBatchOcr={actions.batchOcr}
+                onUpload={actions.uploadDocumentFiles}
+                onTrash={actions.trashDocument}
+              />
+            ) : view === 'trash' ? (
+              <TrashPage
+                canEmpty={isOwner}
+                entries={trashEntries}
+                onRestore={actions.restoreTrash}
+                onEmpty={actions.emptyTrash}
+              />
+            ) : view === 'account' ? (
+              <AccountPage section={accountSection} onSection={setAccountSection} onLogout={logout} />
+            ) : view === 'settings' ? (
+              <SettingsPage isOwner={isOwner} />
+            ) : view === 'search' ? (
+              <SearchPage
+                query={query}
+                assets={searchAssets}
+                documents={searchDocuments}
+                isLoading={isSearching}
+                error={searchError}
+                onOpenAsset={openDetail}
+                onOpenDocument={openDocument}
+              />
+            ) : view === 'inbox' ? (
+              <InboxPage
+                files={inboxFiles}
+                assets={assets}
+                onUpload={actions.uploadInboxFiles}
+                onAssign={actions.assignInbox}
+                onToDocument={actions.inboxToDocument}
+                onDelete={actions.deleteInboxFile}
+              />
+            ) : (
+              <ItemsPage
+                allAssets={assets}
+                assets={collectionAssets}
+                attention={attention}
+                isLoading={isLoading}
+                filter={filter}
+                onFilter={setFilter}
+                onOpen={openDetail}
+              />
+            )}
+          </section>
+        </main>
+        {completionPlan && (
+          <CompletionDialog
+            plan={completionPlan}
+            onClose={() => setCompletionPlan(null)}
+            onSave={(input) => actions.completePlan(completionPlan.id, input)}
+          />
+        )}
+        {isQuickAddOpen && <QuickAddDialog onClose={() => setQuickAddOpen(false)} onSave={actions.quickAdd} />}
+        {isMobileMenuOpen && (
+          <MobileMoreMenu
+            inboxCount={inboxFiles.length}
+            onClose={() => setMobileMenuOpen(false)}
+            onNavigate={(next) => {
+              if (navigateTo(next)) setMobileMenuOpen(false);
+            }}
+            trashCount={trashEntries.length}
+          />
+        )}
+        {toast && (
+          <button className={`toast toast--${toast.tone}`} onClick={() => setMessage(null)} type="button">
+            <span>{toast.message}</span>
+            <Icon name="x" />
+          </button>
+        )}
+      </div>
+    </ReportErrorContext.Provider>
   );
 }

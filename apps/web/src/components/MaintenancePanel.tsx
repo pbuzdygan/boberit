@@ -2,6 +2,7 @@ import type { AssetSummary, IntervalUnit, MaintenancePlan, MaintenanceRecord, Sc
 import { useState } from 'react';
 import { newPlanInput, type PlanInput } from '../assetForm';
 import { formatDate } from '../format';
+import { useReportError } from '../hooks/useReportError';
 import { intervalLabel } from '../labels';
 import { FormSelect } from './FormSelect';
 import { Icon } from './Icon';
@@ -26,6 +27,8 @@ export function MaintenancePanel({
   const [planInterval, setPlanInterval] = useState('3');
   const [planUnit, setPlanUnit] = useState<IntervalUnit>('months');
   const [planNotes, setPlanNotes] = useState('');
+  const [planBusy, setPlanBusy] = useState(false);
+  const reportError = useReportError();
   return (
     <section className="panel">
       <header className="panel-title">
@@ -65,7 +68,7 @@ export function MaintenancePanel({
                   className="text-action danger-action"
                   onClick={() => {
                     if (window.confirm('Usunąć plan „' + plan.title + '” wraz z historią wykonań?'))
-                      void onDeletePlan(plan.id);
+                      void onDeletePlan(plan.id).catch(reportError('Nie udało się usunąć planu.'));
                   }}
                   type="button"
                 >
@@ -107,7 +110,9 @@ export function MaintenancePanel({
         className="plan-form"
         onSubmit={(e) => {
           e.preventDefault();
-          if (planTitle && planDue) {
+          if (planTitle && planDue && !planBusy) {
+            setPlanBusy(true);
+            // Clear the form only after a successful save, so a failure keeps what was typed.
             void onPlan(
               asset.id,
               newPlanInput({
@@ -118,10 +123,14 @@ export function MaintenancePanel({
                 dueOn: planDue,
                 notes: planNotes,
               }),
-            );
-            setPlanTitle('');
-            setPlanDue('');
-            setPlanNotes('');
+            )
+              .then(() => {
+                setPlanTitle('');
+                setPlanDue('');
+                setPlanNotes('');
+              })
+              .catch(reportError('Nie udało się dodać planu.'))
+              .finally(() => setPlanBusy(false));
           }
         }}
       >
@@ -182,8 +191,8 @@ export function MaintenancePanel({
             />
           </label>
         </div>
-        <button className="secondary plan-submit" type="submit">
-          Dodaj plan
+        <button className="secondary plan-submit" disabled={planBusy} type="submit">
+          {planBusy ? 'Dodawanie…' : 'Dodaj plan'}
         </button>
       </form>
     </section>

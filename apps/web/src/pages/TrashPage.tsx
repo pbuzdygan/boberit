@@ -1,7 +1,8 @@
 import type { TrashEntry, TrashKind } from '@boberit/shared';
 import { useState } from 'react';
 import { Icon } from '../components/Icon';
-import { formatDate } from '../format';
+import { formatTimestampDate } from '../format';
+import { useReportError } from '../hooks/useReportError';
 
 export function TrashPage({
   canEmpty,
@@ -15,6 +16,8 @@ export function TrashPage({
   onEmpty: () => Promise<void>;
 }) {
   const [filter, setFilter] = useState<'all' | TrashKind>('all');
+  const [restoringKey, setRestoringKey] = useState<string | null>(null);
+  const reportError = useReportError();
   const visible = entries.filter((entry) => filter === 'all' || entry.kind === filter);
   const daysLeft = (value: string) =>
     Math.max(0, 30 - Math.floor((Date.now() - new Date(value).valueOf()) / 86_400_000));
@@ -30,7 +33,8 @@ export function TrashPage({
           <button
             className="secondary danger-button"
             onClick={() => {
-              if (window.confirm('Opróżnić cały Kosz? Tej operacji nie będzie można cofnąć.')) void onEmpty();
+              if (window.confirm('Opróżnić cały Kosz? Tej operacji nie będzie można cofnąć.'))
+                void onEmpty().catch(reportError('Nie udało się opróżnić Kosza.'));
             }}
             type="button"
           >
@@ -81,11 +85,21 @@ export function TrashPage({
                 {entry.detail ? ` · ${entry.detail}` : ''}
               </small>
               <p>
-                Usunięto {formatDate(entry.deletedAt.slice(0, 10))} · pozostało {daysLeft(entry.deletedAt)} dni
+                Usunięto {formatTimestampDate(entry.deletedAt)} · pozostało {daysLeft(entry.deletedAt)} dni
               </p>
             </div>
-            <button className="secondary" onClick={() => void onRestore(entry.kind, entry.id)} type="button">
-              Przywróć
+            <button
+              className="secondary"
+              disabled={restoringKey === `${entry.kind}-${entry.id}`}
+              onClick={() => {
+                setRestoringKey(`${entry.kind}-${entry.id}`);
+                void onRestore(entry.kind, entry.id)
+                  .catch(reportError('Nie udało się przywrócić elementu.'))
+                  .finally(() => setRestoringKey(null));
+              }}
+              type="button"
+            >
+              {restoringKey === `${entry.kind}-${entry.id}` ? 'Przywracanie…' : 'Przywróć'}
             </button>
           </article>
         ))}

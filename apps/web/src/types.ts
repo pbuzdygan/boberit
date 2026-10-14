@@ -13,6 +13,8 @@ export type ReminderEntry = {
   asset: AssetSummary;
   plan?: MaintenancePlan;
 };
+export type ToastTone = 'info' | 'error';
+export type SetMessage = (message: string | null, tone?: ToastTone) => void;
 export type UiNotification = { id: string; message: string; createdAt: number };
 export type PurchaseValue = { currency: string; amountMinor: number };
 

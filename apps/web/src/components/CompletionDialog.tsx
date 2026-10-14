@@ -1,5 +1,5 @@
 import { type MaintenancePlan, localDate } from '@boberit/shared';
-import { useState } from 'react';
+import { type FormEvent, useState } from 'react';
 import { Icon } from './Icon';
 
 export function CompletionDialog({
@@ -9,19 +9,28 @@ export function CompletionDialog({
 }: {
   plan: MaintenancePlan;
   onClose: () => void;
-  onSave: (input: { performedOn?: string; notes?: string }) => void;
+  onSave: (input: { performedOn?: string; notes?: string }) => Promise<void>;
 }) {
   const [performedOn, setPerformedOn] = useState(() => localDate());
   const [notes, setNotes] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    // Blocks a second click: each submit would add its own history record.
+    if (busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      await onSave(notes.trim() ? { performedOn, notes: notes.trim() } : { performedOn });
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Nie udało się zapisać wykonania.');
+      setBusy(false);
+    }
+  }
   return (
     <div className="dialog-backdrop" role="presentation">
-      <form
-        className="dialog completion-dialog"
-        onSubmit={(event) => {
-          event.preventDefault();
-          onSave(notes.trim() ? { performedOn, notes: notes.trim() } : { performedOn });
-        }}
-      >
+      <form className="dialog completion-dialog" onSubmit={(event) => void submit(event)}>
         <header>
           <div>
             <p className="eyebrow">Konserwacja</p>
@@ -45,12 +54,13 @@ export function CompletionDialog({
             rows={3}
           />
         </label>
+        {error && <p className="form-error">{error}</p>}
         <footer>
           <button className="secondary" type="button" onClick={onClose}>
             Anuluj
           </button>
-          <button className="primary" type="submit">
-            Zapisz wykonanie
+          <button className="primary" disabled={busy} type="submit">
+            {busy ? 'Zapisywanie…' : 'Zapisz wykonanie'}
           </button>
         </footer>
       </form>

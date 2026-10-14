@@ -1,7 +1,7 @@
 import type { AssetSummary, BinderDocument, InboxFile, TrashEntry } from '@boberit/shared';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
-import type { PurchaseValue } from '../types';
+import type { PurchaseValue, SetMessage } from '../types';
 import type { NavigationState } from './useNavigation';
 import type { SearchState } from './useSearch';
 
@@ -18,7 +18,7 @@ export function useCollections({
   accessToken: string | null;
   navigation: NavigationState;
   search: SearchState;
-  setMessage: (message: string | null) => void;
+  setMessage: SetMessage;
 }) {
   const [assets, setAssets] = useState<AssetSummary[]>([]);
   const [inboxFiles, setInboxFiles] = useState<InboxFile[]>([]);
@@ -58,7 +58,7 @@ export function useCollections({
       }
     } catch (error) {
       if (sequence === refreshSequence.current)
-        setMessage(error instanceof Error ? error.message : 'Nie udało się odczytać kolekcji.');
+        setMessage(error instanceof Error ? error.message : 'Nie udało się odczytać kolekcji.', 'error');
     } finally {
       if (sequence === refreshSequence.current) setLoading(false);
     }
