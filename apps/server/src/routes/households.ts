@@ -8,7 +8,9 @@ import {
   renameHousehold,
   setActiveHousehold,
   listHouseholdMembers,
+  userById,
 } from '../db/accounts.js';
+import { addAuditEvent } from '../db/audit.js';
 import { failure, isUniqueViolation, json } from '../http.js';
 import { passwordHash } from '../passwords.js';
 import { currentUser, tokenHash } from '../session.js';
@@ -68,6 +70,14 @@ householdsRoutes.post('/api/v1/household/members', async (c) => {
       passwordHash: await passwordHash(input.password),
       role: input.role === 'owner' ? 'owner' : 'member',
     });
+    addAuditEvent({
+      householdId: String(admin.household_id),
+      userId: String(admin.id),
+      action: 'member.added',
+      entityKind: 'member',
+      entityId: member.id,
+      label: member.login,
+    });
     return c.json({ data: member }, 201);
   } catch (error) {
     if (isUniqueViolation(error))
@@ -81,15 +91,33 @@ householdsRoutes.patch('/api/v1/household/members/:id', async (c) => {
     return c.json(failure('Tylko właściciel może zmieniać role.', 403, 'FORBIDDEN'), 403);
   const input = await json<{ role: 'owner' | 'member' }>(c.req.raw);
   if (input.role !== 'owner' && input.role !== 'member') return c.json(failure('Wybierz poprawną rolę.'), 400);
-  return updateHouseholdMemberRole(String(admin.household_id), c.req.param('id'), input.role)
-    ? c.json({ data: { updated: true } })
-    : c.json(failure('Nie znaleziono członka.', 404, 'NOT_FOUND'), 404);
+  const memberId = c.req.param('id');
+  if (!updateHouseholdMemberRole(String(admin.household_id), memberId, input.role))
+    return c.json(failure('Nie znaleziono członka.', 404, 'NOT_FOUND'), 404);
+  addAuditEvent({
+    householdId: String(admin.household_id),
+    userId: String(admin.id),
+    action: input.role === 'owner' ? 'member.promoted' : 'member.demoted',
+    entityKind: 'member',
+    entityId: memberId,
+    label: String(userById(memberId)?.login ?? ''),
+  });
+  return c.json({ data: { updated: true } });
 });
 householdsRoutes.delete('/api/v1/household/members/:id', (c) => {
   const admin = currentUser(c.req.raw);
   if (!admin || admin.role !== 'owner')
     return c.json(failure('Tylko właściciel może usuwać członków.', 403, 'FORBIDDEN'), 403);
-  return removeHouseholdMember(String(admin.household_id), c.req.param('id'))
-    ? c.body(null, 204)
-    : c.json(failure('Nie znaleziono członka.', 404, 'NOT_FOUND'), 404);
+  const memberId = c.req.param('id');
+  if (!removeHouseholdMember(String(admin.household_id), memberId))
+    return c.json(failure('Nie znaleziono członka.', 404, 'NOT_FOUND'), 404);
+  addAuditEvent({
+    householdId: String(admin.household_id),
+    userId: String(admin.id),
+    action: 'member.removed',
+    entityKind: 'member',
+    entityId: memberId,
+    label: String(userById(memberId)?.login ?? ''),
+  });
+  return c.body(null, 204);
 });

@@ -11,8 +11,12 @@ import { fileURLToPath } from 'node:url';
 const serverDirectory = join(dirname(fileURLToPath(import.meta.url)), '..');
 export const password = 'correct-horse-battery';
 
-export async function startTestServer(extraEnv = {}) {
-  const dataDirectory = mkdtempSync(join(tmpdir(), 'boberit-test-'));
+/**
+ * `dataDirectory` reuses existing data (for restart scenarios); the caller then removes it.
+ * `encryptionKey` defaults to a fresh random key.
+ */
+export async function startTestServer({ env: extraEnv = {}, dataDirectory: existing, encryptionKey } = {}) {
+  const dataDirectory = existing ?? mkdtempSync(join(tmpdir(), 'boberit-test-'));
   const webDirectory = mkdtempSync(join(tmpdir(), 'boberit-test-web-'));
   writeFileSync(join(webDirectory, 'index.html'), '<!doctype html>');
   const server = spawn(process.execPath, ['--import', 'tsx', 'src/index.ts'], {
@@ -22,7 +26,7 @@ export async function startTestServer(extraEnv = {}) {
       PORT: '0',
       APP_DATA_DIR: dataDirectory,
       WEB_DIST: webDirectory,
-      APP_ENC_KEY: randomBytes(32).toString('hex'),
+      APP_ENC_KEY: encryptionKey ?? randomBytes(32).toString('hex'),
       SEED_DEMO: 'false',
       ...extraEnv,
     },
@@ -78,11 +82,11 @@ export async function startTestServer(extraEnv = {}) {
       server.kill();
       await exited;
     }
-    rmSync(dataDirectory, { recursive: true, force: true });
+    if (!existing) rmSync(dataDirectory, { recursive: true, force: true });
     rmSync(webDirectory, { recursive: true, force: true });
   }
 
-  return { baseUrl, api, ok, stop, output: () => output };
+  return { baseUrl, dataDirectory, api, ok, stop, output: () => output };
 }
 
 /** Registers the first owner and returns a session token. */

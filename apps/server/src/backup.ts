@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { matchesDeclaredType } from './file-signatures.js';
 import { maxUploadBytes, storedFileTypes } from './uploads.js';
 import type { StorageArea } from './storage.js';
 import { PublicError } from './http.js';
@@ -219,6 +220,7 @@ export function prepareRestore(input: unknown): PreparedRestore {
       if (!raw || typeof raw !== 'object' || Array.isArray(raw)) fail(table, index, '*');
       const row = raw as Row;
       const out: Record<string, Value> = {};
+      let fileData: Buffer | null = null;
       for (const [column, field] of Object.entries(columns)) {
         const value = row[column] ?? null;
         if (field.type === 'id') {
@@ -265,6 +267,7 @@ export function prepareRestore(input: unknown): PreparedRestore {
             throw new BackupError('Pakiet zawiera uszkodzony lub zbyt duży załącznik.');
           const storedName = `${randomUUID()}${storedExtension(value as string)}`;
           result.files.push({ area: fileAreas[table]!, storedName, data });
+          fileData = data;
           out[column] = storedName;
           out.byte_size = data.length;
         }
@@ -272,6 +275,10 @@ export function prepareRestore(input: unknown): PreparedRestore {
       if (table === 'asset_options') optionKinds.set(String(out.id), String(out.kind));
       if (table in fileAreas && !storedFileTypes.has(String(out.mime_type)))
         throw new BackupError('Pakiet zawiera załącznik nieobsługiwanego typu.');
+      // Restored files get the same content check as uploads; untyped files stay download-only.
+      const mimeType = String(out.mime_type);
+      if (fileData && mimeType !== 'application/octet-stream' && !matchesDeclaredType(fileData, mimeType))
+        throw new BackupError('Pakiet zawiera załącznik, którego zawartość nie pasuje do typu.');
       // An interrupted OCR run cannot resume after a restore.
       if (table === 'document_ocr' && out.status === 'processing') out.status = 'pending';
       return out;

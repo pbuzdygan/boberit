@@ -1,4 +1,5 @@
 import sharp from 'sharp';
+import { matchesDeclaredType } from './file-signatures.js';
 import { PublicError } from './http.js';
 
 // Bound libvips memory on small home servers after large phone photos.
@@ -58,6 +59,9 @@ export async function prepareUpload(file: File): Promise<PreparedUpload> {
   const data = Buffer.from(await file.arrayBuffer());
   const mimeType = file.type.toLowerCase() || 'application/octet-stream';
   if (!imageTypes.has(mimeType)) {
+    // Files without a declared type are stored as downloads only (application/octet-stream).
+    if (mimeType !== 'application/octet-stream' && !matchesDeclaredType(data, mimeType))
+      throw new PublicError('Zawartość pliku nie pasuje do jego typu.');
     return {
       data,
       extension: safeExtension(file.name),
@@ -80,7 +84,11 @@ export async function prepareUpload(file: File): Promise<PreparedUpload> {
     const optimizedMimeType = keepsTransparency ? 'image/png' : 'image/jpeg';
     const isOversized = (metadata.width ?? 0) > maxImageDimension || (metadata.height ?? 0) > maxImageDimension;
 
+    // The original bytes are kept only when they really are the declared format; anything else
+    // that libvips can decode (for example SVG or GIF) is stored as the re-encoded image.
+    const sameFormat = metadata.format === mimeType.slice('image/'.length);
     if (
+      sameFormat &&
       !isOversized &&
       mimeType !== 'image/webp' &&
       optimized.length >= data.length &&

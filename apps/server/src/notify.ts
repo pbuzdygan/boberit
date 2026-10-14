@@ -6,7 +6,21 @@ import { decryptSecret } from './secrets.js';
 export function notify(event: string, data: unknown, householdId: string): void {
   const body = JSON.stringify({ event, occurredAt: new Date().toISOString(), data });
   for (const target of webhookTargets(event, householdId)) {
-    const secret = decryptSecret(typeof target.secret_encrypted === 'string' ? target.secret_encrypted : null);
+    let secret: string | null;
+    try {
+      secret = decryptSecret(typeof target.secret_encrypted === 'string' ? target.secret_encrypted : null);
+    } catch {
+      // Notifications run after the change is saved, so a secret stored under another APP_ENC_KEY must not
+      // fail the request. The delivery is skipped rather than sent unsigned, and the owner sees why.
+      addWebhookDelivery({
+        webhookId: String(target.id),
+        event,
+        status: null,
+        error: 'Nie można odszyfrować sekretu webhooka. Zapisz sekret ponownie (zmieniono APP_ENC_KEY?).',
+      });
+      console.error(`Webhook ${String(target.name)} · ${event} · nie można odszyfrować sekretu.`);
+      continue;
+    }
     const headers: Record<string, string> = { 'Content-Type': 'application/json', 'X-Boberit-Event': event };
     if (secret) headers['X-Boberit-Signature'] = 'sha256=' + createHmac('sha256', secret).update(body).digest('hex');
     const targetUrl = String(target.url);

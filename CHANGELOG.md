@@ -15,12 +15,17 @@ Changes are described from the user's perspective, without implementation detail
 - The app sends browser security headers, including a Content Security Policy, and other websites can no longer call its API from a browser.
 - Error messages no longer reveal technical details: unexpected errors show a general message, and failed text recognition shows a general reason. API clients receive HTTP 500 for unexpected errors and HTTP 400 for every validation error.
 - The container image reports its health to Docker. The example `compose.yaml` drops unneeded privileges and sets memory, CPU, and process limits.
+- Passwords are stored with stronger hashing. Existing passwords are upgraded automatically at the next sign-in.
+- Uploaded and restored files must match their declared type; for example, a file sent as PDF must really be a PDF.
+- The household history records added, promoted, demoted, and removed members, webhook changes, and sign-in lockouts after repeated failed attempts.
 
 ### Bug fixes
 
 - Previewing an attachment no longer opens an extra blank tab, and text files show Polish characters correctly.
 - Small attachments in item details show their size in KB instead of "0.0 MB".
 - Adding a household member with a login or e-mail address that is already in use shows a clear message.
+- If a webhook secret can no longer be decrypted (for example after `APP_ENC_KEY` was changed), changes are still saved and the webhook delivery list explains why the webhook was not sent.
+- Household history entries for password changes and signing out other sessions read correctly.
 
 - Deadlines show the correct number of days: a task due today is labeled "Today" instead of "Tomorrow", and the warranty banner and deadline lists always agree.
 - Dates around midnight follow the local calendar day, including the default completion date of a maintenance task.

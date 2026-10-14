@@ -23,6 +23,14 @@ function ActivitySettings() {
     emptied: 'Opróżniono',
     'password.changed': 'Zmieniono hasło użytkownika',
     'sessions.revoked': 'Wylogowano inne sesje',
+    'login.locked': 'Zablokowano logowanie po nieudanych próbach',
+    'member.added': 'Dodano członka gospodarstwa',
+    'member.promoted': 'Nadano rolę właściciela',
+    'member.demoted': 'Zmieniono rolę na członka',
+    'member.removed': 'Usunięto członka gospodarstwa',
+    'webhook.created': 'Dodano webhook',
+    'webhook.updated': 'Zmieniono webhook',
+    'webhook.deleted': 'Usunięto webhook',
   };
   const entityLabels: Record<string, string> = {
     asset: 'przedmiot',
@@ -32,8 +40,11 @@ function ActivitySettings() {
     backup: 'backup',
     trash: 'Kosz',
   };
+  // Compound actions ("member.added") are complete phrases; simple ones are combined with the entity.
   const describe = (event: { action: string; entity_kind: string }) =>
-    `${actionLabels[event.action] ?? eventLabel(`${event.entity_kind}.${event.action}`)} ${entityLabels[event.entity_kind] ?? event.entity_kind}`;
+    event.action.includes('.')
+      ? (actionLabels[event.action] ?? event.action)
+      : `${actionLabels[event.action] ?? eventLabel(`${event.entity_kind}.${event.action}`)} ${entityLabels[event.entity_kind] ?? event.entity_kind}`;
   return (
     <section className="settings-card">
       <span>

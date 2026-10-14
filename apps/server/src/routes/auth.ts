@@ -7,11 +7,13 @@ import {
   updateUserPassword,
   createUserAccount,
   hasUsers,
+  listUserHouseholds,
   userByLogin,
 } from '../db/accounts.js';
 import { addAuditEvent } from '../db/audit.js';
 import { failure, json } from '../http.js';
 import {
+  needsRehash,
   passwordHash,
   verifyPassword,
   unknownUserHash,
@@ -110,10 +112,28 @@ authRoutes.post('/api/v1/auth/login', async (c) => {
   const user = userByLogin(input.login);
   const valid = await verifyPassword(input.password, user ? String(user.password_hash) : await unknownUserHash);
   if (!user || !valid) {
-    loginFailures.fail(loginKey);
+    // Only the start of a block is recorded: logging every failure would let anyone flood the
+    // household history. The login is JSON-encoded and truncated so it cannot forge log lines.
+    if (loginFailures.fail(loginKey)) {
+      console.warn(
+        `Logowanie zablokowane na 15 min: login ${JSON.stringify(input.login.slice(0, 64))}, adres ${address}`,
+      );
+      if (user)
+        for (const household of listUserHouseholds(String(user.id)))
+          addAuditEvent({
+            householdId: String(household.id),
+            userId: String(user.id),
+            action: 'login.locked',
+            entityKind: 'account',
+            entityId: String(user.id),
+            label: String(user.login),
+          });
+    }
     return c.json(failure('Nieprawidłowy login lub hasło.', 401, 'INVALID_CREDENTIALS'), 401);
   }
   loginFailures.reset(loginKey);
+  // Hashes from older versions are upgraded transparently while the password is at hand.
+  if (needsRehash(String(user.password_hash))) updateUserPassword(String(user.id), await passwordHash(input.password));
   const token = randomBytes(32).toString('hex');
   createSession(String(user.id), createHmac('sha256', encryptionKey!).update(token).digest('hex'));
   return c.json({ data: { user: { id: user.id, login: user.login, email: user.email }, token } });

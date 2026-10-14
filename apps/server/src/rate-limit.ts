@@ -16,14 +16,16 @@ export class FailureLimiter {
     return entry.count >= this.maxFailures ? Math.ceil((entry.resetAt - now) / 1000) : 0;
   }
 
-  fail(key: string, now = Date.now()): void {
+  /** Records a failure; returns true when this failure starts a block. */
+  fail(key: string, now = Date.now()): boolean {
     const entry = this.entries.get(key);
     if (entry && entry.resetAt > now) {
       entry.count += 1;
-      return;
+      return entry.count === this.maxFailures;
     }
     if (this.entries.size >= this.capacity) this.prune(now);
     this.entries.set(key, { count: 1, resetAt: now + this.windowMs });
+    return this.maxFailures === 1;
   }
 
   reset(key: string): void {

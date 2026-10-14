@@ -1,10 +1,24 @@
 import { Hono } from 'hono';
 import { listUserHouseholds } from '../db/accounts.js';
+import { addAuditEvent } from '../db/audit.js';
 import { listWebhookDeliveries, listWebhooks, createWebhook, updateWebhook, deleteWebhook } from '../db/webhooks.js';
 import { failure, json } from '../http.js';
 import { webhookUrlError } from '../outbound.js';
 import { encryptSecret } from '../secrets.js';
 import { currentUser } from '../session.js';
+
+// Webhooks belong to a user and may cover several households; changes are recorded in the
+// household that is active when the change is made.
+function auditWebhook(user: Record<string, unknown>, action: string, id: string, name: string) {
+  addAuditEvent({
+    householdId: String(user.household_id),
+    userId: String(user.id),
+    action,
+    entityKind: 'webhook',
+    entityId: id,
+    label: name,
+  });
+}
 
 export const webhooksRoutes = new Hono();
 webhooksRoutes.get('/api/v1/settings/webhook-deliveries', (c) => {
@@ -44,6 +58,7 @@ webhooksRoutes.post('/api/v1/settings/webhooks', async (c) => {
     events: input.events,
     householdIds,
   });
+  auditWebhook(user, 'webhook.created', String(hook.id), input.name.trim());
   return c.json({ data: hook }, 201);
 });
 webhooksRoutes.patch('/api/v1/settings/webhooks/:id', async (c) => {
@@ -58,18 +73,22 @@ webhooksRoutes.patch('/api/v1/settings/webhooks/:id', async (c) => {
   const allowed = new Set(listUserHouseholds(String(user.id)).map((row) => String(row.id)));
   const householdIds = (input.householdIds ?? []).filter((id) => allowed.has(id));
   const secretEncrypted = input.secret?.trim() ? encryptSecret(input.secret.trim()) : undefined;
-  return updateWebhook(String(user.id), c.req.param('id'), {
+  const updated = updateWebhook(String(user.id), c.req.param('id'), {
     name: input.name.trim(),
     url: input.url.trim(),
     secretEncrypted,
     events: input.events,
     householdIds,
-  })
-    ? c.json({ data: { updated: true } })
-    : c.json(failure('Nie znaleziono webhooka.', 404, 'NOT_FOUND'), 404);
+  });
+  if (!updated) return c.json(failure('Nie znaleziono webhooka.', 404, 'NOT_FOUND'), 404);
+  auditWebhook(user, 'webhook.updated', c.req.param('id'), input.name.trim());
+  return c.json({ data: { updated: true } });
 });
-webhooksRoutes.delete('/api/v1/settings/webhooks/:id', (c) =>
-  deleteWebhook(String(currentUser(c.req.raw)!.id), c.req.param('id'))
-    ? c.body(null, 204)
-    : c.json(failure('Nie znaleziono webhooka.', 404, 'NOT_FOUND'), 404),
-);
+webhooksRoutes.delete('/api/v1/settings/webhooks/:id', (c) => {
+  const user = currentUser(c.req.raw)!;
+  const name = listWebhooks(String(user.id)).find((row) => row.id === c.req.param('id'))?.name;
+  if (!deleteWebhook(String(user.id), c.req.param('id')))
+    return c.json(failure('Nie znaleziono webhooka.', 404, 'NOT_FOUND'), 404);
+  auditWebhook(user, 'webhook.deleted', c.req.param('id'), String(name ?? ''));
+  return c.body(null, 204);
+});

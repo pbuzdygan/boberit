@@ -38,7 +38,7 @@ const file = (extra) => ({
 test('records and files receive new identifiers and server-controlled columns', () => {
   const prepared = prepareRestore(
     backup({ assets: [{ ...asset, household_id: 'foreign', unknown_column: 'x' }], asset_files: [file()] }, [
-      { storedName: 'old.pdf', base64: Buffer.from('%PDF').toString('base64') },
+      { storedName: 'old.pdf', base64: Buffer.from('%PDF-1.7').toString('base64') },
     ]),
   );
   const [restoredAsset] = prepared.tables.assets;
@@ -48,10 +48,10 @@ test('records and files receive new identifiers and server-controlled columns', 
   assert.equal(restoredFile.asset_id, restoredAsset.id);
   assert.notEqual(restoredFile.stored_name, 'old.pdf');
   assert.match(restoredFile.stored_name, /^[0-9a-f-]{36}\.pdf$/);
-  assert.equal(restoredFile.byte_size, 4);
+  assert.equal(restoredFile.byte_size, 8);
   assert.deepEqual(
     prepared.files.map((entry) => [entry.area, entry.storedName, entry.data.toString()]),
-    [['items', restoredFile.stored_name, '%PDF']],
+    [['items', restoredFile.stored_name, '%PDF-1.7']],
   );
 });
 
@@ -78,4 +78,16 @@ test('attachment types, sizes and values are validated', () => {
   assert.throws(() => prepareRestore(backup({ assets: [{ ...asset, quantity: 0 }] })), BackupError);
   assert.throws(() => prepareRestore(backup({ assets: [asset, asset] })), BackupError);
   assert.throws(() => prepareRestore({ ...backup(), version: 2 }), BackupError);
+});
+
+test('restored files must match their declared type', () => {
+  assert.throws(
+    () =>
+      prepareRestore(
+        backup({ assets: [asset], asset_files: [file()] }, [
+          { storedName: 'old.pdf', base64: Buffer.from('<html><script></script>').toString('base64') },
+        ]),
+      ),
+    /zawartość nie pasuje do typu/,
+  );
 });

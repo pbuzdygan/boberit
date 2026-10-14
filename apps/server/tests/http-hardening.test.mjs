@@ -129,6 +129,39 @@ describe('HTTP hardening on a running server', () => {
     assert.equal(result.error.message, 'Taka pozycja już istnieje.');
   });
 
+  test('uploads must match their declared type', async () => {
+    const document = await instance.ok(token, 'POST', '/documents', { name: 'Typy' });
+    const upload = (name, content, type) => {
+      const form = new FormData();
+      form.set('file', new File([content], name, { type }));
+      return instance.api(token, 'POST', `/documents/${document.id}/files`, form);
+    };
+    for (const [name, content, type] of [
+      ['skan.pdf', '<html><script>alert(1)</script></html>', 'application/pdf'],
+      ['umowa.docx', 'not a zip', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+      ['notatka.txt', Buffer.from([0x7f, 0x45, 0x4c, 0x46, 0, 1]), 'text/plain'],
+    ]) {
+      const result = await upload(name, content, type);
+      assert.equal(result.status, 400, name);
+      assert.equal(result.error.message, 'Zawartość pliku nie pasuje do jego typu.', name);
+    }
+    assert.equal((await upload('ok.pdf', '%PDF-1.4\n%%EOF', 'application/pdf')).status, 201);
+
+    // libvips can read SVG; a mislabeled SVG must be stored as the re-encoded PNG, never as SVG.
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><rect width="8" height="8"/></svg>';
+    const stored = await upload('rysunek.png', svg, 'image/png');
+    assert.equal(stored.status, 201, stored.text);
+    const download = await fetch(`${instance.baseUrl}/api/v1/files/${stored.data.id}/download`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const head = Buffer.from(await download.arrayBuffer()).subarray(0, 8);
+    assert.ok(
+      head.equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) ||
+        head.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff])),
+      `stored bytes start with ${head.toString('hex')}`,
+    );
+  });
+
   test('a failed OCR run stores a generic reason without tool output or paths', async () => {
     const document = await instance.ok(token, 'POST', '/documents', { name: 'Skan' });
     const form = new FormData();

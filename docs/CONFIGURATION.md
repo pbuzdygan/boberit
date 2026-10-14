@@ -34,7 +34,7 @@ sudo chown -R "$(id -u):$(id -g)" /path/to/data   # only once, for an existing d
 
 ## Uploads
 
-- Only allowed file types are accepted, up to 25 MB per file.
+- Only allowed file types are accepted, up to 25 MB per file. The content must match the declared type (PDF, Word, plain text, JPEG, PNG, WebP); restored backups are checked the same way.
 - Photos are scaled to at most 2000 px and stored as JPEG; images with transparency are stored as PNG.
 - Previews and downloads always go through the authenticated API; files are never served statically. Only images, PDF, and plain text open as a preview; other files are downloaded.
 
@@ -44,7 +44,7 @@ After 5 failed sign-ins for one login from one address, further attempts for tha
 
 ## Webhooks
 
-Webhooks are sent only to public addresses, without following redirects, with a 10-second timeout. The address is checked when a webhook is saved and again on every delivery. To reach a service in your local network, set `WEBHOOK_ALLOW_PRIVATE_NETWORKS=true`.
+Webhooks are sent only to public addresses, without following redirects, with a 10-second timeout. The address is checked when a webhook is saved and again on every delivery. To reach a service in your local network, set `WEBHOOK_ALLOW_PRIVATE_NETWORKS=true`. Webhook secrets are encrypted with `APP_ENC_KEY`; if the key changes, affected webhooks are skipped and the delivery list asks you to save the secret again.
 
 ## OCR
 
