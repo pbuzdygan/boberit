@@ -81,7 +81,6 @@ export function App() {
       return '';
     }
   });
-  const [isNotificationsOpen, setNotificationsOpen] = useState(false);
   const [view, setView] = useState<View>('start');
   const [filter, setFilter] = useState<CollectionFilter>('all');
   const [timelineFilter, setTimelineFilter] = useState<TimelineFilter>('all');
