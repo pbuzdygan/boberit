@@ -4,6 +4,7 @@ import { syncSearch } from './assets.js';
 import { database } from './database.js';
 import { syncDocumentSearch } from './documents.js';
 import { type Row, now } from './values.js';
+import { PublicError } from '../http.js';
 
 export function listDocumentTypes(householdId: string): DocumentType[] {
   return (
@@ -14,7 +15,7 @@ export function listDocumentTypes(householdId: string): DocumentType[] {
 }
 export function createDocumentType(householdId: string, nameValue: string): DocumentType {
   const name = nameValue.trim();
-  if (!name || name.length > 80) throw new Error('Nazwa musi mieć od 1 do 80 znaków.');
+  if (!name || name.length > 80) throw new PublicError('Nazwa musi mieć od 1 do 80 znaków.');
   const id = randomUUID();
   database
     .prepare('INSERT INTO document_types(id,household_id,name,created_at) VALUES(?,?,?,?)')
@@ -23,7 +24,7 @@ export function createDocumentType(householdId: string, nameValue: string): Docu
 }
 export function updateDocumentType(householdId: string, id: string, nameValue: string): DocumentType | null {
   const name = nameValue.trim();
-  if (!name || name.length > 80) throw new Error('Nazwa musi mieć od 1 do 80 znaków.');
+  if (!name || name.length > 80) throw new PublicError('Nazwa musi mieć od 1 do 80 znaków.');
   const result = database
     .prepare('UPDATE document_types SET name=? WHERE id=? AND household_id=?')
     .run(name, id, householdId);
@@ -68,7 +69,7 @@ export function listAssetOptions(householdId: string): AssetOption[] {
 }
 export function createAssetOption(householdId: string, kind: AssetOptionKind, nameValue: string): AssetOption {
   const name = nameValue.trim();
-  if (!name || name.length > 80) throw new Error('Nazwa musi mieć od 1 do 80 znaków.');
+  if (!name || name.length > 80) throw new PublicError('Nazwa musi mieć od 1 do 80 znaków.');
   const id = randomUUID();
   database
     .prepare('INSERT INTO asset_options(id,household_id,kind,name,created_at) VALUES(?,?,?,?,?)')
@@ -77,7 +78,7 @@ export function createAssetOption(householdId: string, kind: AssetOptionKind, na
 }
 export function updateAssetOption(householdId: string, id: string, nameValue: string): AssetOption | null {
   const name = nameValue.trim();
-  if (!name || name.length > 80) throw new Error('Nazwa musi mieć od 1 do 80 znaków.');
+  if (!name || name.length > 80) throw new PublicError('Nazwa musi mieć od 1 do 80 znaków.');
   const result = database
     .prepare('UPDATE asset_options SET name=? WHERE id=? AND household_id=?')
     .run(name, id, householdId);

@@ -9,7 +9,7 @@ import {
   setActiveHousehold,
   listHouseholdMembers,
 } from '../db/accounts.js';
-import { failure, json } from '../http.js';
+import { failure, isUniqueViolation, json } from '../http.js';
 import { passwordHash } from '../passwords.js';
 import { currentUser, tokenHash } from '../session.js';
 
@@ -59,15 +59,21 @@ householdsRoutes.post('/api/v1/household/members', async (c) => {
     return c.json(failure('Tylko właściciel może tworzyć konta.', 403, 'FORBIDDEN'), 403);
   const input = await json<{ login: string; email: string; password: string; role: 'owner' | 'member' }>(c.req.raw);
   if (!/^[a-zA-Z0-9_.-]{3,32}$/.test(input.login) || !/^\S+@\S+\.\S+$/.test(input.email) || input.password.length < 12)
-    return c.json(failure('Podaj poprawny login, e-mail i hasło mające co najmniej 12 znaków.'));
-  const member = createHouseholdMember({
-    householdId: String(admin.household_id),
-    login: input.login,
-    email: input.email,
-    passwordHash: await passwordHash(input.password),
-    role: input.role === 'owner' ? 'owner' : 'member',
-  });
-  return c.json({ data: member }, 201);
+    return c.json(failure('Podaj poprawny login, e-mail i hasło mające co najmniej 12 znaków.'), 400);
+  try {
+    const member = createHouseholdMember({
+      householdId: String(admin.household_id),
+      login: input.login,
+      email: input.email,
+      passwordHash: await passwordHash(input.password),
+      role: input.role === 'owner' ? 'owner' : 'member',
+    });
+    return c.json({ data: member }, 201);
+  } catch (error) {
+    if (isUniqueViolation(error))
+      return c.json(failure('Ten login lub adres e-mail jest już używany.', 409, 'CONFLICT'), 409);
+    throw error;
+  }
 });
 householdsRoutes.patch('/api/v1/household/members/:id', async (c) => {
   const admin = currentUser(c.req.raw);
@@ -75,23 +81,15 @@ householdsRoutes.patch('/api/v1/household/members/:id', async (c) => {
     return c.json(failure('Tylko właściciel może zmieniać role.', 403, 'FORBIDDEN'), 403);
   const input = await json<{ role: 'owner' | 'member' }>(c.req.raw);
   if (input.role !== 'owner' && input.role !== 'member') return c.json(failure('Wybierz poprawną rolę.'), 400);
-  try {
-    return updateHouseholdMemberRole(String(admin.household_id), c.req.param('id'), input.role)
-      ? c.json({ data: { updated: true } })
-      : c.json(failure('Nie znaleziono członka.', 404, 'NOT_FOUND'), 404);
-  } catch (error) {
-    return c.json(failure(error instanceof Error ? error.message : 'Nie udało się zmienić roli.'), 400);
-  }
+  return updateHouseholdMemberRole(String(admin.household_id), c.req.param('id'), input.role)
+    ? c.json({ data: { updated: true } })
+    : c.json(failure('Nie znaleziono członka.', 404, 'NOT_FOUND'), 404);
 });
 householdsRoutes.delete('/api/v1/household/members/:id', (c) => {
   const admin = currentUser(c.req.raw);
   if (!admin || admin.role !== 'owner')
     return c.json(failure('Tylko właściciel może usuwać członków.', 403, 'FORBIDDEN'), 403);
-  try {
-    return removeHouseholdMember(String(admin.household_id), c.req.param('id'))
-      ? c.body(null, 204)
-      : c.json(failure('Nie znaleziono członka.', 404, 'NOT_FOUND'), 404);
-  } catch (error) {
-    return c.json(failure(error instanceof Error ? error.message : 'Nie udało się usunąć członka.'), 400);
-  }
+  return removeHouseholdMember(String(admin.household_id), c.req.param('id'))
+    ? c.body(null, 204)
+    : c.json(failure('Nie znaleziono członka.', 404, 'NOT_FOUND'), 404);
 });

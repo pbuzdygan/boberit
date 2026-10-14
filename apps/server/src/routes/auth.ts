@@ -79,7 +79,10 @@ authRoutes.post('/api/v1/auth/register', async (c) => {
     input.password.length < 12 ||
     !input.householdName.trim()
   )
-    return c.json(failure('Podaj login, poprawny e-mail, nazwę gospodarstwa i hasło mające co najmniej 12 znaków.'));
+    return c.json(
+      failure('Podaj login, poprawny e-mail, nazwę gospodarstwa i hasło mające co najmniej 12 znaków.'),
+      400,
+    );
   const hash = await passwordHash(input.password);
   // Check again after the await: the check and the insert must run without yielding, or concurrent
   // first-run requests could each create an owner account.

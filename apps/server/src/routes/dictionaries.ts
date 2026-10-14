@@ -10,7 +10,7 @@ import {
   updateAssetOption,
   updateDocumentType,
 } from '../db/dictionaries.js';
-import { failure, json } from '../http.js';
+import { failure, isUniqueViolation, json } from '../http.js';
 import { currentUser, householdId } from '../session.js';
 
 export const dictionariesRoutes = new Hono();
@@ -27,16 +27,8 @@ dictionariesRoutes.post('/api/v1/household/asset-options', async (c) => {
   try {
     return c.json({ data: createAssetOption(String(user.household_id), input.kind, input.name ?? '') }, 201);
   } catch (error) {
-    return c.json(
-      failure(
-        error instanceof Error && error.message.includes('UNIQUE')
-          ? 'Taka pozycja już istnieje.'
-          : error instanceof Error
-            ? error.message
-            : 'Nie udało się dodać pozycji.',
-      ),
-      400,
-    );
+    if (isUniqueViolation(error)) return c.json(failure('Taka pozycja już istnieje.'), 400);
+    throw error;
   }
 });
 dictionariesRoutes.patch('/api/v1/household/asset-options/:id', async (c) => {
@@ -48,16 +40,8 @@ dictionariesRoutes.patch('/api/v1/household/asset-options/:id', async (c) => {
     const option = updateAssetOption(String(user.household_id), c.req.param('id'), input.name ?? '');
     return option ? c.json({ data: option }) : c.json(failure('Nie znaleziono pozycji.', 404, 'NOT_FOUND'), 404);
   } catch (error) {
-    return c.json(
-      failure(
-        error instanceof Error && error.message.includes('UNIQUE')
-          ? 'Taka pozycja już istnieje.'
-          : error instanceof Error
-            ? error.message
-            : 'Nie udało się zmienić pozycji.',
-      ),
-      400,
-    );
+    if (isUniqueViolation(error)) return c.json(failure('Taka pozycja już istnieje.'), 400);
+    throw error;
   }
 });
 dictionariesRoutes.delete('/api/v1/household/asset-options/:id', (c) => {
@@ -79,16 +63,8 @@ dictionariesRoutes.post('/api/v1/household/document-types', async (c) => {
   try {
     return c.json({ data: createDocumentType(String(user.household_id), input.name ?? '') }, 201);
   } catch (error) {
-    return c.json(
-      failure(
-        error instanceof Error && error.message.includes('UNIQUE')
-          ? 'Taki typ dokumentu już istnieje.'
-          : error instanceof Error
-            ? error.message
-            : 'Nie udało się dodać typu.',
-      ),
-      400,
-    );
+    if (isUniqueViolation(error)) return c.json(failure('Taki typ dokumentu już istnieje.'), 400);
+    throw error;
   }
 });
 dictionariesRoutes.patch('/api/v1/household/document-types/:id', async (c) => {
@@ -100,16 +76,8 @@ dictionariesRoutes.patch('/api/v1/household/document-types/:id', async (c) => {
     const type = updateDocumentType(String(user.household_id), c.req.param('id'), input.name ?? '');
     return type ? c.json({ data: type }) : c.json(failure('Nie znaleziono typu.', 404, 'NOT_FOUND'), 404);
   } catch (error) {
-    return c.json(
-      failure(
-        error instanceof Error && error.message.includes('UNIQUE')
-          ? 'Taki typ dokumentu już istnieje.'
-          : error instanceof Error
-            ? error.message
-            : 'Nie udało się zmienić typu.',
-      ),
-      400,
-    );
+    if (isUniqueViolation(error)) return c.json(failure('Taki typ dokumentu już istnieje.'), 400);
+    throw error;
   }
 });
 dictionariesRoutes.delete('/api/v1/household/document-types/:id', (c) => {

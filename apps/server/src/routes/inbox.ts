@@ -10,7 +10,7 @@ import {
   listInboxFiles,
 } from '../db/inbox.js';
 import { runDocumentOcr } from '../document-ocr.js';
-import { failure, json } from '../http.js';
+import { failure, json, PublicError } from '../http.js';
 import { householdId } from '../session.js';
 import { relocateStoredFile, removeStoredFiles, writeStoredFile } from '../storage.js';
 import { prepareUpload, validateUpload } from '../uploads.js';
@@ -20,7 +20,7 @@ inboxRoutes.get('/api/v1/inbox', (c) => c.json({ data: listInboxFiles(householdI
 inboxRoutes.post('/api/v1/inbox/files', async (c) => {
   const form = await c.req.raw.formData();
   const rawFile = form.get('file');
-  if (!rawFile || typeof rawFile === 'string') throw new Error('Wybierz plik do dodania.');
+  if (!rawFile || typeof rawFile === 'string') throw new PublicError('Wybierz plik do dodania.');
   validateUpload(rawFile);
   const upload = await prepareUpload(rawFile);
   const storedName = `${randomUUID()}${upload.extension}`;

@@ -1,4 +1,5 @@
 import sharp from 'sharp';
+import { PublicError } from './http.js';
 
 // Bound libvips memory on small home servers after large phone photos.
 sharp.cache({ memory: 16, files: 0, items: 32 });
@@ -21,9 +22,9 @@ export const storedFileTypes = new Set([...allowedUploadTypes, 'application/octe
 export const inlinePreviewTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'text/plain']);
 
 export function validateUpload(file: File): void {
-  if (file.size === 0) throw new Error('Nie można dodać pustego pliku.');
-  if (file.size > maxUploadBytes) throw new Error('Plik jest zbyt duży. Maksymalny rozmiar to 25 MB.');
-  if (file.type && !allowedUploadTypes.has(file.type)) throw new Error('Ten typ pliku nie jest obsługiwany.');
+  if (file.size === 0) throw new PublicError('Nie można dodać pustego pliku.');
+  if (file.size > maxUploadBytes) throw new PublicError('Plik jest zbyt duży. Maksymalny rozmiar to 25 MB.');
+  if (file.type && !allowedUploadTypes.has(file.type)) throw new PublicError('Ten typ pliku nie jest obsługiwany.');
 }
 const maxImageDimension = 2000;
 const jpegQuality = 84;
@@ -101,6 +102,6 @@ export async function prepareUpload(file: File): Promise<PreparedUpload> {
       byteSize: optimized.length,
     };
   } catch {
-    throw new Error('Nie udało się odczytać lub zoptymalizować obrazu.');
+    throw new PublicError('Nie udało się odczytać lub zoptymalizować obrazu.');
   }
 }

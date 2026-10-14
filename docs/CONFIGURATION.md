@@ -50,6 +50,12 @@ Webhooks are sent only to public addresses, without following redirects, with a 
 
 Tesseract runs locally inside the container for Polish and English. It reads images, PDFs with a text layer, and scanned PDFs up to 12 pages. No external OCR service is used.
 
+## Container and HTTPS
+
+The image runs as an unprivileged user and reports its health to Docker through `/api/v1/health`. The example `compose.yaml` drops all Linux capabilities, blocks privilege escalation, and limits memory (2 GB), CPU (2 cores), and processes (256); raise the limits if large OCR jobs or backup restores run out of memory.
+
+Boberit sends browser security headers, including a Content Security Policy, and serves the app and API from one origin without cross-origin access. When you publish it over HTTPS through a reverse proxy, set `Strict-Transport-Security` there; the app does not send it because it may run on plain HTTP in a local network.
+
 ## Backup and restore
 
 **Settings → Backup** exports the active household with its data and attachments. Only a household owner can export, restore, or permanently empty the trash, and export and restore ask for the owner's current password. Restore replaces the household's data only after explicit confirmation. It validates the whole package first and gives every restored record and attachment a new identifier; if anything fails, the household keeps its current data and files. Webhook configuration and secrets are excluded from backups.

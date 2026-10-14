@@ -4,6 +4,7 @@ import { nextDueDate, today } from '../maintenance.js';
 import { plansFor, getAsset } from './assets.js';
 import { database } from './database.js';
 import { type Row, now, nullable } from './values.js';
+import { PublicError } from '../http.js';
 
 export function createMaintenancePlan(
   householdId: string,
@@ -19,9 +20,9 @@ export function createMaintenancePlan(
 ): MaintenancePlan | null {
   if (!getAsset(householdId, assetId)) return null;
   const title = input.title.trim();
-  if (!title) throw new Error('Nazwa planu jest wymagana.');
+  if (!title) throw new PublicError('Nazwa planu jest wymagana.');
   if (input.scheduleKind === 'recurring' && (!input.intervalValue || !input.intervalUnit))
-    throw new Error('Plan cykliczny wymaga interwału.');
+    throw new PublicError('Plan cykliczny wymaga interwału.');
   const id = randomUUID();
   const timestamp = now();
   database
@@ -63,9 +64,9 @@ export function updateMaintenancePlan(
     .get(id, householdId) as Row | undefined;
   if (!row) return null;
   const title = input.title.trim();
-  if (!title) throw new Error('Nazwa planu jest wymagana.');
+  if (!title) throw new PublicError('Nazwa planu jest wymagana.');
   if (input.scheduleKind === 'recurring' && (!input.intervalValue || !input.intervalUnit))
-    throw new Error('Plan cykliczny wymaga interwału.');
+    throw new PublicError('Plan cykliczny wymaga interwału.');
   database
     .prepare(
       'UPDATE maintenance_plans SET title=?, schedule_kind=?, interval_value=?, interval_unit=?, next_due_on=?, notes=?, updated_at=? WHERE id=?',

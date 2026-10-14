@@ -4,6 +4,7 @@ import { getAsset } from './assets.js';
 import { database } from './database.js';
 import { documentFromRow, syncDocumentSearch } from './documents.js';
 import { type Row, now, nullable, tags } from './values.js';
+import { PublicError } from '../http.js';
 
 function inboxFromRow(row: Row): InboxFile & { storedName: string } {
   return {
@@ -100,7 +101,7 @@ export function assignInboxToDocument(
   const source = getInboxFile(householdId, id);
   if (!source) return null;
   const name = input.name.trim();
-  if (!name) throw new Error('Nazwa dokumentu jest wymagana.');
+  if (!name) throw new PublicError('Nazwa dokumentu jest wymagana.');
   const documentId = randomUUID();
   const timestamp = now();
   database.exec('BEGIN');

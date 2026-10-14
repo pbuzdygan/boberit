@@ -9,6 +9,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
+import { PublicError } from './http.js';
 
 export type StorageArea = 'items' | 'documents' | 'inbox';
 
@@ -66,7 +67,7 @@ export function resolveStoredFile(area: StorageArea, householdId: string, stored
   if (existsSync(preferred)) return preferred;
   // Inbox files move to items or documents when they are assigned.
   const current = findInHousehold(householdId, storedName);
-  if (!current) throw new Error('Nie znaleziono zapisanego pliku.');
+  if (!current) throw new PublicError('Nie znaleziono zapisanego pliku.', 404, 'NOT_FOUND');
   try {
     renameSync(current, preferred);
     return preferred;

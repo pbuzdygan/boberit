@@ -32,6 +32,8 @@ export const test = base.extend({
   page: async ({ page }, use) => {
     const problems = [];
     watch(page, problems);
+    // Preview tabs inherit the app's CSP, so their console errors count too.
+    page.context().on('page', (opened) => watch(opened, problems));
     await use(page);
     expect(problems, 'browser errors').toEqual([]);
   },

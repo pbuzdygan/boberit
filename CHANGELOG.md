@@ -12,11 +12,15 @@ Changes are described from the user's perspective, without implementation detail
 - After repeated failed sign-ins, further attempts for that login pause for 15 minutes; other users can still sign in.
 - Oversized requests are rejected before they are processed.
 - Webhooks are sent only to public internet addresses, without following redirects and with a 10-second timeout. A service in the local network can be allowed with `WEBHOOK_ALLOW_PRIVATE_NETWORKS=true`.
+- The app sends browser security headers, including a Content Security Policy, and other websites can no longer call its API from a browser.
+- Error messages no longer reveal technical details: unexpected errors show a general message, and failed text recognition shows a general reason. API clients receive HTTP 500 for unexpected errors and HTTP 400 for every validation error.
+- The container image reports its health to Docker. The example `compose.yaml` drops unneeded privileges and sets memory, CPU, and process limits.
 
 ### Bug fixes
 
 - Previewing an attachment no longer opens an extra blank tab, and text files show Polish characters correctly.
 - Small attachments in item details show their size in KB instead of "0.0 MB".
+- Adding a household member with a login or e-mail address that is already in use shows a clear message.
 
 - Deadlines show the correct number of days: a task due today is labeled "Today" instead of "Tomorrow", and the warranty banner and deadline lists always agree.
 - Dates around midnight follow the local calendar day, including the default completion date of a maintenance task.

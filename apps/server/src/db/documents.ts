@@ -2,6 +2,7 @@ import type { BinderDocument, CreateBinderDocumentInput, DocumentFile } from '@b
 import { randomUUID } from 'node:crypto';
 import { database } from './database.js';
 import { type Row, now, nullable, tags, parseTags } from './values.js';
+import { PublicError } from '../http.js';
 
 function documentFilesFor(documentId: string): DocumentFile[] {
   return (
@@ -118,12 +119,12 @@ function documentTypeValue(householdId: string, idValue: unknown): { id: string;
   const row = database
     .prepare('SELECT id,name FROM document_types WHERE id=? AND household_id=?')
     .get(id, householdId) as Row | undefined;
-  if (!row) throw new Error('Wybrany typ dokumentu nie istnieje.');
+  if (!row) throw new PublicError('Wybrany typ dokumentu nie istnieje.');
   return { id: String(row.id), name: String(row.name) };
 }
 export function createDocument(householdId: string, input: CreateBinderDocumentInput): BinderDocument {
   const name = input.name.trim();
-  if (!name) throw new Error('Nazwa dokumentu jest wymagana.');
+  if (!name) throw new PublicError('Nazwa dokumentu jest wymagana.');
   const id = randomUUID();
   const timestamp = now();
   const documentType = input.typeId === undefined ? null : documentTypeValue(householdId, input.typeId);
@@ -154,7 +155,7 @@ export function updateDocument(
     Row | undefined;
   if (!current) return null;
   const name = input.name === undefined ? String(current.name) : input.name.trim();
-  if (!name) throw new Error('Nazwa dokumentu jest wymagana.');
+  if (!name) throw new PublicError('Nazwa dokumentu jest wymagana.');
   const selectedType = input.typeId === undefined ? undefined : documentTypeValue(householdId, input.typeId);
   const type =
     selectedType === undefined

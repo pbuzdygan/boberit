@@ -45,6 +45,15 @@ Requirements: Docker with Compose.
          TZ: ${TZ:-UTC}
        volumes:
          - boberit-data:/data
+       # Hardening: no Linux capabilities or privilege escalation are needed. Raise the limits
+       # if large OCR jobs or backup restores run out of memory.
+       cap_drop:
+         - ALL
+       security_opt:
+         - no-new-privileges:true
+       mem_limit: 2g
+       cpus: 2
+       pids_limit: 256
        restart: unless-stopped
 
    volumes:

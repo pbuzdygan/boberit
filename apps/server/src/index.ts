@@ -2,13 +2,13 @@ import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
-import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
+import { secureHeaders } from 'hono/secure-headers';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { listStoredFileLocations } from './db/backup.js';
 import { seedDatabase } from './db/seed.js';
-import { megabyte, failure } from './http.js';
+import { errorResponse, failure, megabyte } from './http.js';
 import { maxBackupBytes, backupRoutes } from './routes/backup.js';
 import { purgeExpiredTrash, trashRoutes } from './routes/trash.js';
 import { householdsRoutes } from './routes/households.js';
@@ -42,12 +42,31 @@ migrateStoredFiles(listStoredFileLocations());
 if (process.env.SEED_DEMO === 'true') seedDatabase();
 purgeExpiredTrash();
 app.use('*', logger());
+// The web app and API share one origin, so no CORS headers are sent and other origins cannot read
+// API responses. The CSP fits the Vite build: bundled scripts only, no inline code. Attachment
+// previews open as blob documents, which inherit this policy: images need `blob:`, and the
+// browser's own image viewer styles itself inline, so inline styles are allowed (scripts are
+// not; the app never inserts raw HTML). HSTS is left to the TLS-terminating reverse proxy.
 app.use(
-  '/api/*',
-  cors({
-    origin: '*',
-    allowMethods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
-    allowHeaders: ['Content-Type', 'Idempotency-Key', 'Authorization'],
+  '*',
+  secureHeaders({
+    contentSecurityPolicy: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", 'blob:'],
+      fontSrc: ["'self'"],
+      connectSrc: ["'self'"],
+      manifestSrc: ["'self'"],
+      workerSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      baseUri: ["'none'"],
+      formAction: ["'self'"],
+      frameAncestors: ["'none'"],
+    },
+    strictTransportSecurity: false,
+    xFrameOptions: 'DENY',
+    permissionsPolicy: { camera: [], microphone: [], geolocation: [], payment: [], usb: [] },
   }),
 );
 app.use('/api/*', (c, next) =>
@@ -73,10 +92,7 @@ for (const routes of [
   trashRoutes,
 ])
   app.route('/', routes);
-app.onError((error, c) => {
-  console.error(error);
-  return c.json(failure(error instanceof Error ? error.message : 'Nieoczekiwany błąd serwera.', 400), 400);
-});
+app.onError(errorResponse);
 
 app.use('/*', serveStatic({ root: webDist }));
 app.get(

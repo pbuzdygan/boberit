@@ -16,6 +16,7 @@ import type {
 import { randomUUID } from 'node:crypto';
 import { database } from './database.js';
 import { type Row, now, nullable, tags, parseTags } from './values.js';
+import { PublicError } from '../http.js';
 
 export function completeness(input: {
   manufacturer?: string | null;
@@ -270,7 +271,8 @@ export function getAsset(householdId: string, id: string): AssetSummary | null {
 const itemStatuses: ItemStatus[] = ['available', 'reserved', 'in_use', 'in_repair', 'retired'];
 function itemStatus(value: unknown, fallback: ItemStatus = 'available'): ItemStatus {
   if (value === undefined || value === null || value === '') return fallback;
-  if (!itemStatuses.includes(value as ItemStatus)) throw new Error('Wybrany status przedmiotu jest nieprawidłowy.');
+  if (!itemStatuses.includes(value as ItemStatus))
+    throw new PublicError('Wybrany status przedmiotu jest nieprawidłowy.');
   return value as ItemStatus;
 }
 function optionId(householdId: string, kind: AssetOptionKind, value: unknown): string | null {
@@ -280,13 +282,15 @@ function optionId(householdId: string, kind: AssetOptionKind, value: unknown): s
     .prepare('SELECT id FROM asset_options WHERE id=? AND household_id=? AND kind=?')
     .get(id, householdId, kind) as Row | undefined;
   if (!row)
-    throw new Error(kind === 'category' ? 'Wybrana kategoria nie istnieje.' : 'Wybrana lokalizacja nie istnieje.');
+    throw new PublicError(
+      kind === 'category' ? 'Wybrana kategoria nie istnieje.' : 'Wybrana lokalizacja nie istnieje.',
+    );
   return id;
 }
 
 export function createAsset(householdId: string, input: CreateAssetInput): AssetSummary {
   const name = input.name.trim();
-  if (!name) throw new Error('Nazwa przedmiotu jest wymagana.');
+  if (!name) throw new PublicError('Nazwa przedmiotu jest wymagana.');
   const id = randomUUID();
   const timestamp = now();
   const normalizedTags = tags(input.tags);
@@ -346,7 +350,7 @@ export function updateAsset(householdId: string, id: string, input: Partial<Crea
     locationId:
       input.locationId === undefined ? current.locationId : optionId(householdId, 'location', input.locationId),
   };
-  if (!next.name) throw new Error('Nazwa przedmiotu jest wymagana.');
+  if (!next.name) throw new PublicError('Nazwa przedmiotu jest wymagana.');
   database
     .prepare(
       `UPDATE assets SET name=?, manufacturer=?, model_number=?, serial_number=?, purchase_date=?, price_minor=?, currency=?, quantity=?, external_url=?, notes=?, tags_json=?, item_status=?, category_id=?, location_id=?, completeness=?, updated_at=? WHERE id=?`,
@@ -376,9 +380,9 @@ export function updateAsset(householdId: string, id: string, input: Partial<Crea
 
 export function saveWarranty(householdId: string, assetId: string, input: Warranty): Warranty | null {
   if (!getAsset(householdId, assetId)) return null;
-  if (input.kind === 'fixed' && !input.expiresOn) throw new Error('Data końca gwarancji jest wymagana.');
+  if (input.kind === 'fixed' && !input.expiresOn) throw new PublicError('Data końca gwarancji jest wymagana.');
   if (input.kind !== 'fixed' && input.expiresOn)
-    throw new Error('Gwarancja dożywotnia lub nieznana nie może mieć daty końca.');
+    throw new PublicError('Gwarancja dożywotnia lub nieznana nie może mieć daty końca.');
   const timestamp = now();
   database
     .prepare(

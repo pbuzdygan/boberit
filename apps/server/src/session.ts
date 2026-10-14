@@ -1,7 +1,7 @@
 import type { Context, MiddlewareHandler } from 'hono';
 import { createHmac } from 'node:crypto';
 import { sessionUser } from './db/accounts.js';
-import { failure } from './http.js';
+import { failure, PublicError } from './http.js';
 import { encryptionKey } from './secrets.js';
 
 // Rejects API requests without a valid session, except the public health and sign-in endpoints.
@@ -32,7 +32,7 @@ export function currentUser(request: Request) {
 }
 export function householdId(request: Request): string {
   const user = currentUser(request);
-  if (!user?.household_id) throw new Error('Nie wybrano aktywnego gospodarstwa.');
+  if (!user?.household_id) throw new PublicError('Nie wybrano aktywnego gospodarstwa.');
   return String(user.household_id);
 }
 export function tokenHash(request: Request): string {

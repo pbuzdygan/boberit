@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { database } from './database.js';
 import { type Row, now } from './values.js';
+import { PublicError } from '../http.js';
 
 export function hasUsers(): boolean {
   return Number((database.prepare('SELECT COUNT(*) AS count FROM users').get() as Row).count) > 0;
@@ -78,7 +79,7 @@ export function updateHouseholdMemberRole(householdId: string, userId: string, r
     const owners = database
       .prepare("SELECT COUNT(*) AS count FROM household_members WHERE household_id=? AND role='owner'")
       .get(householdId) as Row;
-    if (Number(owners.count) <= 1) throw new Error('Gospodarstwo musi mieć co najmniej jednego właściciela.');
+    if (Number(owners.count) <= 1) throw new PublicError('Gospodarstwo musi mieć co najmniej jednego właściciela.');
   }
   return (
     database
@@ -95,7 +96,7 @@ export function removeHouseholdMember(householdId: string, userId: string): bool
     const owners = database
       .prepare("SELECT COUNT(*) AS count FROM household_members WHERE household_id=? AND role='owner'")
       .get(householdId) as Row;
-    if (Number(owners.count) <= 1) throw new Error('Nie można usunąć ostatniego właściciela gospodarstwa.');
+    if (Number(owners.count) <= 1) throw new PublicError('Nie można usunąć ostatniego właściciela gospodarstwa.');
   }
   return (
     database.prepare('DELETE FROM household_members WHERE household_id=? AND user_id=?').run(householdId, userId)

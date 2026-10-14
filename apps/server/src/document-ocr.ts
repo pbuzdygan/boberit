@@ -32,12 +32,8 @@ export async function runDocumentOcr(householdId: string, documentId: string): P
     }
     setDocumentOcr(householdId, documentId, 'completed', parts.join('\n\n'));
   } catch (error) {
-    setDocumentOcr(
-      householdId,
-      documentId,
-      'failed',
-      '',
-      error instanceof Error ? error.message : 'Nie udało się rozpoznać tekstu.',
-    );
+    // Tool errors can contain server paths, so the stored reason is generic; details go to the log.
+    console.error(`OCR dokumentu ${documentId} nie powiódł się:`, error);
+    setDocumentOcr(householdId, documentId, 'failed', '', 'Nie udało się rozpoznać tekstu.');
   }
 }

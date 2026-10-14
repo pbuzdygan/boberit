@@ -1,8 +1,9 @@
 import { localDate, type IntervalUnit } from '@boberit/shared';
+import { PublicError } from './http.js';
 
 export function nextDueDate(from: string, value: number, unit: IntervalUnit): string {
   const date = new Date(`${from}T12:00:00.000Z`);
-  if (Number.isNaN(date.valueOf())) throw new Error('Nieprawidłowa data terminu.');
+  if (Number.isNaN(date.valueOf())) throw new PublicError('Nieprawidłowa data terminu.');
 
   if (unit === 'days') date.setUTCDate(date.getUTCDate() + value);
   if (unit === 'weeks') date.setUTCDate(date.getUTCDate() + value * 7);

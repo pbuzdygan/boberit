@@ -110,6 +110,30 @@ test('document preview opens exactly one tab with the file', async ({ page }) =>
   await preview.close();
 });
 
+// 1x1 PNG; the server re-encodes images on upload.
+const pixelPng = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+  'base64',
+);
+
+test('image preview renders in its tab under the app CSP', async ({ page }) => {
+  const token = await ownerToken();
+  const document = await api(token, 'POST', '/documents', { name: 'Zdjęcie testowe' });
+  await api(token, 'POST', `/documents/${document.id}/files`, fileForm('zdjecie.png', pixelPng, 'image/png'));
+  await login(page, 'owner');
+  await nav(page, 'Dokumenty');
+  await page.getByText('Zdjęcie testowe').first().click();
+  await expect(page.getByRole('heading', { name: 'Zdjęcie testowe' })).toBeVisible();
+
+  const [preview] = await Promise.all([
+    page.context().waitForEvent('page'),
+    page.getByRole('button', { name: 'Podgląd' }).first().click(),
+  ]);
+  await preview.waitForURL(/^blob:/);
+  await expect.poll(() => preview.evaluate(() => document.querySelector('img')?.naturalWidth ?? 0)).toBeGreaterThan(0);
+  await preview.close();
+});
+
 test('backup download requires the current password', async ({ page }) => {
   await login(page, 'owner');
   await nav(page, 'Ustawienia');

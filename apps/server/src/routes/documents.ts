@@ -16,7 +16,7 @@ import {
 } from '../db/documents.js';
 import { moveDocumentToTrash } from '../db/trash.js';
 import { runDocumentOcr } from '../document-ocr.js';
-import { failure, json } from '../http.js';
+import { failure, json, PublicError } from '../http.js';
 import { notify } from '../notify.js';
 import { currentUser, householdId } from '../session.js';
 import { removeStoredFiles, writeStoredFile } from '../storage.js';
@@ -92,7 +92,7 @@ documentsRoutes.post('/api/v1/documents/:id/files', async (c) => {
     return c.json(failure('Nie znaleziono dokumentu.', 404, 'NOT_FOUND'), 404);
   const form = await c.req.raw.formData();
   const rawFile = form.get('file');
-  if (!rawFile || typeof rawFile === 'string') throw new Error('Wybierz plik do dodania.');
+  if (!rawFile || typeof rawFile === 'string') throw new PublicError('Wybierz plik do dodania.');
   validateUpload(rawFile);
   const upload = await prepareUpload(rawFile);
   const storedName = `${randomUUID()}${upload.extension}`;

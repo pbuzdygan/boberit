@@ -13,7 +13,7 @@ import {
 } from '../db/assets.js';
 import { addAuditEvent } from '../db/audit.js';
 import { moveAssetToTrash } from '../db/trash.js';
-import { failure, json } from '../http.js';
+import { failure, json, PublicError } from '../http.js';
 import { notify } from '../notify.js';
 import { currentUser, householdId } from '../session.js';
 import { removeStoredFiles, writeStoredFile } from '../storage.js';
@@ -73,7 +73,7 @@ assetsRoutes.post('/api/v1/assets/:id/files', async (c) => {
     return c.json(failure('Nie znaleziono przedmiotu.', 404, 'NOT_FOUND'), 404);
   const form = await c.req.raw.formData();
   const rawFile = form.get('file');
-  if (!rawFile || typeof rawFile === 'string') throw new Error('Wybierz plik do dodania.');
+  if (!rawFile || typeof rawFile === 'string') throw new PublicError('Wybierz plik do dodania.');
   validateUpload(rawFile);
   const requestedKind = String(form.get('kind') ?? 'other');
   const kind: AssetFileKind = ['photo', 'receipt', 'manual', 'other'].includes(requestedKind)

@@ -1,11 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import { maxUploadBytes, storedFileTypes } from './uploads.js';
 import type { StorageArea } from './storage.js';
+import { PublicError } from './http.js';
 
 type Row = Record<string, unknown>;
 type Value = string | number | null;
 
-export class BackupError extends Error {}
+/** A rejected backup package; the message is shown to the owner. */
+export class BackupError extends PublicError {}
 
 export interface PreparedRestore {
   tables: Record<string, Record<string, Value>[]>;
