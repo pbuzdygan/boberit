@@ -38,6 +38,10 @@ sudo chown -R "$(id -u):$(id -g)" /path/to/data   # only once, for an existing d
 - Photos are scaled to at most 2000 px and stored as JPEG; images with transparency are stored as PNG.
 - Previews and downloads always go through the authenticated API; files are never served statically. Only images, PDF, and plain text open as a preview; other files are downloaded.
 
+## First-run setup
+
+Until the first account exists, the start page offers to create it to anyone who can reach Boberit. Complete the setup immediately after the first start, and only then publish the port to other networks or the internet.
+
 ## Sign-in protection
 
 After 5 failed sign-ins for one login from one address, further attempts for that login are refused for 15 minutes. Other logins are never affected. Behind a reverse proxy all clients share the proxy's address, so the limit then applies to the login regardless of where the attempts come from. Counters reset when the container restarts.

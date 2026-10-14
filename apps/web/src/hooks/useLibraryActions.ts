@@ -7,6 +7,7 @@ import type {
   WarrantyKind,
 } from '@boberit/shared';
 import { api } from '../api';
+import { batchOcrMessage } from '../labels';
 import type { useCollections } from './useCollections';
 import type { NavigationState } from './useNavigation';
 import type { SearchState } from './useSearch';
@@ -138,11 +139,7 @@ export function useLibraryActions({
   async function batchOcr() {
     const result = await api.batchDocumentOcr();
     await collections.refresh();
-    setMessage(
-      result.data.processed
-        ? `Rozpoznano tekst w ${result.data.processed} dokumentach.`
-        : 'Nie ma dokumentów oczekujących na OCR.',
-    );
+    setMessage(batchOcrMessage(result.data));
   }
   async function saveOcr(id: string, text: string) {
     await api.saveDocumentOcr(id, text);

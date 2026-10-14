@@ -2,7 +2,11 @@ import { Hono } from 'hono';
 import { listUserHouseholds } from '../db/accounts.js';
 import { addAuditEvent } from '../db/audit.js';
 import { listWebhookDeliveries, listWebhooks, createWebhook, updateWebhook, deleteWebhook } from '../db/webhooks.js';
-import { failure, json } from '../http.js';
+import { failure } from '../http.js';
+import { webhookEvents, webhookInput } from '../inputs.js';
+import { readBody } from '../validate.js';
+
+const isWebhookEvent = (event: string) => (webhookEvents as readonly string[]).includes(event);
 import { webhookUrlError } from '../outbound.js';
 import { encryptSecret } from '../secrets.js';
 import { currentUser } from '../session.js';
@@ -40,10 +44,8 @@ webhooksRoutes.get('/api/v1/settings/webhooks', (c) => {
   });
 });
 webhooksRoutes.post('/api/v1/settings/webhooks', async (c) => {
-  const input = await json<{ name: string; url: string; secret?: string; events: string[]; householdIds?: string[] }>(
-    c.req.raw,
-  );
-  if (!input.name?.trim() || !Array.isArray(input.events) || !input.events.length)
+  const input = await readBody(c.req.raw, webhookInput);
+  if (!input.name.trim() || !input.events.length || !input.events.every(isWebhookEvent))
     return c.json(failure('Podaj nazwę, adres HTTP(S) i co najmniej jedno zdarzenie.'), 400);
   const urlError = await webhookUrlError(input.url);
   if (urlError) return c.json(failure(urlError), 400);
@@ -62,10 +64,8 @@ webhooksRoutes.post('/api/v1/settings/webhooks', async (c) => {
   return c.json({ data: hook }, 201);
 });
 webhooksRoutes.patch('/api/v1/settings/webhooks/:id', async (c) => {
-  const input = await json<{ name: string; url: string; secret?: string; events: string[]; householdIds?: string[] }>(
-    c.req.raw,
-  );
-  if (!input.name?.trim() || !Array.isArray(input.events) || !input.events.length)
+  const input = await readBody(c.req.raw, webhookInput);
+  if (!input.name.trim() || !input.events.length || !input.events.every(isWebhookEvent))
     return c.json(failure('Podaj nazwę, adres HTTP(S) i co najmniej jedno zdarzenie.'), 400);
   const urlError = await webhookUrlError(input.url);
   if (urlError) return c.json(failure(urlError), 400);

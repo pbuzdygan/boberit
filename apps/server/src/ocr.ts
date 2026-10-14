@@ -3,11 +3,13 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
+import { FairQueue } from './fair-queue.js';
 
 const execute = promisify(execFile);
 const maxPages = 12;
 const timeout = 45_000;
-let ocrQueue: Promise<void> = Promise.resolve();
+// OCR is CPU-heavy, so files are processed one at a time, alternating between households.
+const ocrQueue = new FairQueue(20);
 
 async function command(binary: string, args: string[]): Promise<string> {
   const result = await execute(binary, args, { timeout, maxBuffer: 8 * 1024 * 1024 });
@@ -49,14 +51,15 @@ async function extractDocumentTextNow(
   }
 }
 
+/** Throws a 429 public error when the household already has too many files waiting for OCR. */
+export function assertOcrCapacity(householdId: string): void {
+  ocrQueue.assertCapacity(householdId);
+}
+
 export function extractDocumentText(
+  householdId: string,
   path: string,
   mimeType: string,
 ): Promise<{ status: 'completed' | 'unsupported'; text: string }> {
-  const task = ocrQueue.then(() => extractDocumentTextNow(path, mimeType));
-  ocrQueue = task.then(
-    () => undefined,
-    () => undefined,
-  );
-  return task;
+  return ocrQueue.run(householdId, () => extractDocumentTextNow(path, mimeType));
 }

@@ -81,3 +81,10 @@ export function ocrStatusMeta(status: OcrStatus): { label: string; icon: IconNam
   };
   return statuses[status];
 }
+
+/** Outcome of a batch OCR run; a run stops after a time limit and reports what is left. */
+export function batchOcrMessage({ processed, remaining }: { processed: number; remaining: number }): string {
+  if (!processed && !remaining) return 'Nie ma dokumentów oczekujących na OCR.';
+  const done = `Rozpoznano tekst w ${processed} dokumentach.`;
+  return remaining ? `${done} Pozostało ${remaining} — uruchom OCR zaległych dokumentów ponownie.` : done;
+}

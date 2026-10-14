@@ -1,5 +1,5 @@
 import { documentFilesForOcr, setDocumentOcr } from './db/documents.js';
-import { extractDocumentText } from './ocr.js';
+import { assertOcrCapacity, extractDocumentText } from './ocr.js';
 import { resolveStoredFile } from './storage.js';
 
 export async function runDocumentOcr(householdId: string, documentId: string): Promise<void> {
@@ -8,6 +8,8 @@ export async function runDocumentOcr(householdId: string, documentId: string): P
     setDocumentOcr(householdId, documentId, 'unsupported', '', 'Dokument nie ma załączników.');
     return;
   }
+  // A full queue is reported to the caller (429) instead of marking the document as failed.
+  assertOcrCapacity(householdId);
   setDocumentOcr(householdId, documentId, 'processing');
   try {
     const parts: string[] = [];
@@ -15,6 +17,7 @@ export async function runDocumentOcr(householdId: string, documentId: string): P
     const includeFileNames = files.length > 1;
     for (const file of files) {
       const result = await extractDocumentText(
+        householdId,
         resolveStoredFile('documents', householdId, String(file.stored_name)),
         String(file.mime_type),
       );

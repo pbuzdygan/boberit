@@ -110,6 +110,88 @@ describe('HTTP hardening on a running server', () => {
     assert.equal(empty.error.message, 'Nazwa przedmiotu jest wymagana.');
   });
 
+  test('request bodies are validated at the boundary', async () => {
+    const cases = [
+      ['POST', '/assets', { name: 'x', tags: 5 }, 'Nieprawidłowa wartość pola „Tagi”.'],
+      ['POST', '/assets', { name: 'x'.repeat(501) }, 'Pole „Nazwa” może mieć najwyżej 500 znaków.'],
+      ['POST', '/assets', { name: 'x', purchaseDate: '2025-02-30' }, 'Nieprawidłowa wartość pola „Data zakupu”.'],
+      ['POST', '/assets', { name: 'x', itemStatus: 'lost' }, 'Nieprawidłowa wartość pola „Status”.'],
+      ['POST', '/assets', { name: 'x', priceMinor: 12.5 }, 'Nieprawidłowa wartość pola „Cena”.'],
+      ['POST', '/assets', [], 'Nieprawidłowe dane żądania.'],
+      ['POST', '/assets', 'null', 'Nieprawidłowe dane żądania.'],
+      ['POST', '/assets', {}, 'Pole „Nazwa” jest wymagane.'],
+      ['POST', '/documents', { name: 'x', notes: { a: 1 } }, 'Nieprawidłowa wartość pola „Notatki”.'],
+      ['POST', '/auth/login', { login: 'owner' }, 'Pole „Hasło” jest wymagane.'],
+      [
+        'POST',
+        '/auth/login',
+        { login: 'owner', password: 'x'.repeat(1025) },
+        'Pole „Hasło” może mieć najwyżej 1024 znaków.',
+      ],
+    ];
+    for (const [method, path, body, message] of cases) {
+      const result =
+        typeof body === 'string'
+          ? await instance.api(token, method, path, body, { 'Content-Type': 'application/json' })
+          : await instance.api(token, method, path, body);
+      assert.equal(result.status, 400, `${path} ${JSON.stringify(body).slice(0, 60)}: ${result.text}`);
+      assert.equal(result.error.message, message);
+    }
+    const asset = await instance.ok(token, 'POST', '/assets', { name: 'Lampa' });
+    const plan = await instance.api(token, 'POST', `/assets/${asset.id}/maintenance-plans`, {
+      title: 'Wymiana żarówki',
+      scheduleKind: 'recurring',
+      intervalValue: 3,
+      intervalUnit: 'hours',
+    });
+    assert.equal(plan.status, 400);
+    assert.equal(plan.error.message, 'Nieprawidłowa wartość pola „Jednostka”.');
+    const hook = await instance.api(token, 'POST', '/settings/webhooks', {
+      name: 'Hook',
+      url: 'https://203.0.113.10/hook',
+      events: ['asset.created', 'everything'],
+    });
+    assert.equal(hook.status, 400);
+  });
+
+  test('valid edits keep their meaning: null and empty strings clear optional fields', async () => {
+    const asset = await instance.ok(token, 'POST', '/assets', {
+      name: 'Rower',
+      manufacturer: 'Kross',
+      purchaseDate: '2025-05-01',
+      itemStatus: 'in_use',
+      tags: ['Sport'],
+    });
+    const updated = await instance.ok(token, 'PATCH', `/assets/${asset.id}`, {
+      manufacturer: null,
+      purchaseDate: '',
+      itemStatus: '',
+      unknownField: 'ignored',
+    });
+    assert.equal(updated.name, 'Rower');
+    assert.equal(updated.manufacturer, null);
+    assert.equal(updated.purchaseDate, null);
+    assert.equal(updated.itemStatus, 'in_use');
+    assert.deepEqual(updated.tags, ['Sport']);
+  });
+
+  test('trashed documents and plans of trashed items cannot be changed', async () => {
+    const document = await instance.ok(token, 'POST', '/documents', { name: 'Stara umowa' });
+    await instance.ok(token, 'DELETE', `/documents/${document.id}`);
+    const edit = await instance.api(token, 'PATCH', `/documents/${document.id}`, { name: 'Nowa nazwa' });
+    assert.equal(edit.status, 404);
+
+    const asset = await instance.ok(token, 'POST', '/assets', { name: 'Stary piec' });
+    const plan = await instance.ok(token, 'POST', `/assets/${asset.id}/maintenance-plans`, {
+      title: 'Przegląd',
+      scheduleKind: 'one_off',
+      nextDueOn: '2026-12-01',
+    });
+    await instance.ok(token, 'DELETE', `/assets/${asset.id}`);
+    const complete = await instance.api(token, 'POST', `/maintenance-plans/${plan.id}/complete`, {});
+    assert.equal(complete.status, 404);
+  });
+
   test('a duplicate login returns a public conflict message instead of SQLite text', async () => {
     const result = await instance.api(token, 'POST', '/household/members', {
       login: 'owner',
@@ -160,6 +242,22 @@ describe('HTTP hardening on a running server', () => {
         head.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff])),
       `stored bytes start with ${head.toString('hex')}`,
     );
+  });
+
+  test('a batch OCR run is capped and reports the remaining documents', async () => {
+    // A separate session with its own, empty active household keeps the counts exact.
+    const { token: tokenB } = await instance.ok(null, 'POST', '/auth/login', { login: 'owner', password });
+    const household = await instance.ok(tokenB, 'POST', '/households', { name: 'Wsad' });
+    await instance.ok(tokenB, 'POST', '/households/active', { householdId: household.id });
+    for (let index = 0; index < 27; index++) {
+      const document = await instance.ok(tokenB, 'POST', '/documents', { name: `Notatka ${index}` });
+      const form = new FormData();
+      form.set('file', new File([`Notatka ${index}`], 'notatka.txt', { type: 'text/plain' }));
+      await instance.ok(tokenB, 'POST', `/documents/${document.id}/files`, form);
+    }
+    const first = await instance.ok(tokenB, 'POST', '/documents/ocr/batch');
+    assert.deepEqual(first, { processed: 25, remaining: 2 });
+    assert.deepEqual(await instance.ok(tokenB, 'POST', '/documents/ocr/batch'), { processed: 2, remaining: 0 });
   });
 
   test('a failed OCR run stores a generic reason without tool output or paths', async () => {

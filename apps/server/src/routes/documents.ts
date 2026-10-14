@@ -1,4 +1,3 @@
-import type { CreateBinderDocumentInput } from '@boberit/shared';
 import { Hono } from 'hono';
 import { randomUUID } from 'node:crypto';
 import { addAuditEvent } from '../db/audit.js';
@@ -16,7 +15,9 @@ import {
 } from '../db/documents.js';
 import { moveDocumentToTrash } from '../db/trash.js';
 import { runDocumentOcr } from '../document-ocr.js';
-import { failure, json, PublicError } from '../http.js';
+import { failure, PublicError } from '../http.js';
+import { documentCreateInput, documentUpdateInput, ocrTextInput } from '../inputs.js';
+import { readBody } from '../validate.js';
 import { notify } from '../notify.js';
 import { currentUser, householdId } from '../session.js';
 import { removeStoredFiles, writeStoredFile } from '../storage.js';
@@ -27,7 +28,7 @@ documentsRoutes.get('/api/v1/documents', (c) =>
   c.json({ data: listDocuments(householdId(c.req.raw), c.req.query('q') ?? '') }),
 );
 documentsRoutes.post('/api/v1/documents', async (c) => {
-  const document = createDocument(householdId(c.req.raw), await json<CreateBinderDocumentInput>(c.req.raw));
+  const document = createDocument(householdId(c.req.raw), await readBody(c.req.raw, documentCreateInput));
   addAuditEvent({
     householdId: householdId(c.req.raw),
     userId: String(currentUser(c.req.raw)!.id),
@@ -44,16 +45,33 @@ documentsRoutes.get('/api/v1/documents/:id/ocr', (c) => {
   return data ? c.json({ data }) : c.json(failure('OCR nie został jeszcze uruchomiony.', 404, 'NOT_FOUND'), 404);
 });
 documentsRoutes.put('/api/v1/documents/:id/ocr', async (c) => {
-  const input = await json<{ text: string }>(c.req.raw);
-  return saveDocumentOcrText(householdId(c.req.raw), c.req.param('id'), String(input.text ?? ''))
+  const input = await readBody(c.req.raw, ocrTextInput);
+  return saveDocumentOcrText(householdId(c.req.raw), c.req.param('id'), input.text ?? '')
     ? c.json({ data: { saved: true } })
     : c.json(failure('Nie znaleziono dokumentu.', 404, 'NOT_FOUND'), 404);
 });
+// A batch stops starting new documents after this time, so the request ends before typical proxy
+// timeouts; the response reports what is left and the user runs the batch again.
+const batchTimeBudgetMs = 60_000;
+const batchMaxDocuments = 25;
+const batchesInProgress = new Set<string>();
 documentsRoutes.post('/api/v1/documents/ocr/batch', async (c) => {
   const scope = householdId(c.req.raw);
-  const docs = documentsNeedingOcr(scope);
-  for (const doc of docs) await runDocumentOcr(scope, String(doc.id));
-  return c.json({ data: { processed: docs.length } });
+  if (batchesInProgress.has(scope)) return c.json(failure('OCR zaległych dokumentów już trwa.', 409, 'CONFLICT'), 409);
+  batchesInProgress.add(scope);
+  try {
+    const started = Date.now();
+    const docs = documentsNeedingOcr(scope);
+    let processed = 0;
+    for (const doc of docs.slice(0, batchMaxDocuments)) {
+      if (Date.now() - started > batchTimeBudgetMs) break;
+      await runDocumentOcr(scope, String(doc.id));
+      processed += 1;
+    }
+    return c.json({ data: { processed, remaining: docs.length - processed } });
+  } finally {
+    batchesInProgress.delete(scope);
+  }
 });
 documentsRoutes.post('/api/v1/documents/:id/ocr', async (c) => {
   const scope = householdId(c.req.raw);
@@ -66,7 +84,7 @@ documentsRoutes.patch('/api/v1/documents/:id', async (c) => {
   const document = updateDocument(
     householdId(c.req.raw),
     c.req.param('id'),
-    await json<Partial<CreateBinderDocumentInput>>(c.req.raw),
+    await readBody(c.req.raw, documentUpdateInput),
   );
   return document ? c.json({ data: document }) : c.json(failure('Nie znaleziono dokumentu.', 404, 'NOT_FOUND'), 404);
 });

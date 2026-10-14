@@ -145,7 +145,8 @@ export const api = {
     ),
   saveDocumentOcr: (id: string, text: string) =>
     request<ApiEnvelope<{ saved: boolean }>>(`/documents/${id}/ocr`, { method: 'PUT', body: JSON.stringify({ text }) }),
-  batchDocumentOcr: () => request<ApiEnvelope<{ processed: number }>>('/documents/ocr/batch', { method: 'POST' }),
+  batchDocumentOcr: () =>
+    request<ApiEnvelope<{ processed: number; remaining: number }>>('/documents/ocr/batch', { method: 'POST' }),
   trashDocument: (id: string) => emptyRequest(`/documents/${id}`, { method: 'DELETE' }),
   restoreTrash: (kind: TrashKind, id: string) => emptyRequest(`/trash/${kind}/${id}/restore`, { method: 'POST' }),
   emptyTrash: () => emptyRequest('/trash', { method: 'DELETE' }),

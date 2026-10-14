@@ -18,6 +18,12 @@ Changes are described from the user's perspective, without implementation detail
 - Passwords are stored with stronger hashing. Existing passwords are upgraded automatically at the next sign-in.
 - Uploaded and restored files must match their declared type; for example, a file sent as PDF must really be a PDF.
 - The household history records added, promoted, demoted, and removed members, webhook changes, and sign-in lockouts after repeated failed attempts.
+- Every request is checked for valid field types, lengths, dates, and choices; too long text and invalid dates get a clear message. Trashed documents and maintenance plans of trashed items can no longer be edited until they are restored.
+- Text recognition (OCR) is shared fairly between households, and a household can queue only a limited number of files at a time.
+
+### Improvements
+
+- "OCR of pending documents" processes up to 25 documents per run, about one minute at most, and reports how many are left, so long runs no longer time out.
 
 ### Bug fixes
 

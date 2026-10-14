@@ -1,4 +1,4 @@
-import type { AssetFileKind, CreateAssetInput, Warranty } from '@boberit/shared';
+import type { AssetFileKind } from '@boberit/shared';
 import { Hono } from 'hono';
 import { randomUUID } from 'node:crypto';
 import {
@@ -13,7 +13,9 @@ import {
 } from '../db/assets.js';
 import { addAuditEvent } from '../db/audit.js';
 import { moveAssetToTrash } from '../db/trash.js';
-import { failure, json, PublicError } from '../http.js';
+import { failure, PublicError } from '../http.js';
+import { assetCreateInput, assetUpdateInput, fileKindInput, warrantyInput } from '../inputs.js';
+import { readBody } from '../validate.js';
 import { notify } from '../notify.js';
 import { currentUser, householdId } from '../session.js';
 import { removeStoredFiles, writeStoredFile } from '../storage.js';
@@ -26,7 +28,7 @@ assetsRoutes.get('/api/v1/assets/:id', (c) => {
   return asset ? c.json({ data: asset }) : c.json(failure('Nie znaleziono przedmiotu.', 404, 'NOT_FOUND'), 404);
 });
 assetsRoutes.post('/api/v1/assets', async (c) => {
-  const input = await json<CreateAssetInput>(c.req.raw);
+  const input = await readBody(c.req.raw, assetCreateInput);
   const asset = createAsset(householdId(c.req.raw), input);
   addAuditEvent({
     householdId: householdId(c.req.raw),
@@ -40,11 +42,7 @@ assetsRoutes.post('/api/v1/assets', async (c) => {
   return c.json({ data: asset }, 201);
 });
 assetsRoutes.patch('/api/v1/assets/:id', async (c) => {
-  const asset = updateAsset(
-    householdId(c.req.raw),
-    c.req.param('id'),
-    await json<Partial<CreateAssetInput>>(c.req.raw),
-  );
+  const asset = updateAsset(householdId(c.req.raw), c.req.param('id'), await readBody(c.req.raw, assetUpdateInput));
   return asset ? c.json({ data: asset }) : c.json(failure('Nie znaleziono przedmiotu.', 404, 'NOT_FOUND'), 404);
 });
 assetsRoutes.delete('/api/v1/assets/:id', (c) => {
@@ -64,7 +62,7 @@ assetsRoutes.delete('/api/v1/assets/:id', (c) => {
   return c.body(null, 204);
 });
 assetsRoutes.put('/api/v1/assets/:id/warranty', async (c) => {
-  const warranty = saveWarranty(householdId(c.req.raw), c.req.param('id'), await json<Warranty>(c.req.raw));
+  const warranty = saveWarranty(householdId(c.req.raw), c.req.param('id'), await readBody(c.req.raw, warrantyInput));
   return warranty ? c.json({ data: warranty }) : c.json(failure('Nie znaleziono przedmiotu.', 404, 'NOT_FOUND'), 404);
 });
 assetsRoutes.post('/api/v1/assets/:id/files', async (c) => {
@@ -94,9 +92,7 @@ assetsRoutes.post('/api/v1/assets/:id/files', async (c) => {
   return c.json({ data: file }, 201);
 });
 assetsRoutes.patch('/api/v1/assets/:id/files/:fileId', async (c) => {
-  const input = await json<{ kind: AssetFileKind }>(c.req.raw);
-  if (!['photo', 'receipt', 'manual', 'other'].includes(input.kind))
-    return c.json(failure('Wybierz poprawny typ pliku.'), 400);
+  const input = await readBody(c.req.raw, fileKindInput);
   const file = classifyAssetFile(householdId(c.req.raw), c.req.param('id'), c.req.param('fileId'), input.kind);
   return file
     ? c.json({ data: file })

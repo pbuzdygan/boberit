@@ -151,8 +151,10 @@ export function updateDocument(
   id: string,
   input: Partial<CreateBinderDocumentInput>,
 ): BinderDocument | null {
-  const current = database.prepare('SELECT * FROM documents WHERE id = ? AND household_id = ?').get(id, householdId) as
-    Row | undefined;
+  // Trashed documents are read-only until they are restored.
+  const current = database
+    .prepare('SELECT * FROM documents WHERE id = ? AND household_id = ? AND deleted_at IS NULL')
+    .get(id, householdId) as Row | undefined;
   if (!current) return null;
   const name = input.name === undefined ? String(current.name) : input.name.trim();
   if (!name) throw new PublicError('Nazwa dokumentu jest wymagana.');

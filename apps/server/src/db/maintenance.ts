@@ -12,7 +12,7 @@ export function createMaintenancePlan(
   input: {
     title: string;
     scheduleKind: ScheduleKind;
-    intervalValue?: number;
+    intervalValue?: number | null;
     intervalUnit?: IntervalUnit;
     nextDueOn?: string;
     notes?: string;
@@ -110,7 +110,7 @@ export function completeMaintenancePlan(
 ): MaintenancePlan | null {
   const plan = database
     .prepare(
-      'SELECT p.* FROM maintenance_plans p JOIN assets a ON a.id=p.asset_id WHERE p.id = ? AND a.household_id = ?',
+      'SELECT p.* FROM maintenance_plans p JOIN assets a ON a.id=p.asset_id WHERE p.id = ? AND a.household_id = ? AND a.deleted_at IS NULL',
     )
     .get(id, householdId) as Row | undefined;
   if (!plan) return null;

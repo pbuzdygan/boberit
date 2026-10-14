@@ -1,4 +1,3 @@
-import type { AssetOptionKind } from '@boberit/shared';
 import { Hono } from 'hono';
 import {
   createAssetOption,
@@ -10,7 +9,9 @@ import {
   updateAssetOption,
   updateDocumentType,
 } from '../db/dictionaries.js';
-import { failure, isUniqueViolation, json } from '../http.js';
+import { failure, isUniqueViolation } from '../http.js';
+import { assetOptionInput, nameInput } from '../inputs.js';
+import { readBody } from '../validate.js';
 import { currentUser, householdId } from '../session.js';
 
 export const dictionariesRoutes = new Hono();
@@ -21,9 +22,7 @@ dictionariesRoutes.post('/api/v1/household/asset-options', async (c) => {
   const user = currentUser(c.req.raw);
   if (!user || user.role !== 'owner')
     return c.json(failure('Tylko właściciel może dodawać kategorie i lokalizacje.', 403, 'FORBIDDEN'), 403);
-  const input = await json<{ kind: AssetOptionKind; name: string }>(c.req.raw);
-  if (input.kind !== 'category' && input.kind !== 'location')
-    return c.json(failure('Nieprawidłowy typ słownika.'), 400);
+  const input = await readBody(c.req.raw, assetOptionInput);
   try {
     return c.json({ data: createAssetOption(String(user.household_id), input.kind, input.name ?? '') }, 201);
   } catch (error) {
@@ -35,7 +34,7 @@ dictionariesRoutes.patch('/api/v1/household/asset-options/:id', async (c) => {
   const user = currentUser(c.req.raw);
   if (!user || user.role !== 'owner')
     return c.json(failure('Tylko właściciel może zmieniać kategorie i lokalizacje.', 403, 'FORBIDDEN'), 403);
-  const input = await json<{ name: string }>(c.req.raw);
+  const input = await readBody(c.req.raw, nameInput);
   try {
     const option = updateAssetOption(String(user.household_id), c.req.param('id'), input.name ?? '');
     return option ? c.json({ data: option }) : c.json(failure('Nie znaleziono pozycji.', 404, 'NOT_FOUND'), 404);
@@ -59,7 +58,7 @@ dictionariesRoutes.post('/api/v1/household/document-types', async (c) => {
   const user = currentUser(c.req.raw);
   if (!user || user.role !== 'owner')
     return c.json(failure('Tylko właściciel może dodawać typy dokumentów.', 403, 'FORBIDDEN'), 403);
-  const input = await json<{ name: string }>(c.req.raw);
+  const input = await readBody(c.req.raw, nameInput);
   try {
     return c.json({ data: createDocumentType(String(user.household_id), input.name ?? '') }, 201);
   } catch (error) {
@@ -71,7 +70,7 @@ dictionariesRoutes.patch('/api/v1/household/document-types/:id', async (c) => {
   const user = currentUser(c.req.raw);
   if (!user || user.role !== 'owner')
     return c.json(failure('Tylko właściciel może zmieniać typy dokumentów.', 403, 'FORBIDDEN'), 403);
-  const input = await json<{ name: string }>(c.req.raw);
+  const input = await readBody(c.req.raw, nameInput);
   try {
     const type = updateDocumentType(String(user.household_id), c.req.param('id'), input.name ?? '');
     return type ? c.json({ data: type }) : c.json(failure('Nie znaleziono typu.', 404, 'NOT_FOUND'), 404);

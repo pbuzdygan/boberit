@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { intervalLabel } from '../src/labels.ts';
+import { batchOcrMessage, intervalLabel } from '../src/labels.ts';
 
 const recurring = (intervalValue, intervalUnit) => ({ scheduleKind: 'recurring', intervalValue, intervalUnit });
 
@@ -35,4 +35,13 @@ test('Polish plural forms follow the 2-4 rule, excluding 12-14', () => {
 test('one-off and incomplete plans have neutral labels', () => {
   assert.equal(intervalLabel({ scheduleKind: 'one_off', intervalValue: null, intervalUnit: null }), 'Jednorazowo');
   assert.equal(intervalLabel(recurring(null, null)), 'Cyklicznie');
+});
+
+test('batch OCR messages report what is left', () => {
+  assert.equal(batchOcrMessage({ processed: 0, remaining: 0 }), 'Nie ma dokumentów oczekujących na OCR.');
+  assert.equal(batchOcrMessage({ processed: 3, remaining: 0 }), 'Rozpoznano tekst w 3 dokumentach.');
+  assert.equal(
+    batchOcrMessage({ processed: 25, remaining: 4 }),
+    'Rozpoznano tekst w 25 dokumentach. Pozostało 4 — uruchom OCR zaległych dokumentów ponownie.',
+  );
 });

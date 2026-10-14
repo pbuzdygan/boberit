@@ -11,7 +11,9 @@ import {
   userByLogin,
 } from '../db/accounts.js';
 import { addAuditEvent } from '../db/audit.js';
-import { failure, json } from '../http.js';
+import { failure } from '../http.js';
+import { loginInput, passwordChangeInput, registerInput } from '../inputs.js';
+import { readBody } from '../validate.js';
 import {
   needsRehash,
   passwordHash,
@@ -40,7 +42,7 @@ authRoutes.post('/api/v1/auth/logout', (c) => {
 });
 authRoutes.post('/api/v1/auth/password', async (c) => {
   const user = currentUser(c.req.raw)!;
-  const input = await json<{ currentPassword: string; newPassword: string }>(c.req.raw);
+  const input = await readBody(c.req.raw, passwordChangeInput);
   const denied = await confirmPassword(c, String(user.id), input.currentPassword);
   if (denied) return denied;
   if (typeof input.newPassword !== 'string' || input.newPassword.length < 12)
@@ -74,7 +76,7 @@ authRoutes.get('/api/v1/auth/setup', (c) => c.json({ data: { needsSetup: !hasUse
 authRoutes.post('/api/v1/auth/register', async (c) => {
   if (hasUsers())
     return c.json(failure('Konfiguracja pierwszego konta została już zakończona.', 409, 'ALREADY_CONFIGURED'), 409);
-  const input = await json<{ login: string; email: string; password: string; householdName: string }>(c.req.raw);
+  const input = await readBody(c.req.raw, registerInput);
   if (
     !/^[a-zA-Z0-9_.-]{3,32}$/.test(input.login) ||
     !/^\S+@\S+\.\S+$/.test(input.email) ||
@@ -101,9 +103,7 @@ authRoutes.post('/api/v1/auth/register', async (c) => {
   return c.json({ data: { user, token } }, 201);
 });
 authRoutes.post('/api/v1/auth/login', async (c) => {
-  const input = await json<{ login: string; password: string }>(c.req.raw);
-  if (typeof input.login !== 'string' || typeof input.password !== 'string')
-    return c.json(failure('Podaj login i hasło.'), 400);
+  const input = await readBody(c.req.raw, loginInput);
   const address = clientAddress(c);
   const loginKey = address + '|' + input.login.trim().toLowerCase();
   // Throttling is per login, so failed attempts against one account never block anyone else.

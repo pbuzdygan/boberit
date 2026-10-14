@@ -86,7 +86,7 @@ export async function startTestServer({ env: extraEnv = {}, dataDirectory: exist
     rmSync(webDirectory, { recursive: true, force: true });
   }
 
-  return { baseUrl, dataDirectory, api, ok, stop, output: () => output };
+  return { baseUrl, dataDirectory, pid: server.pid, api, ok, stop, output: () => output };
 }
 
 /** Registers the first owner and returns a session token. */

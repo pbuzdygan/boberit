@@ -378,7 +378,11 @@ export function updateAsset(householdId: string, id: string, input: Partial<Crea
   return getAsset(householdId, id);
 }
 
-export function saveWarranty(householdId: string, assetId: string, input: Warranty): Warranty | null {
+export function saveWarranty(
+  householdId: string,
+  assetId: string,
+  input: { kind: Warranty['kind']; scope?: string | null; expiresOn?: string | null },
+): Warranty | null {
   if (!getAsset(householdId, assetId)) return null;
   if (input.kind === 'fixed' && !input.expiresOn) throw new PublicError('Data końca gwarancji jest wymagana.');
   if (input.kind !== 'fixed' && input.expiresOn)
