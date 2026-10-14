@@ -90,3 +90,17 @@ export async function login(page, user) {
 export async function nav(page, label) {
   await page.locator('.nav-item', { hasText: label }).first().click();
 }
+
+export async function ownerToken() {
+  return (await api(null, 'POST', '/auth/login', { login: 'owner', password })).token;
+}
+
+// Records browser dialogs (confirm/alert) and answers them; Playwright would otherwise dismiss them silently.
+export function recordDialogs(page, accept) {
+  const messages = [];
+  page.on('dialog', (dialog) => {
+    messages.push(dialog.message());
+    void (accept ? dialog.accept() : dialog.dismiss());
+  });
+  return messages;
+}

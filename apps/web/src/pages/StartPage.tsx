@@ -11,7 +11,6 @@ export function StartPage({
   purchaseValues,
   attention,
   reminders,
-  onCapture,
   onOpen,
   onAllItems,
   onTimeline,
@@ -22,7 +21,6 @@ export function StartPage({
   purchaseValues: PurchaseValue[];
   attention: AssetSummary[];
   reminders: ReminderEntry[];
-  onCapture: () => void;
   onOpen: (id: string) => Promise<void>;
   onAllItems: () => void;
   onTimeline: () => void;

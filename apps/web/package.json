@@ -5,7 +5,7 @@
   "scripts": {
     "build": "tsc -b && vite build",
     "check": "tsc -b --pretty false",
-    "test": "node --test tests/labels.test.mjs tests/format.test.mjs",
+    "test": "node --test tests/labels.test.mjs tests/format.test.mjs tests/collections.test.mjs tests/assetForm.test.mjs",
     "dev": "vite"
   },
   "dependencies": {

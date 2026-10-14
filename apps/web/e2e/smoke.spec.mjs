@@ -1,6 +1,18 @@
 // Smoke scenario across the main screens. The first test performs first-run setup
 // and seeds data; the rest depend on it, so the file runs in serial mode.
-import { api, baseUrl, expect, fileForm, isoDate, login, nav, password, test } from './fixtures.mjs';
+import {
+  api,
+  baseUrl,
+  expect,
+  fileForm,
+  isoDate,
+  login,
+  nav,
+  ownerToken,
+  password,
+  recordDialogs,
+  test,
+} from './fixtures.mjs';
 
 test.describe.configure({ mode: 'serial' });
 
@@ -141,4 +153,84 @@ test('mobile layout uses bottom navigation without horizontal scroll', async ({ 
   await expect(page.getByRole('heading', { name: 'Przedmioty', exact: true })).toBeVisible();
   await page.getByText('Ekspres testowy').first().click();
   await expect(page.getByRole('heading', { name: 'Ekspres testowy' })).toBeVisible();
+});
+
+test('item edit fills the warranty date, guards unsaved changes, and saves', async ({ page }) => {
+  await api(await ownerToken(), 'POST', '/assets', { name: 'Odkurzacz testowy' });
+  await login(page, 'owner');
+  await nav(page, 'Przedmioty');
+  await page.getByText('Odkurzacz testowy').first().click();
+  await expect(page.getByRole('heading', { name: 'Odkurzacz testowy' })).toBeVisible();
+  const save = page.getByRole('button', { name: 'Zapisz zmiany' });
+  await expect(save).toBeDisabled();
+
+  // A purchase date proposes a fixed warranty ending two years later.
+  await page.getByLabel('Data zakupu').fill('2026-01-15');
+  await expect(page.getByRole('button', { name: 'Rodzaj gwarancji' })).toHaveText('Z określoną datą');
+  await expect(page.locator('.warranty-card input[type="date"]')).toHaveValue('2028-01-15');
+  await expect(save).toBeEnabled();
+
+  const dialogs = recordDialogs(page, false);
+  await nav(page, 'Start');
+  expect(dialogs).toEqual(['Masz niezapisane zmiany w tym przedmiocie. Opuścić widok i je odrzucić?']);
+  await expect(page.getByRole('heading', { name: 'Odkurzacz testowy' })).toBeVisible();
+
+  await save.click();
+  await expect(page.locator('.toast')).toHaveText('Gwarancję zapisano.');
+  await expect(save).toBeDisabled();
+  await nav(page, 'Start');
+  await expect(page.getByRole('heading', { name: 'Dzień dobry.' })).toBeVisible();
+  expect(dialogs).toHaveLength(1);
+
+  await page.getByRole('button', { name: 'Powiadomienia' }).click();
+  await expect(page.getByRole('dialog', { name: 'Powiadomienia' })).toContainText('Gwarancję zapisano.');
+
+  await page.reload();
+  await nav(page, 'Przedmioty');
+  await page.getByText('Odkurzacz testowy').first().click();
+  await expect(page.getByLabel('Data zakupu')).toHaveValue('2026-01-15');
+  await expect(page.locator('.warranty-card input[type="date"]')).toHaveValue('2028-01-15');
+});
+
+test('search finds items and documents and returns to the previous view', async ({ page }) => {
+  await login(page, 'owner');
+  await nav(page, 'Dokumenty');
+  await expect(page.getByRole('heading', { name: 'Dokumenty', exact: true })).toBeVisible();
+
+  const search = page.getByRole('textbox', { name: 'Szukaj w Boberit' });
+  await page.locator('body').press('/');
+  await expect(search).toBeFocused();
+  await search.fill('testow');
+  await expect(page.getByRole('heading', { name: '„testow”' })).toBeVisible();
+  const results = page.locator('.search-results');
+  await expect(results.getByText('Ekspres testowy')).toBeVisible();
+  await expect(results.getByText('Umowa testowa')).toBeVisible();
+
+  await search.press('Escape');
+  await expect(search).toHaveValue('');
+  await expect(page.getByRole('heading', { name: 'Dokumenty', exact: true })).toBeVisible();
+
+  await search.fill('umowa');
+  await page.locator('.search-results').getByText('Umowa testowa').click();
+  await expect(page.getByRole('heading', { name: 'Umowa testowa' })).toBeVisible();
+});
+
+test('a maintenance plan added from the item detail appears, and logout returns to sign-in', async ({ page }) => {
+  await login(page, 'owner');
+  await nav(page, 'Przedmioty');
+  await page.getByText('Odkurzacz testowy').first().click();
+  await expect(page.getByText('Brak planów konserwacji.')).toBeVisible();
+
+  const form = page.locator('form.plan-form');
+  await form.getByLabel('Nazwa czynności').fill('Wymiana filtra');
+  await form.getByLabel('Następny termin').fill(isoDate(40));
+  await form.getByRole('button', { name: 'Dodaj plan' }).click();
+  await expect(page.locator('.toast')).toHaveText('Plan czynności został dodany.');
+  await expect(page.locator('.plan', { hasText: 'Wymiana filtra' })).toContainText('Co 3 miesiące');
+  await expect(form.getByLabel('Nazwa czynności')).toHaveValue('');
+
+  await page.getByTitle('Konto użytkownika').click();
+  await page.getByRole('menuitem', { name: 'Wyloguj się' }).click();
+  await expect(page.getByPlaceholder('Twój login')).toBeVisible();
+  expect(await page.evaluate(() => sessionStorage.getItem('boberit-session'))).toBeNull();
 });
