@@ -20,6 +20,7 @@ Changes are described from the user's perspective, without implementation detail
 - The household history records added, promoted, demoted, and removed members, webhook changes, and sign-in lockouts after repeated failed attempts.
 - Every request is checked for valid field types, lengths, dates, and choices; too long text and invalid dates get a clear message. Trashed documents and maintenance plans of trashed items can no longer be edited until they are restored.
 - Text recognition (OCR) is shared fairly between households, and a household can queue only a limited number of files at a time.
+- Creating the first account requires a one-time setup code printed in the server log (`docker compose logs boberit`), so a new instance cannot be claimed by whoever reaches it first. Automated setups can provide their own code with `SETUP_TOKEN`.
 
 ### Improvements
 

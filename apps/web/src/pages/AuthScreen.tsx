@@ -3,6 +3,7 @@ import { api } from '../api';
 
 export function AuthScreen({ onAuthenticated }: { onAuthenticated: (token: string) => void }) {
   const [setup, setSetup] = useState<boolean | null>(null);
+  const [setupToken, setSetupToken] = useState('');
   const [login, setLogin] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -19,7 +20,7 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated: (token: strin
     setError('');
     try {
       const response = setup
-        ? await api.register({ login, email, password, householdName })
+        ? await api.register({ setupToken, login, email, password, householdName })
         : await api.login({ login, password });
       onAuthenticated(response.data.token);
     } catch (reason) {
@@ -43,11 +44,29 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated: (token: strin
             </p>
           </div>
           <form onSubmit={submit}>
+            {setup && (
+              <label>
+                Kod konfiguracji
+                <input
+                  autoCapitalize="characters"
+                  autoComplete="off"
+                  autoFocus
+                  required
+                  spellCheck={false}
+                  value={setupToken}
+                  onChange={(event) => setSetupToken(event.target.value)}
+                  placeholder="np. ABCD-EFGH-JKLM-NPQR"
+                />
+                <small>
+                  Znajdziesz go w logu serwera, np. <code>docker compose logs boberit</code>.
+                </small>
+              </label>
+            )}
             <label>
               Login
               <input
                 autoComplete="username"
-                autoFocus
+                autoFocus={!setup}
                 required
                 value={login}
                 onChange={(event) => setLogin(event.target.value)}

@@ -10,6 +10,8 @@ import { fileURLToPath } from 'node:url';
 
 const serverDirectory = join(dirname(fileURLToPath(import.meta.url)), '..');
 export const password = 'correct-horse-battery';
+// Fixed first-run setup code; tests of the generated code start the server with SETUP_TOKEN: ''.
+export const setupToken = 'test-setup-code-123';
 
 /**
  * `dataDirectory` reuses existing data (for restart scenarios); the caller then removes it.
@@ -28,6 +30,7 @@ export async function startTestServer({ env: extraEnv = {}, dataDirectory: exist
       WEB_DIST: webDirectory,
       APP_ENC_KEY: encryptionKey ?? randomBytes(32).toString('hex'),
       SEED_DEMO: 'false',
+      SETUP_TOKEN: setupToken,
       ...extraEnv,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -92,6 +95,7 @@ export async function startTestServer({ env: extraEnv = {}, dataDirectory: exist
 /** Registers the first owner and returns a session token. */
 export async function registerOwner(instance, login = 'owner') {
   const registered = await instance.ok(null, 'POST', '/auth/register', {
+    setupToken,
     login,
     email: `${login}@example.test`,
     password,

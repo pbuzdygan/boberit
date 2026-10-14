@@ -7,6 +7,7 @@ import { secureHeaders } from 'hono/secure-headers';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { listStoredFileLocations } from './db/backup.js';
+import { hasUsers } from './db/accounts.js';
 import { seedDatabase } from './db/seed.js';
 import { errorResponse, failure, megabyte } from './http.js';
 import { maxBackupBytes, backupRoutes } from './routes/backup.js';
@@ -22,6 +23,7 @@ import { filesRoutes } from './routes/files.js';
 import { inboxRoutes } from './routes/inbox.js';
 import { maintenanceRoutes } from './routes/maintenance.js';
 import { requireSession } from './session.js';
+import { initSetupToken } from './setup-token.js';
 import { migrateStoredFiles } from './storage.js';
 import { maxUploadBytes } from './uploads.js';
 
@@ -41,6 +43,14 @@ function requestBodyLimit(path: string): number {
 migrateStoredFiles(listStoredFileLocations());
 if (process.env.SEED_DEMO === 'true') seedDatabase();
 purgeExpiredTrash();
+if (!hasUsers()) {
+  const generated = initSetupToken();
+  console.log(
+    generated
+      ? `Kod pierwszej konfiguracji: ${generated} (podaj go przy tworzeniu pierwszego konta)`
+      : 'Kod pierwszej konfiguracji ustawiono w zmiennej SETUP_TOKEN.',
+  );
+}
 app.use('*', logger());
 // The web app and API share one origin, so no CORS headers are sent and other origins cannot read
 // API responses. The CSP fits the Vite build: bundled scripts only, no inline code. Attachment

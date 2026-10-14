@@ -74,7 +74,11 @@ Requirements: Docker with Compose.
    docker compose up -d
    ```
 
-Open `http://localhost:3219`. On first start you create the owner account and the first household. Do this right away and before exposing the port beyond your own network: until the first account exists, anyone who can reach Boberit can create it.
+Open `http://localhost:3219`. On first start you create the owner account and the first household. The form asks for a one-time setup code, which Boberit prints to its log:
+
+```bash
+docker compose logs boberit | grep "Kod pierwszej konfiguracji"
+```
 
 Data is stored in the `boberit-data` volume and survives `docker compose down`. **Never use `docker compose down -v`** if you want to keep your data.
 

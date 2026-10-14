@@ -8,6 +8,7 @@
 | `APP_PORT` | no | `3219` | Host port published by `compose.yaml`. The container listens on `3000`. |
 | `TZ` | no | `UTC` | Server time zone as an IANA name, e.g. `Europe/Warsaw`. Sets the server's notion of "today" for date-only values (see below). |
 | `PUID` / `PGID` | no | `1000` | User and group the container runs as; set them to the owner of a bind-mounted data directory. |
+| `SETUP_TOKEN` | no | generated | Code required to create the first account, at least 12 characters. Without it, a random code is generated at startup and printed to the server log. Only used until the first account exists. |
 | `WEBHOOK_ALLOW_PRIVATE_NETWORKS` | no | `false` | Set to `true` to let webhooks reach private network addresses (for example a Home Assistant or ntfy server in your LAN). Loopback, link-local, and cloud metadata addresses stay blocked. |
 
 Keep `APP_ENC_KEY` in an environment variable or in the Git-ignored `.env` file; Compose refuses to start without it. Keep a secure copy of the key separately from Boberit backups: backups do not contain it, and losing or changing it makes stored webhook secrets undecryptable (webhooks with a secret must then be saved again) and invalidates all active sessions.
@@ -40,7 +41,13 @@ sudo chown -R "$(id -u):$(id -g)" /path/to/data   # only once, for an existing d
 
 ## First-run setup
 
-Until the first account exists, the start page offers to create it to anyone who can reach Boberit. Complete the setup immediately after the first start, and only then publish the port to other networks or the internet.
+Creating the first account requires a one-time setup code, so only someone with access to the server can claim a new instance. On every start without an account, Boberit prints the code to its log:
+
+```bash
+docker compose logs boberit | grep "Kod pierwszej konfiguracji"
+```
+
+Case, spaces, and dashes do not matter when you type it. A new code is generated after each restart until the first account exists; after that no code is printed or accepted. For automated setups you can set your own code with `SETUP_TOKEN` instead. Complete the setup right after the first start.
 
 ## Sign-in protection
 

@@ -14,15 +14,18 @@ export function baseUrl() {
 function watch(page, problems) {
   page.on('pageerror', (error) => problems.push(`pageerror: ${error.message}`));
   page.on('response', (response) => {
-    // The backup scenario submits a wrong password on purpose.
-    const expected = response.status() === 401 && response.url().endsWith('/api/v1/settings/export');
+    // Scenarios that submit a wrong backup password or setup code on purpose.
+    const path = new URL(response.url()).pathname;
+    const expected =
+      (response.status() === 401 && path === '/api/v1/settings/export') ||
+      (response.status() === 403 && path === '/api/v1/auth/register');
     if (response.status() >= 400 && !expected) {
-      problems.push(`HTTP ${response.status()} ${response.request().method()} ${new URL(response.url()).pathname}`);
+      problems.push(`HTTP ${response.status()} ${response.request().method()} ${path}`);
     }
   });
   page.on('console', (message) => {
-    // Unexpected 401 responses are reported by the response handler above.
-    if (message.type() === 'error' && !message.text().includes('status of 401')) {
+    // Failed requests are judged by the response handler above; their console echo is not.
+    if (message.type() === 'error' && !message.text().startsWith('Failed to load resource')) {
       problems.push(`console: ${message.text()}`);
     }
   });

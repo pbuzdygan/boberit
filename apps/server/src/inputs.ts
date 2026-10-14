@@ -92,6 +92,7 @@ export const memberInput = shape({
 export const roleInput = shape({ role: required('Rola', oneOf('Rola', ['owner', 'member'] as const)) });
 
 export const registerInput = shape({
+  setupToken: requiredText('Kod konfiguracji', 100),
   login: requiredText('Login', identifier),
   email: requiredText('E-mail', 320),
   password: requiredText('Hasło', passwordMaxLength),

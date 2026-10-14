@@ -25,9 +25,13 @@ import {
   confirmPassword,
 } from '../passwords.js';
 import { encryptionKey } from '../secrets.js';
+import { FailureLimiter } from '../rate-limit.js';
 import { currentUser, tokenHash } from '../session.js';
+import { setupTokenMatches } from '../setup-token.js';
 
 export const authRoutes = new Hono();
+// The setup code has 80 bits, so this limit only keeps a guessing client from wasting resources.
+const setupFailures = new FailureLimiter(10, 15 * 60_000);
 authRoutes.get('/api/v1/auth/me', (c) => {
   const user = currentUser(c.req.raw);
   return user
@@ -77,6 +81,21 @@ authRoutes.post('/api/v1/auth/register', async (c) => {
   if (hasUsers())
     return c.json(failure('Konfiguracja pierwszego konta została już zakończona.', 409, 'ALREADY_CONFIGURED'), 409);
   const input = await readBody(c.req.raw, registerInput);
+  const address = clientAddress(c);
+  const wait = setupFailures.retryAfter(address);
+  if (wait) return tooManyAttempts(c, wait);
+  if (!setupTokenMatches(input.setupToken)) {
+    setupFailures.fail(address);
+    return c.json(
+      failure(
+        'Kod konfiguracji jest nieprawidłowy. Znajdziesz go w logu serwera, np. docker compose logs boberit.',
+        403,
+        'INVALID_SETUP_TOKEN',
+      ),
+      403,
+    );
+  }
+  setupFailures.reset(address);
   if (
     !/^[a-zA-Z0-9_.-]{3,32}$/.test(input.login) ||
     !/^\S+@\S+\.\S+$/.test(input.email) ||

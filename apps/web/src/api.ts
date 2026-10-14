@@ -55,7 +55,7 @@ async function emptyRequest(path: string, init: RequestInit): Promise<void> {
 
 export const api = {
   setup: () => request<ApiEnvelope<{ needsSetup: boolean }>>('/auth/setup'),
-  register: (input: { login: string; email: string; password: string; householdName: string }) =>
+  register: (input: { setupToken: string; login: string; email: string; password: string; householdName: string }) =>
     request<ApiEnvelope<{ user: { login: string }; token: string }>>('/auth/register', {
       method: 'POST',
       body: JSON.stringify(input),

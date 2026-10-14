@@ -4253,6 +4253,14 @@ button.notification-row:hover {
   height: 42px;
   font-size: 11px;
 }
+.auth-card form label small {
+  font-size: 10px;
+  line-height: 1.45;
+}
+.auth-card form label code {
+  color: var(--muted);
+  font-size: inherit;
+}
 .auth-card .auth-submit {
   justify-self: stretch;
   justify-content: center;

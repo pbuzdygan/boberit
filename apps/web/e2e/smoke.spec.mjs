@@ -19,10 +19,15 @@ test.describe.configure({ mode: 'serial' });
 test('first-run setup in the UI, then seed test data', async ({ page }) => {
   await page.goto(baseUrl());
   await expect(page.getByRole('heading', { name: 'Utwórz pierwsze konto' })).toBeVisible();
+  // A wrong setup code is rejected with a hint where to find the right one.
+  await page.getByLabel('Kod konfiguracji').fill('WRONG-CODE-0000');
   await page.getByPlaceholder('Twój login').fill('owner');
   await page.getByPlaceholder('Adres e-mail').fill('owner@example.test');
   await page.getByPlaceholder('np. Nasz dom').fill('Dom testowy');
   await page.getByPlaceholder('Minimum 12 znaków').fill(password);
+  await page.locator('button[type="submit"]').click();
+  await expect(page.getByRole('alert')).toContainText('Kod konfiguracji jest nieprawidłowy.');
+  await page.getByLabel('Kod konfiguracji').fill(process.env.BOBERIT_E2E_SETUP_TOKEN);
   await page.locator('button[type="submit"]').click();
   await expect(page.getByRole('heading', { name: 'Dzień dobry.' })).toBeVisible();
 

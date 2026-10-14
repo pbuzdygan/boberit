@@ -11,6 +11,8 @@ import { fileURLToPath } from 'node:url';
 const repo = fileURLToPath(new URL('../../../', import.meta.url));
 const serverEntry = join(repo, 'apps/server/dist/index.js');
 const webDist = join(repo, 'apps/web/dist');
+// Fixed first-run setup code, so the setup test does not have to read the server log.
+const setupToken = 'e2e-setup-code-1234';
 
 function freePort() {
   return new Promise((resolve, reject) => {
@@ -56,6 +58,7 @@ export default async function globalSetup() {
       WEB_DIST: webDist,
       APP_ENC_KEY: randomBytes(32).toString('hex'),
       TZ: 'Europe/Warsaw',
+      SETUP_TOKEN: setupToken,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -79,5 +82,6 @@ export default async function globalSetup() {
   }
   // Environment set here is inherited by the test workers.
   process.env.BOBERIT_E2E_BASE_URL = base;
+  process.env.BOBERIT_E2E_SETUP_TOKEN = setupToken;
   return teardown;
 }

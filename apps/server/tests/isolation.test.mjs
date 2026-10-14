@@ -14,6 +14,7 @@ const dataDirectory = mkdtempSync(join(tmpdir(), 'boberit-isolation-'));
 const webDirectory = mkdtempSync(join(tmpdir(), 'boberit-isolation-web-'));
 writeFileSync(join(webDirectory, 'index.html'), '<!doctype html>');
 const password = 'correct-horse-battery';
+const setupToken = 'isolation-setup-code';
 let server;
 let baseUrl;
 
@@ -28,6 +29,7 @@ function startServer() {
         WEB_DIST: webDirectory,
         APP_ENC_KEY: randomBytes(32).toString('hex'),
         SEED_DEMO: 'false',
+        SETUP_TOKEN: setupToken,
       },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
@@ -94,6 +96,7 @@ let householdB;
 before(async () => {
   baseUrl = await startServer();
   const registered = await ok(null, 'POST', '/auth/register', {
+    setupToken,
     login: 'owner',
     email: 'owner@example.test',
     password,
