@@ -107,6 +107,7 @@ import {
 } from './db.js';
 import { BackupError, prepareRestore } from './backup.js';
 import { extractDocumentText } from './ocr.js';
+import { postWebhook, webhookUrlError } from './outbound.js';
 import { FailureLimiter } from './rate-limit.js';
 import { inlinePreviewTypes, maxUploadBytes, prepareUpload, validateUpload } from './uploads.js';
 import {
@@ -269,15 +270,15 @@ function notify(event: string, data: unknown, householdId: string): void {
           ],
         })
       : body;
-    void fetch(targetUrl, { method: 'POST', headers, body: outbound })
-      .then((response) => {
+    void postWebhook(targetUrl, headers, outbound)
+      .then((status) => {
         addWebhookDelivery({
           webhookId: String(target.id),
           event,
-          status: response.status,
-          error: response.ok ? null : `HTTP ${response.status}`,
+          status,
+          error: status >= 200 && status < 300 ? null : `HTTP ${status}`,
         });
-        console.log(`Webhook ${String(target.name)} · ${event} · HTTP ${response.status}`);
+        console.log(`Webhook ${String(target.name)} · ${event} · HTTP ${status}`);
       })
       .catch((error) => {
         addWebhookDelivery({ webhookId: String(target.id), event, status: null, error: String(error) });
@@ -311,7 +312,6 @@ async function verifyPassword(password: unknown, stored: string): Promise<boolea
 // Unknown logins are checked against this hash, so response time does not reveal which accounts exist.
 const unknownUserHash = passwordHash(randomBytes(16).toString('hex'));
 const loginFailures = new FailureLimiter(5, 15 * 60_000);
-const addressFailures = new FailureLimiter(50, 15 * 60_000);
 const accountFailures = new FailureLimiter(5, 15 * 60_000);
 function clientAddress(c: Context): string {
   // The socket address: behind a reverse proxy all clients share the proxy address.
@@ -634,12 +634,12 @@ app.post('/api/v1/auth/login', async (c) => {
     return c.json(failure('Podaj login i hasło.'), 400);
   const address = clientAddress(c);
   const loginKey = address + '|' + input.login.trim().toLowerCase();
-  const wait = Math.max(addressFailures.retryAfter(address), loginFailures.retryAfter(loginKey));
+  // Throttling is per login, so failed attempts against one account never block anyone else.
+  const wait = loginFailures.retryAfter(loginKey);
   if (wait) return tooManyAttempts(c, wait);
   const user = userByLogin(input.login);
   const valid = await verifyPassword(input.password, user ? String(user.password_hash) : await unknownUserHash);
   if (!user || !valid) {
-    addressFailures.fail(address);
     loginFailures.fail(loginKey);
     return c.json(failure('Nieprawidłowy login lub hasło.', 401, 'INVALID_CREDENTIALS'), 401);
   }
@@ -671,8 +671,10 @@ app.post('/api/v1/settings/webhooks', async (c) => {
   const input = await json<{ name: string; url: string; secret?: string; events: string[]; householdIds?: string[] }>(
     c.req.raw,
   );
-  if (!input.name?.trim() || !/^https?:\/\//.test(input.url) || !Array.isArray(input.events) || !input.events.length)
+  if (!input.name?.trim() || !Array.isArray(input.events) || !input.events.length)
     return c.json(failure('Podaj nazwę, adres HTTP(S) i co najmniej jedno zdarzenie.'), 400);
+  const urlError = await webhookUrlError(input.url);
+  if (urlError) return c.json(failure(urlError), 400);
   const user = currentUser(c.req.raw)!;
   const allowed = new Set(listUserHouseholds(String(user.id)).map((row) => String(row.id)));
   const householdIds = (input.householdIds ?? []).filter((id) => allowed.has(id));
@@ -690,8 +692,10 @@ app.patch('/api/v1/settings/webhooks/:id', async (c) => {
   const input = await json<{ name: string; url: string; secret?: string; events: string[]; householdIds?: string[] }>(
     c.req.raw,
   );
-  if (!input.name?.trim() || !/^https?:\/\//.test(input.url) || !Array.isArray(input.events) || !input.events.length)
+  if (!input.name?.trim() || !Array.isArray(input.events) || !input.events.length)
     return c.json(failure('Podaj nazwę, adres HTTP(S) i co najmniej jedno zdarzenie.'), 400);
+  const urlError = await webhookUrlError(input.url);
+  if (urlError) return c.json(failure(urlError), 400);
   const user = currentUser(c.req.raw)!;
   const allowed = new Set(listUserHouseholds(String(user.id)).map((row) => String(row.id)));
   const householdIds = (input.householdIds ?? []).filter((id) => allowed.has(id));

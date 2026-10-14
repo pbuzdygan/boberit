@@ -8,6 +8,7 @@
 | `APP_PORT` | no | `3219` | Host port published by `compose.yaml`. The container listens on `3000`. |
 | `TZ` | no | `UTC` | Server time zone as an IANA name, e.g. `Europe/Warsaw`. Sets the server's notion of "today" for date-only values (see below). |
 | `PUID` / `PGID` | no | `1000` | User and group the container runs as; set them to the owner of a bind-mounted data directory. |
+| `WEBHOOK_ALLOW_PRIVATE_NETWORKS` | no | `false` | Set to `true` to let webhooks reach private network addresses (for example a Home Assistant or ntfy server in your LAN). Loopback, link-local, and cloud metadata addresses stay blocked. |
 
 Keep `APP_ENC_KEY` in an environment variable or in the Git-ignored `.env` file; Compose refuses to start without it. Keep a secure copy of the key separately from Boberit backups: backups do not contain it, and losing or changing it makes stored webhook secrets undecryptable (webhooks with a secret must then be saved again) and invalidates all active sessions.
 
@@ -39,7 +40,11 @@ sudo chown -R "$(id -u):$(id -g)" /path/to/data   # only once, for an existing d
 
 ## Sign-in protection
 
-After 5 failed sign-ins for one login from one address, further attempts are refused for 15 minutes; one address is limited to 50 failed sign-ins in 15 minutes. Behind a reverse proxy all clients share the proxy's address, so these limits then apply to everyone together. Counters reset when the container restarts.
+After 5 failed sign-ins for one login from one address, further attempts for that login are refused for 15 minutes. Other logins are never affected. Behind a reverse proxy all clients share the proxy's address, so the limit then applies to the login regardless of where the attempts come from. Counters reset when the container restarts.
+
+## Webhooks
+
+Webhooks are sent only to public addresses, without following redirects, with a 10-second timeout. The address is checked when a webhook is saved and again on every delivery. To reach a service in your local network, set `WEBHOOK_ALLOW_PRIVATE_NETWORKS=true`.
 
 ## OCR
 

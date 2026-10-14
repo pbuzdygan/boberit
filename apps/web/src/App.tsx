@@ -288,15 +288,25 @@ async function downloadAttachment(id: string, name: string): Promise<void> {
 // A blob URL runs with the app's origin, so only passive formats may open in a tab; anything else downloads.
 const previewTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'text/plain']);
 async function previewAttachment(id: string, name: string): Promise<void> {
-  const response = await api.fileBlob(id, 'preview');
-  const type = response.type.split(';')[0]!.trim().toLowerCase();
-  if (!previewTypes.has(type)) return downloadAttachment(id, name);
-  const target = window.open('', '_blank', 'noopener');
-  const blob = new Blob([response], { type });
-  const url = URL.createObjectURL(blob);
-  if (target) target.location.href = url;
-  else window.open(url, '_blank', 'noopener');
-  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  // Open the tab during the click, so popup blockers allow it, and navigate it once the file has loaded.
+  // window.open with 'noopener' returns null, which used to leave an extra blank tab behind.
+  const target = window.open('', '_blank');
+  if (target) target.opener = null;
+  try {
+    const response = await api.fileBlob(id, 'preview');
+    const type = response.type.split(';')[0]!.trim().toLowerCase();
+    if (!previewTypes.has(type)) {
+      target?.close();
+      return await downloadAttachment(id, name);
+    }
+    const url = URL.createObjectURL(new Blob([response], { type }));
+    if (target) target.location.href = url;
+    else window.open(url, '_blank', 'noopener');
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } catch (error) {
+    target?.close();
+    throw error;
+  }
 }
 
 export function App() {

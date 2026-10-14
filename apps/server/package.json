@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --import tsx --test tests/search.test.mjs tests/storage.test.mjs tests/backup.test.mjs tests/isolation.test.mjs",
+    "test": "node --import tsx --test tests/search.test.mjs tests/storage.test.mjs tests/backup.test.mjs tests/outbound.test.mjs tests/isolation.test.mjs",
     "build": "tsc -p tsconfig.json",
     "check": "tsc --noEmit -p tsconfig.json",
     "dev": "node --watch --import tsx src/index.ts",

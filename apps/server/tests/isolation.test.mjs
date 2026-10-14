@@ -356,6 +356,19 @@ describe('sensitive household operations', () => {
   });
 });
 
+describe('webhooks', () => {
+  test('webhooks cannot target the server or the local network', async () => {
+    for (const url of ['http://127.0.0.1:3000/hook', 'http://localhost/hook', 'http://192.168.1.1/hook']) {
+      const result = await api(memberToken, 'POST', '/settings/webhooks', {
+        name: 'x',
+        url,
+        events: ['asset.created'],
+      });
+      assert.equal(result.status, 400, url);
+    }
+  });
+});
+
 describe('request limits', () => {
   test('oversized anonymous bodies are rejected before they are read', async () => {
     const body = JSON.stringify({ login: 'x'.repeat(64 * 1024), password });
