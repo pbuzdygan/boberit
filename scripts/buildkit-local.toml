@@ -1,3 +1,0 @@
-# Local builds share a 6 GiB Incus instance with editors and other applications.
-[worker.oci]
-  max-parallelism = 1
