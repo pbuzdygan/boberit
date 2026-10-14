@@ -4,7 +4,10 @@ import { daysUntil, localDate } from '../src/dates.ts';
 
 // Node applies TZ changes at runtime, so each test pins the zone explicitly.
 const originalZone = process.env.TZ;
-afterEach(() => { if (originalZone === undefined) delete process.env.TZ; else process.env.TZ = originalZone; });
+afterEach(() => {
+  if (originalZone === undefined) delete process.env.TZ;
+  else process.env.TZ = originalZone;
+});
 
 test('localDate uses the local calendar date, not the UTC date', () => {
   process.env.TZ = 'Europe/Warsaw';

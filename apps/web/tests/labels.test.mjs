@@ -13,11 +13,21 @@ test('single intervals use natural phrases', () => {
 
 test('Polish plural forms follow the 2-4 rule, excluding 12-14', () => {
   const cases = [
-    [2, 'years', 'Co 2 lata'], [4, 'months', 'Co 4 miesiące'], [3, 'weeks', 'Co 3 tygodnie'],
-    [5, 'years', 'Co 5 lat'], [6, 'months', 'Co 6 miesięcy'], [11, 'weeks', 'Co 11 tygodni'],
-    [12, 'months', 'Co 12 miesięcy'], [13, 'years', 'Co 13 lat'], [14, 'weeks', 'Co 14 tygodni'],
-    [22, 'years', 'Co 22 lata'], [25, 'months', 'Co 25 miesięcy'], [104, 'weeks', 'Co 104 tygodnie'],
-    [112, 'weeks', 'Co 112 tygodni'], [10, 'days', 'Co 10 dni'], [2, 'days', 'Co 2 dni'],
+    [2, 'years', 'Co 2 lata'],
+    [4, 'months', 'Co 4 miesiące'],
+    [3, 'weeks', 'Co 3 tygodnie'],
+    [5, 'years', 'Co 5 lat'],
+    [6, 'months', 'Co 6 miesięcy'],
+    [11, 'weeks', 'Co 11 tygodni'],
+    [12, 'months', 'Co 12 miesięcy'],
+    [13, 'years', 'Co 13 lat'],
+    [14, 'weeks', 'Co 14 tygodni'],
+    [22, 'years', 'Co 22 lata'],
+    [25, 'months', 'Co 25 miesięcy'],
+    [104, 'weeks', 'Co 104 tygodnie'],
+    [112, 'weeks', 'Co 112 tygodni'],
+    [10, 'days', 'Co 10 dni'],
+    [2, 'days', 'Co 2 dni'],
   ];
   for (const [value, unit, expected] of cases) assert.equal(intervalLabel(recurring(value, unit)), expected);
 });

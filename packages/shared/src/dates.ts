@@ -13,7 +13,8 @@ export function localDate(at: Date = new Date()): string {
 
 /** Calendar days from the local date of `now` to `date` (negative when overdue). */
 export function daysUntil(date: string, now: Date = new Date()): number {
-  const start = new Date(now); start.setHours(0, 0, 0, 0);
+  const start = new Date(now);
+  start.setHours(0, 0, 0, 0);
   // Both values are local midnights; rounding absorbs 23- and 25-hour days around DST changes.
   return Math.round((new Date(`${date}T00:00:00`).valueOf() - start.valueOf()) / dayMs);
 }

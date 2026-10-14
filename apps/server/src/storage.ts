@@ -1,4 +1,13 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmdirSync, unlinkSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  rmdirSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 
 export type StorageArea = 'items' | 'documents' | 'inbox';
@@ -23,11 +32,7 @@ function safeSegment(value: string, label: string): string {
 }
 
 function preferredPath(area: StorageArea, householdId: string, storedName: string): string {
-  const directory = join(
-    dataDirectory,
-    area,
-    safeSegment(householdId, 'identyfikator gospodarstwa'),
-  );
+  const directory = join(dataDirectory, area, safeSegment(householdId, 'identyfikator gospodarstwa'));
   mkdirSync(directory, { recursive: true });
   return join(directory, safeSegment(storedName, 'identyfikator'));
 }
@@ -89,8 +94,11 @@ export function removeStoredFiles(storedNames: string[]): void {
 
 export function migrateStoredFiles(files: StoredFileLocation[]): void {
   for (const file of files) {
-    try { resolveStoredFile(file.area, file.householdId, file.storedName); }
-    catch (error) { console.warn('Nie udało się zmigrować pliku ' + file.storedName + ':', error); }
+    try {
+      resolveStoredFile(file.area, file.householdId, file.storedName);
+    } catch (error) {
+      console.warn('Nie udało się zmigrować pliku ' + file.storedName + ':', error);
+    }
   }
   if (existsSync(legacyUploadDirectory) && readdirSync(legacyUploadDirectory).length === 0) {
     rmdirSync(legacyUploadDirectory);

@@ -18,7 +18,10 @@ async function imageText(path: string): Promise<string> {
   return command('tesseract', [path, 'stdout', '-l', 'pol+eng']);
 }
 
-async function extractDocumentTextNow(path: string, mimeType: string): Promise<{ status: 'completed' | 'unsupported'; text: string }> {
+async function extractDocumentTextNow(
+  path: string,
+  mimeType: string,
+): Promise<{ status: 'completed' | 'unsupported'; text: string }> {
   if (mimeType.startsWith('image/')) {
     return { status: 'completed', text: await imageText(path) };
   }
@@ -34,7 +37,11 @@ async function extractDocumentTextNow(path: string, mimeType: string): Promise<{
     const pages = Array.from({ length: maxPages }, (_, index) => join(directory, `page-${index + 1}.jpg`));
     const text: string[] = [];
     for (const page of pages) {
-      try { text.push(await imageText(page)); } catch { break; }
+      try {
+        text.push(await imageText(page));
+      } catch {
+        break;
+      }
     }
     return { status: 'completed', text: text.join('\n\n') };
   } finally {
@@ -42,8 +49,14 @@ async function extractDocumentTextNow(path: string, mimeType: string): Promise<{
   }
 }
 
-export function extractDocumentText(path: string, mimeType: string): Promise<{ status: 'completed' | 'unsupported'; text: string }> {
+export function extractDocumentText(
+  path: string,
+  mimeType: string,
+): Promise<{ status: 'completed' | 'unsupported'; text: string }> {
   const task = ocrQueue.then(() => extractDocumentTextNow(path, mimeType));
-  ocrQueue = task.then(() => undefined, () => undefined);
+  ocrQueue = task.then(
+    () => undefined,
+    () => undefined,
+  );
   return task;
 }
