@@ -2,6 +2,15 @@
 
 Changes are described from the user's perspective, without implementation details.
 
+## 0.1.2
+
+### Bug fixes
+
+- Deadlines show the correct number of days: a task due today is labeled "Today" instead of "Tomorrow", and the warranty banner and deadline lists always agree.
+- Dates around midnight follow the local calendar day, including the default completion date of a maintenance task.
+- Recurring maintenance intervals use correct Polish wording, such as "Every year", "Every month", or "Every 5 years".
+- On phones, the Start screen shows the full purchase value instead of a truncated amount, with the summary tiles in an even grid below the greeting.
+
 ## 0.1.1
 
 ### Improvements

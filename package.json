@@ -1,7 +1,6 @@
 {
   "name": "boberit",
   "private": true,
-  "version": "0.1.1",
   "workspaces": ["apps/*", "packages/*"],
   "engines": { "node": ">=22.12.0" },
   "scripts": {
