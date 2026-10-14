@@ -29,3 +29,6 @@ Thumbs.db
 # Unselected branding source exports
 branding/nowe_loga/
 branding/*_old.*
+
+# Local deployment compose files
+compose_local_dev.yaml

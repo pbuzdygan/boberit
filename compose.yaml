@@ -1,12 +1,12 @@
 services:
   boberit:
-    build:
-      context: .
+    image: ghcr.io/pbuzdygan/boberit:latest
+    container_name: boberit
     user: "${PUID:-1000}:${PGID:-1000}"
     ports:
       - "${APP_PORT:-3219}:3000"
     environment:
-      APP_ENC_KEY: ${APP_ENC_KEY:?Ustaw APP_ENC_KEY, np. openssl rand -hex 32}
+      APP_ENC_KEY: ${APP_ENC_KEY:?Set APP_ENC_KEY, ex. openssl rand -hex 32}
     volumes:
       - boberit-data:/data
     restart: unless-stopped
