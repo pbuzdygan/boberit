@@ -14,4 +14,5 @@
 - `compose.yaml` is the public example for users (prebuilt GHCR image); local builds after code changes use the ignored `compose_local_dev.yaml`.
 - Release channels: release `X.Y.Z` targeting `main` publishes `latest`; prerelease `devX.Y.Z` targeting `dev` publishes `dev_latest`. The workflow file must also exist on `main`.
 - Changelog: add entries only when asked; the user specifies the target version.
+- Server layout: HTTP routes live in `apps/server/src/routes/` (one Hono router per area, mounted in `index.ts`); data access lives in `apps/server/src/db/`. Keep the single `DatabaseSync` instance, schema, and migrations in `db/database.ts`; other modules import it, never open their own connection.
 - UI colors: [docs/COLOR_SYSTEM.md](../docs/COLOR_SYSTEM.md), implemented as CSS variables in `apps/web/src/styles.css`.

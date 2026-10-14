@@ -1,0 +1,64 @@
+import type { AssetFileKind, CreateBinderDocumentInput } from '@boberit/shared';
+import { Hono } from 'hono';
+import { randomUUID } from 'node:crypto';
+import {
+  addInboxFile,
+  assignInboxFile,
+  assignInboxToDocument,
+  deleteInboxFile,
+  getInboxFile,
+  listInboxFiles,
+} from '../db/inbox.js';
+import { runDocumentOcr } from '../document-ocr.js';
+import { failure, json } from '../http.js';
+import { householdId } from '../session.js';
+import { relocateStoredFile, removeStoredFiles, writeStoredFile } from '../storage.js';
+import { prepareUpload, validateUpload } from '../uploads.js';
+
+export const inboxRoutes = new Hono();
+inboxRoutes.get('/api/v1/inbox', (c) => c.json({ data: listInboxFiles(householdId(c.req.raw)) }));
+inboxRoutes.post('/api/v1/inbox/files', async (c) => {
+  const form = await c.req.raw.formData();
+  const rawFile = form.get('file');
+  if (!rawFile || typeof rawFile === 'string') throw new Error('Wybierz plik do dodania.');
+  validateUpload(rawFile);
+  const upload = await prepareUpload(rawFile);
+  const storedName = `${randomUUID()}${upload.extension}`;
+  const scope = householdId(c.req.raw);
+  writeStoredFile('inbox', scope, storedName, upload.data);
+  const file = addInboxFile(scope, {
+    originalName: upload.originalName,
+    storedName,
+    mimeType: upload.mimeType,
+    byteSize: upload.byteSize,
+  });
+  return c.json({ data: file }, 201);
+});
+inboxRoutes.delete('/api/v1/inbox/:id', (c) => {
+  const scope = householdId(c.req.raw);
+  const storedName = deleteInboxFile(scope, c.req.param('id'));
+  if (!storedName) return c.json(failure('Nie znaleziono pliku w Skrzynce.', 404, 'NOT_FOUND'), 404);
+  removeStoredFiles([{ householdId: scope, storedName }]);
+  return c.body(null, 204);
+});
+inboxRoutes.post('/api/v1/inbox/:id/assign', async (c) => {
+  const input = await json<{ assetId: string; kind: AssetFileKind }>(c.req.raw);
+  const kind: AssetFileKind = ['photo', 'receipt', 'manual', 'other'].includes(input.kind) ? input.kind : 'other';
+  const scope = householdId(c.req.raw);
+  const source = getInboxFile(scope, c.req.param('id'));
+  const file = assignInboxFile(scope, c.req.param('id'), input.assetId, kind);
+  if (file && source) relocateStoredFile('items', scope, source.storedName);
+  return file ? c.json({ data: file }) : c.json(failure('Nie znaleziono pliku lub przedmiotu.', 404, 'NOT_FOUND'), 404);
+});
+inboxRoutes.post('/api/v1/inbox/:id/to-document', async (c) => {
+  const scope = householdId(c.req.raw);
+  const source = getInboxFile(scope, c.req.param('id'));
+  const document = assignInboxToDocument(scope, c.req.param('id'), await json<CreateBinderDocumentInput>(c.req.raw));
+  if (document && source) {
+    relocateStoredFile('documents', scope, source.storedName);
+    await runDocumentOcr(scope, document.id);
+  }
+  return document
+    ? c.json({ data: document })
+    : c.json(failure('Nie znaleziono pliku w Skrzynce.', 404, 'NOT_FOUND'), 404);
+});

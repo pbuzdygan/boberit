@@ -6,16 +6,10 @@ import { after, test } from 'node:test';
 
 const dataDirectory = mkdtempSync(join(tmpdir(), 'boberit-search-'));
 process.env.APP_DATA_DIR = dataDirectory;
-const {
-  database,
-  createDocument,
-  createAsset,
-  listDocuments,
-  listAssets,
-  saveDocumentOcrText,
-  moveDocumentToTrash,
-  moveAssetToTrash,
-} = await import('../src/db.ts');
+const { database } = await import('../src/db/database.ts');
+const { createDocument, listDocuments, saveDocumentOcrText } = await import('../src/db/documents.ts');
+const { createAsset, listAssets } = await import('../src/db/assets.ts');
+const { moveDocumentToTrash, moveAssetToTrash } = await import('../src/db/trash.ts');
 after(() => {
   database.close();
   rmSync(dataDirectory, { recursive: true, force: true });
