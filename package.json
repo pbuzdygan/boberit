@@ -14,11 +14,13 @@
     "dev:web": "npm run dev --workspace @boberit/web",
     "dev:api": "npm run dev --workspace @boberit/server",
     "test": "npm run test --workspace @boberit/shared && npm run test --workspace @boberit/web && npm run test --workspace @boberit/server",
-    "format": "prettier --write \"{apps,packages}/*/{src,tests}/**/*.{ts,tsx,mjs,css}\"",
-    "format:check": "prettier --check \"{apps,packages}/*/{src,tests}/**/*.{ts,tsx,mjs,css}\"",
+    "format": "prettier --write \"{apps,packages}/*/{src,tests,e2e}/**/*.{ts,tsx,mjs,css}\"",
+    "format:check": "prettier --check \"{apps,packages}/*/{src,tests,e2e}/**/*.{ts,tsx,mjs,css}\"",
+    "test:e2e": "playwright test -c apps/web/e2e/playwright.config.mjs",
     "start": "npm run start --workspace @boberit/server"
   },
   "devDependencies": {
+    "@playwright/test": "1.64.0",
     "prettier": "3.9.9"
   }
 }
