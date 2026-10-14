@@ -35,7 +35,11 @@ sudo chown -R "$(id -u):$(id -g)" /path/to/data   # only once, for an existing d
 
 - Only allowed file types are accepted, up to 25 MB per file.
 - Photos are scaled to at most 2000 px and stored as JPEG; images with transparency are stored as PNG.
-- Previews and downloads always go through the authenticated API; files are never served statically.
+- Previews and downloads always go through the authenticated API; files are never served statically. Only images, PDF, and plain text open as a preview; other files are downloaded.
+
+## Sign-in protection
+
+After 5 failed sign-ins for one login from one address, further attempts are refused for 15 minutes; one address is limited to 50 failed sign-ins in 15 minutes. Behind a reverse proxy all clients share the proxy's address, so these limits then apply to everyone together. Counters reset when the container restarts.
 
 ## OCR
 
@@ -43,6 +47,6 @@ Tesseract runs locally inside the container for Polish and English. It reads ima
 
 ## Backup and restore
 
-**Settings → Backup** exports the active household with its data and attachments. Restore replaces the household's data only after explicit confirmation. Webhook configuration and secrets are excluded from backups.
+**Settings → Backup** exports the active household with its data and attachments. Only a household owner can export, restore, or permanently empty the trash, and export and restore ask for the owner's current password. Restore replaces the household's data only after explicit confirmation. It validates the whole package first and gives every restored record and attachment a new identifier; if anything fails, the household keeps its current data and files. Webhook configuration and secrets are excluded from backups.
 
 Download a backup before every upgrade. Never run `docker compose down -v` if you want to keep your data: it deletes the volume.

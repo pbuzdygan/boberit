@@ -184,7 +184,14 @@ describe('household isolation', () => {
   });
 
   test('backup export contains only the active household', async () => {
-    const { status, text } = await api(memberToken, 'GET', '/settings/export');
+    await useHousehold(ownerToken, householdB);
+    let result;
+    try {
+      result = await api(ownerToken, 'POST', '/settings/export', { password });
+    } finally {
+      await useHousehold(ownerToken, householdA);
+    }
+    const { status, text } = result;
     assert.equal(status, 200);
     for (const id of Object.values(ha)) assert.ok(!text.includes(id), `backup leaks ${id}`);
     assert.ok(!text.includes(householdA), 'backup leaks the foreign household id');
@@ -314,5 +321,125 @@ describe('authentication', () => {
     await ok(token, 'POST', '/auth/logout');
     assert.equal((await api(token, 'GET', '/assets')).status, 401);
     assert.equal((await api(memberToken, 'GET', '/assets')).status, 200, 'other sessions stay valid');
+  });
+});
+
+function backupForm(pkg, confirmPassword = password) {
+  const form = new FormData();
+  form.set('file', new File([JSON.stringify(pkg)], 'backup.json', { type: 'application/json' }));
+  form.set('confirmation', 'ZASTĄP');
+  form.set('password', confirmPassword);
+  return form;
+}
+const exportBackup = async (token) => JSON.parse((await api(token, 'POST', '/settings/export', { password })).text);
+// Every stored file below the household's storage directories.
+function storedFiles(householdId) {
+  return ['items', 'documents', 'inbox'].flatMap((area) => {
+    const directory = join(dataDirectory, area, householdId);
+    return existsSync(directory) ? readdirSync(directory) : [];
+  });
+}
+
+describe('sensitive household operations', () => {
+  test('a member cannot export, restore or permanently empty the trash', async () => {
+    const pkg = await exportBackup(ownerToken);
+    assert.equal((await api(memberToken, 'POST', '/settings/export', { password })).status, 403);
+    assert.equal((await api(memberToken, 'POST', '/settings/import', backupForm(pkg))).status, 403);
+    assert.equal((await api(memberToken, 'DELETE', '/trash')).status, 403);
+  });
+
+  test('export and restore require the current password', async () => {
+    assert.equal((await api(ownerToken, 'POST', '/settings/export', { password: 'wrong-password-1' })).status, 401);
+    const pkg = await exportBackup(ownerToken);
+    const result = await api(ownerToken, 'POST', '/settings/import', backupForm(pkg, 'wrong-password-1'));
+    assert.equal(result.status, 401);
+  });
+});
+
+describe('request limits', () => {
+  test('oversized anonymous bodies are rejected before they are read', async () => {
+    const body = JSON.stringify({ login: 'x'.repeat(64 * 1024), password });
+    assert.equal((await api(null, 'POST', '/auth/login', body)).status, 413);
+  });
+
+  test('repeated failed logins are throttled', async () => {
+    const attempt = () => api(null, 'POST', '/auth/login', { login: 'nobody-throttled', password: 'wrong-password-1' });
+    for (let index = 0; index < 5; index++) assert.equal((await attempt()).status, 401);
+    const blocked = await fetch(`${baseUrl}/api/v1/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ login: 'nobody-throttled', password: 'wrong-password-1' }),
+    });
+    assert.equal(blocked.status, 429);
+    assert.ok(Number(blocked.headers.get('retry-after')) > 0);
+    assert.ok((await login('member')).length > 0, 'other logins stay available');
+  });
+});
+
+// Runs last: a successful restore gives every record in household A a new identifier.
+describe('backup restore', () => {
+  test('a package that references another household is rejected without changes', async () => {
+    await useHousehold(ownerToken, householdB);
+    const foreignAsset = (await ok(ownerToken, 'GET', '/assets'))[0];
+    await useHousehold(ownerToken, householdA);
+    const before = storedFiles(householdA).sort();
+    const pkg = await exportBackup(ownerToken);
+    const now = new Date().toISOString();
+    pkg.tables.maintenance_plans.push({
+      id: 'foreign-plan',
+      asset_id: foreignAsset.id,
+      title: 'Injected',
+      schedule_kind: 'one_off',
+      created_at: now,
+      updated_at: now,
+    });
+    const result = await api(ownerToken, 'POST', '/settings/import', backupForm(pkg));
+    assert.equal(result.status, 400, result.text);
+    await useHousehold(ownerToken, householdB);
+    try {
+      const foreign = await ok(ownerToken, 'GET', `/assets/${foreignAsset.id}`);
+      assert.deepEqual(foreign.maintenancePlans, []);
+    } finally {
+      await useHousehold(ownerToken, householdA);
+    }
+    assert.equal((await ok(ownerToken, 'GET', `/assets/${ha.asset}`)).name, 'Secret espresso machine');
+    assert.deepEqual(storedFiles(householdA).sort(), before);
+  });
+
+  test('attachments with active content types are rejected', async () => {
+    const pkg = await exportBackup(ownerToken);
+    pkg.tables.asset_files[0].mime_type = 'text/html';
+    const result = await api(ownerToken, 'POST', '/settings/import', backupForm(pkg));
+    assert.equal(result.status, 400, result.text);
+    assert.equal(await ok(ownerToken, 'GET', `/files/${ha.assetFile}/download`), 'secret receipt');
+  });
+
+  test('a restore that fails in the database keeps the current data and files', async () => {
+    const before = storedFiles(householdA).sort();
+    const pkg = await exportBackup(ownerToken);
+    const now = new Date().toISOString();
+    // Two warranties for one asset pass validation but violate the primary key on insert.
+    pkg.tables.warranties.push(
+      { asset_id: ha.asset, kind: 'lifetime', created_at: now, updated_at: now },
+      { asset_id: ha.asset, kind: 'unknown', created_at: now, updated_at: now },
+    );
+    const result = await api(ownerToken, 'POST', '/settings/import', backupForm(pkg));
+    assert.equal(result.status, 400, result.text);
+    assert.deepEqual(storedFiles(householdA).sort(), before, 'new files must be removed again');
+    assert.equal(await ok(ownerToken, 'GET', `/files/${ha.assetFile}/download`), 'secret receipt');
+  });
+
+  test('a valid package restores data and files under new identifiers', async () => {
+    const pkg = await exportBackup(ownerToken);
+    const restored = await ok(ownerToken, 'POST', '/settings/import', backupForm(pkg));
+    assert.equal(restored.attachments, pkg.files.length);
+    assert.equal((await api(ownerToken, 'GET', `/assets/${ha.asset}`)).status, 404, 'identifiers are reassigned');
+    const asset = (await ok(ownerToken, 'GET', '/assets')).find((entry) => entry.name === 'Secret espresso machine');
+    assert.ok(asset, 'restored asset');
+    assert.equal(asset.maintenancePlans.length, 1);
+    assert.equal(await ok(ownerToken, 'GET', `/files/${asset.files[0].id}/download`), 'secret receipt');
+    assert.equal(storedFiles(householdA).length, pkg.files.length, 'old files are removed');
+    const activity = await ok(ownerToken, 'GET', '/settings/activity');
+    assert.ok(activity.some((event) => event.action === 'restored' && event.entity_kind === 'backup'));
   });
 });

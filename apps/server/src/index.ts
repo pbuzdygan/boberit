@@ -1,8 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { promisify } from 'node:util';
 import {
   createCipheriv,
-  scryptSync,
+  scrypt,
   timingSafeEqual,
   createDecipheriv,
   createHmac,
@@ -11,7 +12,9 @@ import {
 } from 'node:crypto';
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
-import { Hono } from 'hono';
+import { getConnInfo } from '@hono/node-server/conninfo';
+import { Hono, type Context } from 'hono';
+import { bodyLimit } from 'hono/body-limit';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import type {
@@ -102,12 +105,13 @@ import {
   updateDocument,
   updateDocumentType,
 } from './db.js';
+import { BackupError, prepareRestore } from './backup.js';
 import { extractDocumentText } from './ocr.js';
-import { prepareUpload } from './uploads.js';
+import { FailureLimiter } from './rate-limit.js';
+import { inlinePreviewTypes, maxUploadBytes, prepareUpload, validateUpload } from './uploads.js';
 import {
   migrateStoredFiles,
   readStoredFile,
-  readStoredFileByName,
   relocateStoredFile,
   removeStoredFiles,
   resolveStoredFile,
@@ -118,20 +122,16 @@ import {
 const app = new Hono();
 const port = Number(process.env.PORT ?? 3000);
 const webDist = resolve(process.env.WEB_DIST ?? '../web/dist');
-const maxUploadBytes = 25 * 1024 * 1024;
-const allowedUploadTypes = new Set([
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'application/pdf',
-  'text/plain',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/msword',
-]);
-function validateUpload(file: File): void {
-  if (file.size === 0) throw new Error('Nie można dodać pustego pliku.');
-  if (file.size > maxUploadBytes) throw new Error('Plik jest zbyt duży. Maksymalny rozmiar to 25 MB.');
-  if (file.type && !allowedUploadTypes.has(file.type)) throw new Error('Ten typ pliku nie jest obsługiwany.');
+const megabyte = 1024 * 1024;
+const maxBackupBytes = 100 * megabyte;
+// Bodies are capped before they are read, so an anonymous client cannot make the server buffer large payloads.
+function requestBodyLimit(path: string): number {
+  if (path === '/api/v1/settings/import') return maxBackupBytes + megabyte;
+  if (/^\/api\/v1\/(?:assets\/[^/]+\/files|documents\/[^/]+\/files|inbox\/files)$/.test(path))
+    return maxUploadBytes + megabyte;
+  if (path.startsWith('/api/v1/auth/')) return 16 * 1024;
+  // Corrected OCR text may hold up to 2 million characters.
+  return 8 * megabyte;
 }
 
 migrateStoredFiles(listStoredFileLocations());
@@ -187,6 +187,12 @@ app.use(
     allowMethods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
     allowHeaders: ['Content-Type', 'Idempotency-Key', 'Authorization'],
   }),
+);
+app.use('/api/*', (c, next) =>
+  bodyLimit({
+    maxSize: requestBodyLimit(c.req.path),
+    onError: (c) => c.json(failure('Żądanie jest zbyt duże.', 413, 'PAYLOAD_TOO_LARGE'), 413),
+  })(c, next),
 );
 app.use('/api/v1/*', async (c, next) => {
   const path = new URL(c.req.url).pathname;
@@ -290,15 +296,56 @@ async function json<T>(request: Request): Promise<T> {
   }
 }
 
-function passwordHash(password: string): string {
+const scryptAsync = promisify(scrypt) as (password: string, salt: Buffer, keylen: number) => Promise<Buffer>;
+async function passwordHash(password: string): Promise<string> {
   const salt = randomBytes(16);
-  return salt.toString('hex') + ':' + scryptSync(password, salt, 64).toString('hex');
+  return salt.toString('hex') + ':' + (await scryptAsync(password, salt, 64)).toString('hex');
 }
-function verifyPassword(password: string, stored: string): boolean {
+async function verifyPassword(password: unknown, stored: string): Promise<boolean> {
   const [salt, value] = stored.split(':');
-  if (!salt || !value) return false;
-  const actual = scryptSync(password, Buffer.from(salt, 'hex'), 64);
-  return timingSafeEqual(actual, Buffer.from(value, 'hex'));
+  if (typeof password !== 'string' || !salt || !value) return false;
+  const actual = await scryptAsync(password, Buffer.from(salt, 'hex'), 64);
+  const expected = Buffer.from(value, 'hex');
+  return actual.length === expected.length && timingSafeEqual(actual, expected);
+}
+// Unknown logins are checked against this hash, so response time does not reveal which accounts exist.
+const unknownUserHash = passwordHash(randomBytes(16).toString('hex'));
+const loginFailures = new FailureLimiter(5, 15 * 60_000);
+const addressFailures = new FailureLimiter(50, 15 * 60_000);
+const accountFailures = new FailureLimiter(5, 15 * 60_000);
+function clientAddress(c: Context): string {
+  // The socket address: behind a reverse proxy all clients share the proxy address.
+  return getConnInfo(c).remote.address ?? 'unknown';
+}
+function tooManyAttempts(c: Context, seconds: number) {
+  c.header('Retry-After', String(seconds));
+  return c.json(
+    failure(
+      `Zbyt wiele nieudanych prób. Spróbuj ponownie za ${Math.ceil(seconds / 60)} min.`,
+      429,
+      'TOO_MANY_ATTEMPTS',
+    ),
+    429,
+  );
+}
+// Re-authentication for sensitive actions; failures count towards the same account limit as password changes.
+async function confirmPassword(c: Context, userId: string, password: unknown): Promise<Response | null> {
+  const key = 'account:' + userId;
+  const wait = accountFailures.retryAfter(key);
+  if (wait) return tooManyAttempts(c, wait);
+  const record = userById(userId);
+  if (record && (await verifyPassword(password, String(record.password_hash)))) {
+    accountFailures.reset(key);
+    return null;
+  }
+  accountFailures.fail(key);
+  return c.json(failure('Obecne hasło jest nieprawidłowe.', 401, 'INVALID_CREDENTIALS'), 401);
+}
+function requireOwner(c: Context, message: string) {
+  const user = currentUser(c.req.raw);
+  return user?.role === 'owner'
+    ? { user, denied: null }
+    : { user: null, denied: c.json(failure(message, 403, 'FORBIDDEN'), 403) };
 }
 function currentUser(request: Request) {
   const token = request.headers.get('Authorization')?.replace(/^Bearer\s+/, '');
@@ -477,7 +524,7 @@ app.post('/api/v1/household/members', async (c) => {
     householdId: String(admin.household_id),
     login: input.login,
     email: input.email,
-    passwordHash: passwordHash(input.password),
+    passwordHash: await passwordHash(input.password),
     role: input.role === 'owner' ? 'owner' : 'member',
   });
   return c.json({ data: member }, 201);
@@ -523,11 +570,11 @@ app.post('/api/v1/auth/logout', (c) => {
 app.post('/api/v1/auth/password', async (c) => {
   const user = currentUser(c.req.raw)!;
   const input = await json<{ currentPassword: string; newPassword: string }>(c.req.raw);
-  const record = userById(String(user.id));
-  if (!record || !verifyPassword(input.currentPassword, String(record.password_hash)))
-    return c.json(failure('Obecne hasło jest nieprawidłowe.', 401, 'INVALID_CREDENTIALS'), 401);
-  if (input.newPassword.length < 12) return c.json(failure('Nowe hasło musi mieć co najmniej 12 znaków.'), 400);
-  updateUserPassword(String(user.id), passwordHash(input.newPassword));
+  const denied = await confirmPassword(c, String(user.id), input.currentPassword);
+  if (denied) return denied;
+  if (typeof input.newPassword !== 'string' || input.newPassword.length < 12)
+    return c.json(failure('Nowe hasło musi mieć co najmniej 12 znaków.'), 400);
+  updateUserPassword(String(user.id), await passwordHash(input.newPassword));
   deleteOtherSessions(String(user.id), tokenHash(c.req.raw));
   addAuditEvent({
     householdId: String(user.household_id),
@@ -566,10 +613,15 @@ app.post('/api/v1/auth/register', async (c) => {
     !input.householdName.trim()
   )
     return c.json(failure('Podaj login, poprawny e-mail, nazwę gospodarstwa i hasło mające co najmniej 12 znaków.'));
+  const hash = await passwordHash(input.password);
+  // Check again after the await: the check and the insert must run without yielding, or concurrent
+  // first-run requests could each create an owner account.
+  if (hasUsers())
+    return c.json(failure('Konfiguracja pierwszego konta została już zakończona.', 409, 'ALREADY_CONFIGURED'), 409);
   const user = createUserAccount({
     login: input.login,
     email: input.email,
-    passwordHash: passwordHash(input.password),
+    passwordHash: hash,
     householdName: input.householdName.trim(),
   });
   const token = randomBytes(32).toString('hex');
@@ -578,9 +630,20 @@ app.post('/api/v1/auth/register', async (c) => {
 });
 app.post('/api/v1/auth/login', async (c) => {
   const input = await json<{ login: string; password: string }>(c.req.raw);
+  if (typeof input.login !== 'string' || typeof input.password !== 'string')
+    return c.json(failure('Podaj login i hasło.'), 400);
+  const address = clientAddress(c);
+  const loginKey = address + '|' + input.login.trim().toLowerCase();
+  const wait = Math.max(addressFailures.retryAfter(address), loginFailures.retryAfter(loginKey));
+  if (wait) return tooManyAttempts(c, wait);
   const user = userByLogin(input.login);
-  if (!user || !verifyPassword(input.password, String(user.password_hash)))
+  const valid = await verifyPassword(input.password, user ? String(user.password_hash) : await unknownUserHash);
+  if (!user || !valid) {
+    addressFailures.fail(address);
+    loginFailures.fail(loginKey);
     return c.json(failure('Nieprawidłowy login lub hasło.', 401, 'INVALID_CREDENTIALS'), 401);
+  }
+  loginFailures.reset(loginKey);
   const token = randomBytes(32).toString('hex');
   createSession(String(user.id), createHmac('sha256', encryptionKey!).update(token).digest('hex'));
   return c.json({ data: { user: { id: user.id, login: user.login, email: user.email }, token } });
@@ -648,17 +711,31 @@ app.delete('/api/v1/settings/webhooks/:id', (c) =>
     ? c.body(null, 204)
     : c.json(failure('Nie znaleziono webhooka.', 404, 'NOT_FOUND'), 404),
 );
-app.get('/api/v1/settings/export', (c) => {
-  const backup = exportBackupData(householdId(c.req.raw));
-  const files = backup.storedNames.flatMap((storedName) => {
+app.post('/api/v1/settings/export', async (c) => {
+  const { user, denied } = requireOwner(c, 'Tylko właściciel może pobrać backup gospodarstwa.');
+  if (denied) return denied;
+  const input = await json<{ password?: string }>(c.req.raw);
+  const rejected = await confirmPassword(c, String(user.id), input.password);
+  if (rejected) return rejected;
+  const scope = String(user.household_id);
+  const backup = exportBackupData(scope);
+  const files = backup.files.flatMap(({ area, storedName }) => {
     try {
-      return [{ storedName, base64: readStoredFileByName(storedName).toString('base64') }];
+      return [{ storedName, base64: readStoredFile(area, scope, storedName).toString('base64') }];
     } catch {
       return [];
     }
   });
   const filename = `boberit-backup-${new Date().toISOString().slice(0, 10)}.json`;
-  notify('backup.exported', {}, householdId(c.req.raw));
+  addAuditEvent({
+    householdId: scope,
+    userId: String(user.id),
+    action: 'exported',
+    entityKind: 'backup',
+    entityId: scope,
+    label: filename,
+  });
+  notify('backup.exported', {}, scope);
   return new Response(
     JSON.stringify({
       format: 'boberit-backup',
@@ -677,61 +754,56 @@ app.get('/api/v1/settings/export', (c) => {
   );
 });
 app.post('/api/v1/settings/import', async (c) => {
+  const { user, denied } = requireOwner(c, 'Tylko właściciel może odtworzyć backup gospodarstwa.');
+  if (denied) return denied;
   const form = await c.req.raw.formData();
   const raw = form.get('file');
   const confirmation = String(form.get('confirmation') ?? '');
   if (!raw || typeof raw === 'string') return c.json(failure('Wybierz pakiet Boberit.'), 400);
   if (confirmation !== 'ZASTĄP') return c.json(failure('Wpisz ZASTĄP, aby potwierdzić odtworzenie.'), 400);
-  if (raw.size > 100 * 1024 * 1024) return c.json(failure('Pakiet jest zbyt duży. Maksymalny rozmiar to 100 MB.'), 400);
-  let backup: {
-    format?: string;
-    version?: number;
-    tables?: Record<string, Record<string, unknown>[]>;
-    files?: { storedName?: string; base64?: string }[];
-  };
+  const rejected = await confirmPassword(c, String(user.id), form.get('password'));
+  if (rejected) return rejected;
+  if (raw.size > maxBackupBytes) return c.json(failure('Pakiet jest zbyt duży. Maksymalny rozmiar to 100 MB.'), 400);
+  let prepared;
   try {
-    backup = JSON.parse(await raw.text()) as typeof backup;
-  } catch {
-    return c.json(failure('Plik nie jest poprawnym JSON-em backupu.'), 400);
+    prepared = prepareRestore(JSON.parse(await raw.text()));
+  } catch (error) {
+    if (error instanceof BackupError) return c.json(failure(error.message), 400);
+    if (error instanceof SyntaxError) return c.json(failure('Plik nie jest poprawnym JSON-em backupu.'), 400);
+    throw error;
   }
-  const required = [
-    'assets',
-    'warranties',
-    'maintenance_plans',
-    'maintenance_records',
-    'asset_files',
-    'inbox_files',
-    'documents',
-    'document_files',
-    'document_ocr',
-  ];
-  if (
-    backup.format !== 'boberit-backup' ||
-    backup.version !== 1 ||
-    !backup.tables ||
-    !required.every((key) => Array.isArray(backup.tables![key])) ||
-    !Array.isArray(backup.files)
-  )
-    return c.json(failure('To nie jest obsługiwany pakiet Boberit v1.'), 400);
-  const expected = [
-    ...backup.tables.asset_files!.map((row) => ({ storedName: String(row.stored_name), area: 'items' as StorageArea })),
-    ...backup.tables.inbox_files!.map((row) => ({ storedName: String(row.stored_name), area: 'inbox' as StorageArea })),
-    ...backup.tables.document_files!.map((row) => ({
-      storedName: String(row.stored_name),
-      area: 'documents' as StorageArea,
-    })),
-  ];
-  const fileMap = new Map(backup.files.map((file) => [file.storedName, file.base64]));
-  if (!expected.every((file) => fileMap.has(file.storedName) && typeof fileMap.get(file.storedName) === 'string'))
-    return c.json(failure('Pakiet nie zawiera wszystkich załączników.'), 400);
-  const decoded = expected.map((file) => ({ ...file, data: Buffer.from(fileMap.get(file.storedName)!, 'base64') }));
-  if (decoded.some((file) => !file.data.length)) return c.json(failure('Pakiet zawiera uszkodzony załącznik.'), 400);
-  const scope = householdId(c.req.raw);
-  const oldFiles = restoreBackupData(scope, backup.tables as Record<string, Record<string, unknown>[]>);
-  removeStoredFiles(oldFiles);
-  for (const file of decoded) writeStoredFile(file.area, scope, file.storedName, file.data);
-  notify('backup.restored', { attachments: decoded.length }, scope);
-  return c.json({ data: { restored: true, attachments: decoded.length } });
+  const scope = String(user.household_id);
+  // New files get fresh names, so they are written before the database switches to them; on any
+  // failure they are removed again and the household keeps its current data and files.
+  const written: { householdId: string; storedName: string }[] = [];
+  let oldFiles;
+  try {
+    for (const file of prepared.files) {
+      writeStoredFile(file.area, scope, file.storedName, file.data);
+      written.push({ householdId: scope, storedName: file.storedName });
+    }
+    oldFiles = restoreBackupData(scope, prepared.tables);
+  } catch (error) {
+    removeStoredFiles(written);
+    console.error('Odtwarzanie backupu nie powiodło się:', error);
+    return c.json(failure('Nie udało się odtworzyć pakietu. Dane gospodarstwa pozostały bez zmian.'), 400);
+  }
+  try {
+    removeStoredFiles(oldFiles.map((file) => ({ householdId: scope, storedName: file.storedName })));
+  } catch (error) {
+    // The restore is complete; a leftover old file is only unused disk space.
+    console.error('Nie udało się usunąć poprzednich plików po odtworzeniu:', error);
+  }
+  addAuditEvent({
+    householdId: scope,
+    userId: String(user.id),
+    action: 'restored',
+    entityKind: 'backup',
+    entityId: scope,
+    label: raw.name.slice(0, 200),
+  });
+  notify('backup.restored', { attachments: prepared.files.length }, scope);
+  return c.json({ data: { restored: true, attachments: prepared.files.length } });
 });
 app.get('/api/v1/assets', (c) => c.json({ data: listAssets(householdId(c.req.raw), c.req.query('q') ?? '') }));
 app.get('/api/v1/inbox', (c) => c.json({ data: listInboxFiles(householdId(c.req.raw)) }));
@@ -851,7 +923,7 @@ app.delete('/api/v1/documents/:id/files/:fileId', async (c) => {
   const removed = deleteDocumentFile(scope, documentId, c.req.param('fileId'));
   if (!removed) return c.json(failure('Nie znaleziono załącznika dokumentu.', 404, 'NOT_FOUND'), 404);
   setDocumentOcr(scope, documentId, 'pending');
-  removeStoredFiles([removed.storedName]);
+  removeStoredFiles([{ householdId: scope, storedName: removed.storedName }]);
   if (removed.remainingFiles > 0) await runDocumentOcr(scope, documentId);
   else setDocumentOcr(scope, documentId, 'unsupported', '', 'Dokument nie ma załączników.');
   return c.body(null, 204);
@@ -920,9 +992,10 @@ app.patch('/api/v1/assets/:id/files/:fileId', async (c) => {
     : c.json(failure('Typ tego pliku został już określony lub plik nie istnieje.', 409, 'ALREADY_CLASSIFIED'), 409);
 });
 app.delete('/api/v1/assets/:id/files/:fileId', (c) => {
-  const storedName = deleteAssetFile(householdId(c.req.raw), c.req.param('id'), c.req.param('fileId'));
+  const scope = householdId(c.req.raw);
+  const storedName = deleteAssetFile(scope, c.req.param('id'), c.req.param('fileId'));
   if (!storedName) return c.json(failure('Nie znaleziono załącznika przedmiotu.', 404, 'NOT_FOUND'), 404);
-  removeStoredFiles([storedName]);
+  removeStoredFiles([{ householdId: scope, storedName }]);
   return c.body(null, 204);
 });
 app.get('/api/v1/files/:id/download', (c) => {
@@ -944,11 +1017,12 @@ app.get('/api/v1/files/:id/preview', (c) => {
   const located = locatedFile(scope, c.req.param('id'));
   if (!located) return c.json(failure('Nie znaleziono pliku.', 404, 'NOT_FOUND'), 404);
   const { file } = located;
+  const inline = inlinePreviewTypes.has(file.mimeType);
   return new Response(new Uint8Array(readStoredFile(located.area, scope, file.storedName)), {
     headers: {
-      'Content-Type': file.mimeType,
+      'Content-Type': inline ? file.mimeType : 'application/octet-stream',
       'Content-Length': String(file.byteSize),
-      'Content-Disposition': `inline; filename*=UTF-8''${encodeURIComponent(file.originalName)}`,
+      'Content-Disposition': `${inline ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(file.originalName)}`,
       'X-Content-Type-Options': 'nosniff',
     },
   });
@@ -971,9 +1045,10 @@ app.post('/api/v1/inbox/files', async (c) => {
   return c.json({ data: file }, 201);
 });
 app.delete('/api/v1/inbox/:id', (c) => {
-  const storedName = deleteInboxFile(householdId(c.req.raw), c.req.param('id'));
+  const scope = householdId(c.req.raw);
+  const storedName = deleteInboxFile(scope, c.req.param('id'));
   if (!storedName) return c.json(failure('Nie znaleziono pliku w Skrzynce.', 404, 'NOT_FOUND'), 404);
-  removeStoredFiles([storedName]);
+  removeStoredFiles([{ householdId: scope, storedName }]);
   return c.body(null, 204);
 });
 app.post('/api/v1/inbox/:id/assign', async (c) => {
@@ -1041,7 +1116,19 @@ app.post('/api/v1/trash/:kind/:id/restore', (c) => {
     : c.json(failure('Nie znaleziono elementu w Koszu.', 404, 'NOT_FOUND'), 404);
 });
 app.delete('/api/v1/trash', (c) => {
-  removeStoredFiles(permanentlyDeleteHouseholdTrash(householdId(c.req.raw)));
+  const { user, denied } = requireOwner(c, 'Tylko właściciel może trwale opróżnić Kosz.');
+  if (denied) return denied;
+  const scope = String(user.household_id);
+  const removed = permanentlyDeleteHouseholdTrash(scope);
+  removeStoredFiles(removed.map((storedName) => ({ householdId: scope, storedName })));
+  addAuditEvent({
+    householdId: scope,
+    userId: String(user.id),
+    action: 'emptied',
+    entityKind: 'trash',
+    entityId: scope,
+    label: `Usunięte pliki: ${removed.length}`,
+  });
   return c.body(null, 204);
 });
 app.post('/api/v1/maintenance-plans/:id/complete', async (c) => {

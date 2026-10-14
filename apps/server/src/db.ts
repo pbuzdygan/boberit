@@ -1295,18 +1295,25 @@ export function listTrash(householdId: string, kind?: TrashKind): TrashEntry[] {
     );
   return entries.sort((a, b) => b.deletedAt.localeCompare(a.deletedAt));
 }
-function storedNamesForDeleted(before?: string): string[] {
+function storedNamesForDeleted(before?: string): { householdId: string; storedName: string }[] {
   const condition = before ? 'deleted_at IS NOT NULL AND deleted_at <= ?' : 'deleted_at IS NOT NULL';
   const parameter = before ? [before] : [];
   const assetRows = database
-    .prepare(`SELECT f.stored_name FROM asset_files f JOIN assets a ON a.id=f.asset_id WHERE a.${condition}`)
+    .prepare(
+      `SELECT a.household_id, f.stored_name FROM asset_files f JOIN assets a ON a.id=f.asset_id WHERE a.${condition}`,
+    )
     .all(...parameter) as Row[];
   const documentRows = database
-    .prepare(`SELECT f.stored_name FROM document_files f JOIN documents d ON d.id=f.document_id WHERE d.${condition}`)
+    .prepare(
+      `SELECT d.household_id, f.stored_name FROM document_files f JOIN documents d ON d.id=f.document_id WHERE d.${condition}`,
+    )
     .all(...parameter) as Row[];
-  return [...assetRows, ...documentRows].map((row) => String(row.stored_name));
+  return [...assetRows, ...documentRows].map((row) => ({
+    householdId: String(row.household_id),
+    storedName: String(row.stored_name),
+  }));
 }
-export function permanentlyDeleteTrash(before?: string): string[] {
+export function permanentlyDeleteTrash(before?: string): { householdId: string; storedName: string }[] {
   const names = storedNamesForDeleted(before);
   const condition = before ? 'deleted_at IS NOT NULL AND deleted_at <= ?' : 'deleted_at IS NOT NULL';
   const parameter = before ? [before] : [];
@@ -1692,7 +1699,10 @@ export function permanentlyDeleteHouseholdTrash(householdId: string): string[] {
   return [...assetFiles, ...documentFiles].map((row) => String(row.stored_name));
 }
 
-export function exportBackupData(householdId: string): { tables: Record<string, Row[]>; storedNames: string[] } {
+export function exportBackupData(householdId: string): {
+  tables: Record<string, Row[]>;
+  files: { area: 'items' | 'inbox' | 'documents'; storedName: string }[];
+} {
   const tables: Record<string, Row[]> = {};
   tables.asset_options = database.prepare('SELECT * FROM asset_options WHERE household_id=?').all(householdId) as Row[];
   tables.document_types = database
@@ -1723,13 +1733,18 @@ export function exportBackupData(householdId: string): { tables: Record<string, 
   tables.document_ocr = database
     .prepare(`SELECT * FROM document_ocr WHERE document_id IN ${inList(documentIds)}`)
     .all(...documentIds) as Row[];
-  const storedNames = ['asset_files', 'inbox_files', 'document_files'].flatMap((table) =>
-    (tables[table] ?? []).map((row) => String(row.stored_name)),
+  const areas = { asset_files: 'items', inbox_files: 'inbox', document_files: 'documents' } as const;
+  const files = (Object.keys(areas) as (keyof typeof areas)[]).flatMap((table) =>
+    (tables[table] ?? []).map((row) => ({ area: areas[table], storedName: String(row.stored_name) })),
   );
-  return { tables, storedNames };
+  return { tables, files };
 }
 
-export function restoreBackupData(householdId: string, tables: Record<string, Row[]>): string[] {
+// Rows must come from prepareRestore (backup.ts), which validates them and assigns fresh identifiers.
+export function restoreBackupData(
+  householdId: string,
+  tables: Record<string, Record<string, string | number | null>[]>,
+): { area: 'items' | 'inbox' | 'documents'; storedName: string }[] {
   const order = [
     'asset_options',
     'document_types',
@@ -1743,7 +1758,7 @@ export function restoreBackupData(householdId: string, tables: Record<string, Ro
     'document_files',
     'document_ocr',
   ];
-  const old = exportBackupData(householdId).storedNames;
+  const old = exportBackupData(householdId).files;
   database.exec('BEGIN');
   try {
     database
@@ -1776,7 +1791,6 @@ export function restoreBackupData(householdId: string, tables: Record<string, Ro
     database.prepare('DELETE FROM inbox_files WHERE household_id=?').run(householdId);
     for (const table of order) {
       const rows = tables[table] ?? [];
-      if (!Array.isArray(rows)) throw new Error(`Nieprawidłowa tabela backupu: ${table}.`);
       const columns = (database.prepare(`PRAGMA table_info(${table})`).all() as Row[]).map((row) => String(row.name));
       for (const source of rows) {
         const row = { ...source };
@@ -1792,7 +1806,7 @@ export function restoreBackupData(householdId: string, tables: Record<string, Ro
         if (!used.length) continue;
         database
           .prepare(`INSERT INTO ${table}(${used.join(',')}) VALUES (${used.map(() => '?').join(',')})`)
-          .run(...used.map((column) => row[column] as string | number | null | Uint8Array));
+          .run(...used.map((column) => row[column] as string | number | null));
       }
     }
     for (const row of tables.assets ?? []) syncSearch(String(row.id));

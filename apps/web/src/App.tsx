@@ -285,9 +285,14 @@ async function downloadAttachment(id: string, name: string): Promise<void> {
   link.click();
   URL.revokeObjectURL(url);
 }
-async function previewAttachment(id: string): Promise<void> {
+// A blob URL runs with the app's origin, so only passive formats may open in a tab; anything else downloads.
+const previewTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'text/plain']);
+async function previewAttachment(id: string, name: string): Promise<void> {
+  const response = await api.fileBlob(id, 'preview');
+  const type = response.type.split(';')[0]!.trim().toLowerCase();
+  if (!previewTypes.has(type)) return downloadAttachment(id, name);
   const target = window.open('', '_blank', 'noopener');
-  const blob = await api.fileBlob(id, 'preview');
+  const blob = new Blob([response], { type });
   const url = URL.createObjectURL(blob);
   if (target) target.location.href = url;
   else window.open(url, '_blank', 'noopener');
@@ -342,6 +347,7 @@ export function App() {
   const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [households, setHouseholds] = useState<{ id: string; name: string; role: string }[]>([]);
   const [activeHouseholdId, setActiveHouseholdId] = useState<string | null>(null);
+  const isOwner = households.find((household) => household.id === activeHouseholdId)?.role === 'owner';
   const [account, setAccount] = useState<{ login: string; email: string } | null>(null);
   const [accountSection, setAccountSection] = useState<AccountSection>('households');
 
@@ -1061,11 +1067,11 @@ export function App() {
               onTrash={trashDocument}
             />
           ) : view === 'trash' ? (
-            <TrashPage entries={trashEntries} onRestore={restoreTrash} onEmpty={emptyTrash} />
+            <TrashPage canEmpty={isOwner} entries={trashEntries} onRestore={restoreTrash} onEmpty={emptyTrash} />
           ) : view === 'account' ? (
             <AccountPage section={accountSection} onSection={setAccountSection} onLogout={logout} />
           ) : view === 'settings' ? (
-            <SettingsPage />
+            <SettingsPage isOwner={isOwner} />
           ) : view === 'search' ? (
             <SearchPage
               query={query}
@@ -2411,6 +2417,8 @@ function ActivitySettings() {
     trashed: 'Przeniesiono do Kosza',
     restored: 'Przywrócono',
     deleted: 'Usunięto',
+    exported: 'Pobrano',
+    emptied: 'Opróżniono',
     'password.changed': 'Zmieniono hasło użytkownika',
     'sessions.revoked': 'Wylogowano inne sesje',
   };
@@ -2420,6 +2428,7 @@ function ActivitySettings() {
     account: 'konto',
     session: 'sesję',
     backup: 'backup',
+    trash: 'Kosz',
   };
   const describe = (event: { action: string; entity_kind: string }) =>
     `${actionLabels[event.action] ?? eventLabel(`${event.entity_kind}.${event.action}`)} ${entityLabels[event.entity_kind] ?? event.entity_kind}`;
@@ -2448,7 +2457,7 @@ function ActivitySettings() {
   );
 }
 
-function SettingsPage() {
+function SettingsPage({ isOwner }: { isOwner: boolean }) {
   const [section, setSection] = useState<SettingsSection>('backup');
   return (
     <>
@@ -2475,20 +2484,27 @@ function SettingsPage() {
             Historia gospodarstwa
           </button>
         </nav>
-        <div className="settings-content">{section === 'backup' ? <BackupSettings /> : <ActivitySettings />}</div>
+        <div className="settings-content">
+          {section === 'backup' ? <BackupSettings isOwner={isOwner} /> : <ActivitySettings />}
+        </div>
       </div>
     </>
   );
 }
 
-function BackupSettings() {
+function BackupSettings({ isOwner }: { isOwner: boolean }) {
   const [file, setFile] = useState<File | null>(null);
   const [confirmation, setConfirmation] = useState('');
+  const [exportPassword, setExportPassword] = useState('');
+  const [restorePassword, setRestorePassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   async function download() {
+    if (!exportPassword) return;
+    setMessage(null);
     try {
-      const blob = await api.downloadBackup();
+      const blob = await api.downloadBackup(exportPassword);
+      setExportPassword('');
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -2500,10 +2516,11 @@ function BackupSettings() {
     }
   }
   async function restore() {
-    if (!file || confirmation !== 'ZASTĄP') return;
+    if (!file || confirmation !== 'ZASTĄP' || !restorePassword) return;
     setBusy(true);
+    setMessage(null);
     try {
-      await api.importBackup(file);
+      await api.importBackup(file, restorePassword);
       window.location.reload();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Nie udało się odtworzyć backupu.');
@@ -2511,6 +2528,19 @@ function BackupSettings() {
       setBusy(false);
     }
   }
+  if (!isOwner)
+    return (
+      <section className="settings-card">
+        <span>
+          <Icon name="file-text" />
+        </span>
+        <div>
+          <p className="eyebrow">Backup</p>
+          <h2>Pakiet Boberit</h2>
+          <p>Backupem i odtwarzaniem danych zarządza właściciel gospodarstwa.</p>
+        </div>
+      </section>
+    );
   return (
     <div className="settings-grid settings-grid--single">
       <section className="settings-card">
@@ -2521,7 +2551,16 @@ function BackupSettings() {
           <p className="eyebrow">Backup</p>
           <h2>Pakiet Boberit</h2>
           <p>Pobierz dane i załączniki aktywnego gospodarstwa w jednym pliku JSON.</p>
-          <button className="primary" onClick={() => void download()} type="button">
+          <label>
+            Obecne hasło
+            <input
+              autoComplete="current-password"
+              onChange={(event) => setExportPassword(event.target.value)}
+              type="password"
+              value={exportPassword}
+            />
+          </label>
+          <button className="primary" disabled={!exportPassword} onClick={() => void download()} type="button">
             Pobierz backup
           </button>
         </div>
@@ -2543,14 +2582,25 @@ function BackupSettings() {
             />
           </label>
           {file && (
-            <label>
-              Wpisz <b>ZASTĄP</b>, aby potwierdzić
-              <input value={confirmation} onChange={(event) => setConfirmation(event.target.value)} />
-            </label>
+            <>
+              <label>
+                Wpisz <b>ZASTĄP</b>, aby potwierdzić
+                <input value={confirmation} onChange={(event) => setConfirmation(event.target.value)} />
+              </label>
+              <label>
+                Obecne hasło
+                <input
+                  autoComplete="current-password"
+                  onChange={(event) => setRestorePassword(event.target.value)}
+                  type="password"
+                  value={restorePassword}
+                />
+              </label>
+            </>
           )}
           <button
             className="secondary danger-button"
-            disabled={!file || confirmation !== 'ZASTĄP' || busy}
+            disabled={!file || confirmation !== 'ZASTĄP' || !restorePassword || busy}
             onClick={() => void restore()}
             type="button"
           >
@@ -3593,7 +3643,11 @@ function DocumentOcrPage({
                     <small>{file.mimeType}</small>
                   </div>
                   <div className="ocr-file-actions">
-                    <button className="text-action" onClick={() => void previewAttachment(file.id)} type="button">
+                    <button
+                      className="text-action"
+                      onClick={() => void previewAttachment(file.id, file.originalName)}
+                      type="button"
+                    >
                       Podgląd
                     </button>
                     <button
@@ -3675,10 +3729,12 @@ function DocumentOcrPage({
 }
 
 function TrashPage({
+  canEmpty,
   entries,
   onRestore,
   onEmpty,
 }: {
+  canEmpty: boolean;
   entries: TrashEntry[];
   onRestore: (kind: TrashKind, id: string) => Promise<void>;
   onEmpty: () => Promise<void>;
@@ -3695,7 +3751,7 @@ function TrashPage({
           <h1>Kosz</h1>
           <p>Przedmioty i dokumenty pozostają tutaj przez 30 dni, zanim zostaną usunięte trwale.</p>
         </div>
-        {entries.length > 0 && (
+        {canEmpty && entries.length > 0 && (
           <button
             className="secondary danger-button"
             onClick={() => {
