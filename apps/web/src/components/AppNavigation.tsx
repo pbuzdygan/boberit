@@ -1,7 +1,10 @@
 import type { View } from '../types';
 import { Icon } from './Icon';
 
-/** Desktop sidebar. Items count as active only while no item detail is open. */
+/**
+ * Desktop sidebar. Items count as active only while no item detail is open. Counts are hidden
+ * until the data has loaded, so a pending or failed load does not read as zero.
+ */
 export function Sidebar({
   view,
   hasSelection,
@@ -9,10 +12,12 @@ export function Sidebar({
   documentCount,
   inboxCount,
   trashCount,
+  showCounts,
   onNavigate,
 }: {
   view: View;
   hasSelection: boolean;
+  showCounts: boolean;
   itemCount: number;
   documentCount: number;
   inboxCount: number;
@@ -48,7 +53,7 @@ export function Sidebar({
             onNavigate('items');
           }}
         >
-          <Icon name="package" /> Przedmioty <span>{itemCount}</span>
+          <Icon name="package" /> Przedmioty {showCounts && <span>{itemCount}</span>}
         </button>
         <button
           className={`nav-item ${['binder', 'document-ocr'].includes(view) && !hasSelection ? 'active' : ''}`}
@@ -57,7 +62,7 @@ export function Sidebar({
             onNavigate('binder');
           }}
         >
-          <Icon name="file-text" /> Dokumenty <span>{documentCount}</span>
+          <Icon name="file-text" /> Dokumenty {showCounts && <span>{documentCount}</span>}
         </button>
         <button
           className={`nav-item ${view === 'timeline' && !hasSelection ? 'active' : ''}`}
@@ -75,7 +80,7 @@ export function Sidebar({
             onNavigate('inbox');
           }}
         >
-          <Icon name="file-text" /> Do przypisania <span>{inboxCount}</span>
+          <Icon name="file-text" /> Do przypisania {showCounts && <span>{inboxCount}</span>}
         </button>
       </nav>
       <div className="sidebar-footer">
@@ -86,7 +91,7 @@ export function Sidebar({
             onNavigate('trash');
           }}
         >
-          <Icon name="trash" /> Kosz <span>{trashCount}</span>
+          <Icon name="trash" /> Kosz {showCounts && <span>{trashCount}</span>}
         </button>
         <button
           className={`nav-item sidebar-settings ${view === 'settings' && !hasSelection ? 'active' : ''}`}

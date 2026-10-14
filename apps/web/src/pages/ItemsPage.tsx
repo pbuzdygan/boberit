@@ -124,24 +124,31 @@ export function ItemsPage({
   allAssets,
   assets,
   attention,
-  isLoading,
   filter,
   onFilter,
   onOpen,
+  onAdd,
 }: {
   allAssets: AssetSummary[];
   assets: AssetSummary[];
   attention: AssetSummary[];
-  isLoading: boolean;
   filter: CollectionFilter;
   onFilter: (filter: CollectionFilter) => void;
   onOpen: (id: string) => Promise<void>;
+  onAdd: () => void;
 }) {
   const [columnQuery, setColumnQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [locationFilter, setLocationFilter] = useState('');
   const [groupBy, setGroupBy] = useState<AssetGroupBy | null>(null);
+  function clearFilters() {
+    setColumnQuery('');
+    setCategoryFilter('');
+    setStatusFilter('');
+    setLocationFilter('');
+    onFilter('all');
+  }
   const filterCounts = {
     all: allAssets.length,
     warranty: allAssets.filter((asset) => asset.warranty && asset.warranty.kind !== 'unknown').length,
@@ -316,13 +323,23 @@ export function ItemsPage({
           <span>Gwarancja</span>
           <span aria-hidden="true" />
         </div>
-        {isLoading ? (
-          <div className="empty">Ładowanie kolekcji…</div>
+        {allAssets.length === 0 ? (
+          <div className="empty">
+            <Icon name="package" />
+            <strong>Nie masz jeszcze żadnych przedmiotów</strong>
+            <p>Wystarczy nazwa. Dane zakupu, gwarancję i paragon uzupełnisz później.</p>
+            <button className="primary" onClick={onAdd} type="button">
+              Dodaj przedmiot
+            </button>
+          </div>
         ) : visibleAssets.length === 0 ? (
           <div className="empty">
             <Icon name="search" />
             <strong>Brak pasujących przedmiotów</strong>
-            <p>Wyczyść filtry albo spróbuj innego wyszukiwania.</p>
+            <p>Żaden przedmiot nie pasuje do wybranych filtrów ani wyszukiwania.</p>
+            <button className="secondary" onClick={clearFilters} type="button">
+              Wyczyść filtry
+            </button>
           </div>
         ) : (
           grouped().map((group) => (

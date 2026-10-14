@@ -10,9 +10,18 @@ function ActivitySettings() {
     { action: string; entity_kind: string; label: string | null; user_login: string | null; created_at: string }[]
   >([]);
   const [bytes, setBytes] = useState(0);
+  const [error, setError] = useState('');
   useEffect(() => {
-    void api.activity().then((r) => setEvents(r.data));
-    void api.storage().then((r) => setBytes(r.data.bytes));
+    const fail = (reason: unknown) =>
+      setError(reason instanceof Error ? reason.message : 'Nie udało się wczytać historii gospodarstwa.');
+    void api
+      .activity()
+      .then((r) => setEvents(r.data))
+      .catch(fail);
+    void api
+      .storage()
+      .then((r) => setBytes(r.data.bytes))
+      .catch(fail);
   }, []);
   const actionLabels: Record<string, string> = {
     created: 'Utworzono',
@@ -54,6 +63,7 @@ function ActivitySettings() {
         <p className="eyebrow">Aktywność i pliki</p>
         <h2>Historia gospodarstwa</h2>
         <p>Wykorzystane miejsce: {(bytes / 1024 / 1024).toFixed(1)} MB</p>
+        {error && <p className="form-error">{error}</p>}
         <div className="webhook-list activity-list">
           {events.map((e, i) => (
             <div key={i}>
@@ -63,7 +73,7 @@ function ActivitySettings() {
               </small>
             </div>
           ))}
-          {!events.length && <p>Brak zapisanych działań.</p>}
+          {!events.length && !error && <p>Brak zapisanych działań.</p>}
         </div>
       </div>
     </section>

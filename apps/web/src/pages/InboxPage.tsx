@@ -1,10 +1,10 @@
 import type { AssetFileKind, AssetSummary, CreateBinderDocumentInput, DocumentType, InboxFile } from '@boberit/shared';
-import { useEffect, useState } from 'react';
-import { api } from '../api';
+import { useState } from 'react';
 import { downloadAttachment } from '../attachments';
 import { FormSelect } from '../components/FormSelect';
 import { Icon } from '../components/Icon';
 import { fileSize, formatTimestampDate } from '../format';
+import { useDocumentTypes } from '../hooks/useDocumentTypes';
 import { useReportError } from '../hooks/useReportError';
 
 export function InboxPage({
@@ -22,11 +22,8 @@ export function InboxPage({
   onToDocument: (id: string, input: CreateBinderDocumentInput) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 }) {
-  const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
+  const documentTypes = useDocumentTypes();
   const reportError = useReportError();
-  useEffect(() => {
-    void api.listDocumentTypes().then((r) => setDocumentTypes(r.data));
-  }, []);
   return (
     <>
       <div className="page-heading">

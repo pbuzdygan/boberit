@@ -1,13 +1,17 @@
-import type { CreateBinderDocumentInput, DocumentType, CreateAssetInput } from '@boberit/shared';
-import { FormEvent, useEffect, useState } from 'react';
-import { api } from '../api';
+import type { CreateBinderDocumentInput, CreateAssetInput } from '@boberit/shared';
+import { FormEvent, useState } from 'react';
+import { useDocumentTypes } from '../hooks/useDocumentTypes';
 import { FormSelect } from './FormSelect';
 import { Icon } from './Icon';
 
+export type QuickAddKind = 'asset' | 'document';
+
 export function QuickAddDialog({
+  initialKind,
   onClose,
   onSave,
 }: {
+  initialKind: QuickAddKind;
   onClose: () => void;
   onSave: (
     kind: 'asset' | 'document',
@@ -15,20 +19,17 @@ export function QuickAddDialog({
     files: File[],
   ) => Promise<void>;
 }) {
-  const [kind, setKind] = useState<'asset' | 'document'>('asset');
+  const [kind, setKind] = useState<QuickAddKind>(initialKind);
   const [name, setName] = useState('');
   const [manufacturer, setManufacturer] = useState('');
   const [modelNumber, setModelNumber] = useState('');
   const [typeId, setTypeId] = useState('');
-  const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
+  const documentTypes = useDocumentTypes();
   const [tags, setTags] = useState('');
   const [notes, setNotes] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    void api.listDocumentTypes().then((r) => setDocumentTypes(r.data));
-  }, []);
   function selectFiles(list: FileList | null) {
     const selectedFiles = Array.from(list ?? []);
     if (selectedFiles.length) setFiles((current) => [...current, ...selectedFiles]);

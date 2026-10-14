@@ -33,12 +33,20 @@ export function WebhookSettings() {
   const [householdIds, setHouseholdIds] = useState<string[]>([]);
   const [error, setError] = useState('');
   function load() {
-    void api.listWebhooks().then((response) => {
-      setHooks(response.data);
-      const [onlyHook] = response.data;
-      if (onlyHook && response.data.length === 1 && !editingId) edit(onlyHook);
-    });
-    void api.households().then((response) => setHouseholds(response.data.households));
+    const fail = (reason: unknown) =>
+      setError(reason instanceof Error ? reason.message : 'Nie udało się wczytać webhooków.');
+    void api
+      .listWebhooks()
+      .then((response) => {
+        setHooks(response.data);
+        const [onlyHook] = response.data;
+        if (onlyHook && response.data.length === 1 && !editingId) edit(onlyHook);
+      })
+      .catch(fail);
+    void api
+      .households()
+      .then((response) => setHouseholds(response.data.households))
+      .catch(fail);
   }
   useEffect(load, []);
   function reset() {

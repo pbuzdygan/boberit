@@ -1,10 +1,10 @@
-import type { BinderDocument, CreateBinderDocumentInput, DocumentType } from '@boberit/shared';
+import type { BinderDocument, CreateBinderDocumentInput } from '@boberit/shared';
 import { Fragment, useEffect, useRef, useState } from 'react';
-import { api } from '../api';
 import { DocumentEditDialog } from '../components/DocumentEditDialog';
 import { Icon } from '../components/Icon';
 import { OcrStatusIcon } from '../components/OcrStatusIcon';
 import { formatTimestampDate } from '../format';
+import { useDocumentTypes } from '../hooks/useDocumentTypes';
 import { useReportError } from '../hooks/useReportError';
 import { AssetColumnHeader } from './ItemsPage';
 
@@ -15,6 +15,7 @@ export function BinderPage({
   onBatchOcr,
   onUpload,
   onTrash,
+  onAdd,
 }: {
   documents: BinderDocument[];
   onOpenOcr: (document: BinderDocument) => void;
@@ -22,14 +23,12 @@ export function BinderPage({
   onBatchOcr: () => Promise<void>;
   onUpload: (id: string, files: File[]) => Promise<void>;
   onTrash: (id: string) => Promise<void>;
+  onAdd: () => void;
 }) {
-  const [types, setTypes] = useState<DocumentType[]>([]);
+  const types = useDocumentTypes();
   const [typeFilter, setTypeFilter] = useState('');
   const [groupByType, setGroupByType] = useState(false);
   const reportError = useReportError();
-  useEffect(() => {
-    void api.listDocumentTypes().then((r) => setTypes(r.data));
-  }, []);
   const overdueOcrCount = documents.filter(
     (document) =>
       document.files.length > 0 &&
@@ -114,12 +113,25 @@ export function BinderPage({
             ))}
           </tbody>
         </table>
-        {visible.length === 0 && (
+        {documents.length === 0 ? (
           <div className="empty">
             <Icon name="file-text" />
-            <strong>Brak dokumentów</strong>
-            <p>Wyczyść filtr typu albo dodaj nowy dokument.</p>
+            <strong>Nie masz jeszcze żadnych dokumentów</strong>
+            <p>Dodaj umowę, fakturę lub polisę. Tekst z plików zostanie rozpoznany i będzie można go wyszukać.</p>
+            <button className="primary" onClick={onAdd} type="button">
+              Dodaj dokument
+            </button>
           </div>
+        ) : (
+          visible.length === 0 && (
+            <div className="empty">
+              <Icon name="file-text" />
+              <strong>Brak dokumentów tego typu</strong>
+              <button className="secondary" onClick={() => setTypeFilter('')} type="button">
+                Pokaż wszystkie
+              </button>
+            </div>
+          )
         )}
       </div>
     </>

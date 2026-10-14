@@ -8,7 +8,8 @@ import { CompletionDialog } from './components/CompletionDialog';
 import { Icon } from './components/Icon';
 import { MobileMoreMenu } from './components/MobileMoreMenu';
 import { NotificationsMenu } from './components/NotificationsMenu';
-import { QuickAddDialog } from './components/QuickAddDialog';
+import { LoadState } from './components/LoadState';
+import { QuickAddDialog, type QuickAddKind } from './components/QuickAddDialog';
 import { localDateKey } from './format';
 import { useCollections } from './hooks/useCollections';
 import { useLibraryActions } from './hooks/useLibraryActions';
@@ -29,7 +30,10 @@ import { SettingsPage } from './pages/SettingsPage';
 import { StartPage } from './pages/StartPage';
 import { TimelinePage } from './pages/TimelinePage';
 import { TrashPage } from './pages/TrashPage';
-import type { AccountSection, TimelineFilter, CollectionFilter } from './types';
+import type { AccountSection, TimelineFilter, CollectionFilter, View } from './types';
+
+/** Views built from the household collections; they wait for the first successful load. */
+const collectionViews: View[] = ['start', 'items', 'binder', 'timeline', 'inbox', 'trash'];
 
 export function App() {
   // Hook order matters: the session hook's effect sets the API token before data loads.
@@ -42,8 +46,9 @@ export function App() {
   const { view, setView, selected, setSelected, selectedDocument, allowDiscardChanges, navigateTo } = navigation;
   const { updateSearch, openDetail, openDocument } = navigation;
   const collections = useCollections({ accessToken, navigation, search, setMessage });
-  const { assets, inboxFiles, documents, storageBytes, purchaseValues, trashEntries, isLoading, refresh } = collections;
-  const [isQuickAddOpen, setQuickAddOpen] = useState(false);
+  const { assets, inboxFiles, documents, storageBytes, purchaseValues, trashEntries, refresh } = collections;
+  // The kind preselected in the quick-add dialog; null while the dialog is closed.
+  const [quickAddKind, setQuickAddKind] = useState<QuickAddKind | null>(null);
   const [filter, setFilter] = useState<CollectionFilter>('all');
   const [timelineFilter, setTimelineFilter] = useState<TimelineFilter>('all');
   const [completionPlan, setCompletionPlan] = useState<MaintenancePlan | null>(null);
@@ -54,17 +59,17 @@ export function App() {
     navigation,
     search,
     setMessage,
-    closeQuickAdd: () => setQuickAddOpen(false),
+    closeQuickAdd: () => setQuickAddKind(null),
     closeCompletion: () => setCompletionPlan(null),
   });
 
-  function openQuickAdd() {
+  function openQuickAdd(kind: QuickAddKind = 'asset') {
     if (!allowDiscardChanges()) return;
     if (selected) {
       setSelected(null);
       setView('items');
     }
-    setQuickAddOpen(true);
+    setQuickAddKind(kind);
   }
 
   async function switchHousehold(id: string) {
@@ -114,13 +119,14 @@ export function App() {
           documentCount={documents.length}
           inboxCount={inboxFiles.length}
           trashCount={trashEntries.length}
+          showCounts={collections.hasLoaded}
           onNavigate={(next) => void navigateTo(next)}
         />
         <MobileNav
           view={view}
           hasSelection={Boolean(selected)}
           onNavigate={(next) => void navigateTo(next)}
-          onQuickAdd={openQuickAdd}
+          onQuickAdd={() => openQuickAdd()}
           onMore={() => setMobileMenuOpen(true)}
         />
 
@@ -151,7 +157,7 @@ export function App() {
               <kbd>/</kbd>
             </label>
             <div className="topbar-actions">
-              <button className="primary topbar-save" type="button" onClick={openQuickAdd}>
+              <button className="primary topbar-save" type="button" onClick={() => openQuickAdd()}>
                 <Icon name="plus" /> Dodaj
               </button>
               <NotificationsMenu
@@ -174,7 +180,9 @@ export function App() {
             </div>
           </header>
           <section className="content">
-            {selected ? (
+            {!selected && !collections.hasLoaded && collectionViews.includes(view) ? (
+              <LoadState error={collections.loadError} onRetry={() => void refresh()} />
+            ) : selected ? (
               <Detail
                 key={selected.id}
                 asset={selected}
@@ -204,6 +212,7 @@ export function App() {
                 onOpen={openDetail}
                 onAllItems={() => navigateTo('items')}
                 onTimeline={() => navigateTo('timeline')}
+                onAdd={() => openQuickAdd('asset')}
               />
             ) : view === 'timeline' ? (
               <TimelinePage
@@ -233,6 +242,7 @@ export function App() {
                 onBatchOcr={actions.batchOcr}
                 onUpload={actions.uploadDocumentFiles}
                 onTrash={actions.trashDocument}
+                onAdd={() => openQuickAdd('document')}
               />
             ) : view === 'trash' ? (
               <TrashPage
@@ -269,10 +279,10 @@ export function App() {
                 allAssets={assets}
                 assets={collectionAssets}
                 attention={attention}
-                isLoading={isLoading}
                 filter={filter}
                 onFilter={setFilter}
                 onOpen={openDetail}
+                onAdd={() => openQuickAdd('asset')}
               />
             )}
           </section>
@@ -284,7 +294,9 @@ export function App() {
             onSave={(input) => actions.completePlan(completionPlan.id, input)}
           />
         )}
-        {isQuickAddOpen && <QuickAddDialog onClose={() => setQuickAddOpen(false)} onSave={actions.quickAdd} />}
+        {quickAddKind && (
+          <QuickAddDialog initialKind={quickAddKind} onClose={() => setQuickAddKind(null)} onSave={actions.quickAdd} />
+        )}
         {isMobileMenuOpen && (
           <MobileMoreMenu
             inboxCount={inboxFiles.length}

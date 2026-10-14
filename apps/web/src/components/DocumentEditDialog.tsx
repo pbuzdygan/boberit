@@ -1,6 +1,6 @@
-import type { BinderDocument, CreateBinderDocumentInput, DocumentType } from '@boberit/shared';
-import { FormEvent, useEffect, useState } from 'react';
-import { api } from '../api';
+import type { BinderDocument, CreateBinderDocumentInput } from '@boberit/shared';
+import { FormEvent, useState } from 'react';
+import { useDocumentTypes } from '../hooks/useDocumentTypes';
 import { FormSelect } from './FormSelect';
 import { Icon } from './Icon';
 
@@ -15,7 +15,7 @@ export function DocumentEditDialog({
 }) {
   const [name, setName] = useState(document.name);
   const [typeId, setTypeId] = useState(document.typeId ?? '');
-  const [types, setTypes] = useState<DocumentType[]>([]);
+  const types = useDocumentTypes();
   const [tags, setTags] = useState(document.tags.join(', '));
   const [notes, setNotes] = useState(document.notes ?? '');
   const [busy, setBusy] = useState(false);
@@ -29,9 +29,6 @@ export function DocumentEditDialog({
     typeId !== (document.typeId ?? '') ||
     JSON.stringify(formTags) !== JSON.stringify(document.tags) ||
     notes.trim() !== (document.notes ?? '');
-  useEffect(() => {
-    void api.listDocumentTypes().then((r) => setTypes(r.data));
-  }, []);
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (!hasChanges) return;

@@ -8,6 +8,8 @@ import type { SearchState } from './useSearch';
 /**
  * Household data shown across views. `refresh` reloads everything, including the open item
  * and an active search; the sequence counter drops responses from superseded refreshes.
+ * `hasLoaded` stays false until the first successful load, so views can tell "not loaded yet"
+ * or "failed to load" (`loadError`) apart from a genuinely empty household.
  */
 export function useCollections({
   accessToken,
@@ -27,6 +29,8 @@ export function useCollections({
   const [purchaseValues, setPurchaseValues] = useState<PurchaseValue[]>([]);
   const [trashEntries, setTrashEntries] = useState<TrashEntry[]>([]);
   const [isLoading, setLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const refreshSequence = useRef(0);
   const { selected, setSelected, setSelectedDocument } = navigation;
 
@@ -48,6 +52,8 @@ export function useCollections({
       setTrashEntries(trashResponse.data);
       setStorageBytes(Number(storageResponse.data.bytes));
       setPurchaseValues(storageResponse.data.purchaseValues ?? []);
+      setHasLoaded(true);
+      setLoadError(null);
       setSelectedDocument((current) =>
         current ? (documentsResponse.data.find((document) => document.id === current.id) ?? current) : null,
       );
@@ -57,8 +63,11 @@ export function useCollections({
         if (sequence === refreshSequence.current) setSelected(selectedResponse.data);
       }
     } catch (error) {
-      if (sequence === refreshSequence.current)
-        setMessage(error instanceof Error ? error.message : 'Nie udało się odczytać kolekcji.', 'error');
+      if (sequence === refreshSequence.current) {
+        const message = error instanceof Error ? error.message : 'Nie udało się odczytać kolekcji.';
+        setLoadError(message);
+        setMessage(message, 'error');
+      }
     } finally {
       if (sequence === refreshSequence.current) setLoading(false);
     }
@@ -84,6 +93,8 @@ export function useCollections({
     setSelectedDocument(null);
     setInboxFiles([]);
     setTrashEntries([]);
+    setHasLoaded(false);
+    setLoadError(null);
   }
 
   return {
@@ -94,6 +105,8 @@ export function useCollections({
     purchaseValues,
     trashEntries,
     isLoading,
+    hasLoaded,
+    loadError,
     refresh,
     clearCollections,
   };

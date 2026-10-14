@@ -1,9 +1,10 @@
-import type { BinderDocument, CreateBinderDocumentInput, DocumentType } from '@boberit/shared';
+import type { BinderDocument, CreateBinderDocumentInput } from '@boberit/shared';
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { downloadAttachment, previewAttachment } from '../attachments';
 import { FormSelect } from '../components/FormSelect';
 import { Icon } from '../components/Icon';
+import { useDocumentTypes } from '../hooks/useDocumentTypes';
 import { ocrStatusMeta } from '../labels';
 import type { OcrStatus, OcrDetails } from '../types';
 
@@ -36,7 +37,7 @@ export function DocumentOcrPage({
   const [dirty, setDirty] = useState(false);
   const [error, setError] = useState('');
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
-  const [types, setTypes] = useState<DocumentType[]>([]);
+  const types = useDocumentTypes();
   const [typeId, setTypeId] = useState(document.typeId ?? '');
   const [tags, setTags] = useState(document.tags.join(', '));
   const [notes, setNotes] = useState(document.notes ?? '');
@@ -78,7 +79,6 @@ export function DocumentOcrPage({
   }
   useEffect(() => {
     void load();
-    void api.listDocumentTypes().then((r) => setTypes(r.data));
   }, [document.id]);
   useEffect(() => {
     if (metadataDirty) return;

@@ -14,11 +14,11 @@ Audit from 2026-10-15 (desktop 1366 px, phone 390 px, isolated instance with dem
 - [x] F5 Backup restore shows the native, unstyled English "Choose File / No file chosen" (`.restore-file` has no styles).
 - [x] F17 Documents without a file show the "OCR pending" icon; show "—" instead.
 
-### Step 2 — loading, empty, and error states
+### Step 2 — loading, empty, and error states (done)
 
-- [ ] F4 Start shows zeros and "Kolekcja jest jeszcze pusta" while loading and after a failed load; an empty collection shows the filter message "Brak pasujących… wyczyść filtry" without an add action (items, documents); load errors appear only as a 3 s toast. Separate loading / error with retry / empty with action / no filter match. New empty-state copy is shown to the user before implementing.
-- [ ] F4b Failed loads are still unreported: document types (quick add, documents, document detail, inbox, edit dialog), asset options, activity and storage, households and webhooks lists. Use `useReportError` or an inline error with retry.
-- [ ] F14 Search with no results shows "Przedmioty 0" and "Dokumenty 0" headings plus the empty state; hide empty sections.
+- [x] F4 Start shows zeros and "Kolekcja jest jeszcze pusta" while loading and after a failed load; an empty collection shows the filter message "Brak pasujących… wyczyść filtry" without an add action (items, documents); load errors appear only as a 3 s toast. Separate loading / error with retry / empty with action / no filter match. New empty-state copy is shown to the user before implementing.
+- [x] F4b Failed loads are still unreported: document types (quick add, documents, document detail, inbox, edit dialog), asset options, activity and storage, households and webhooks lists. Use `useReportError` or an inline error with retry.
+- [x] F14 Search with no results shows "Przedmioty 0" and "Dokumenty 0" headings plus the empty state; hide empty sections.
 
 ### Step 3 — accessibility and forms
 

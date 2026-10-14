@@ -11,10 +11,13 @@ export function HouseholdSettings() {
   const [editingName, setEditingName] = useState('');
   const [error, setError] = useState('');
   const load = () =>
-    void api.households().then((r) => {
-      setHouseholds(r.data.households);
-      setActiveHouseholdId(r.data.activeHouseholdId);
-    });
+    void api
+      .households()
+      .then((r) => {
+        setHouseholds(r.data.households);
+        setActiveHouseholdId(r.data.activeHouseholdId);
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : 'Nie udało się wczytać gospodarstw.'));
   useEffect(load, []);
   async function create() {
     try {

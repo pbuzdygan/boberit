@@ -14,6 +14,7 @@ export function StartPage({
   onOpen,
   onAllItems,
   onTimeline,
+  onAdd,
 }: {
   assets: AssetSummary[];
   documentCount: number;
@@ -24,6 +25,7 @@ export function StartPage({
   onOpen: (id: string) => Promise<void>;
   onAllItems: () => void;
   onTimeline: () => void;
+  onAdd: () => void;
 }) {
   const today = new Intl.DateTimeFormat('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
   const drafts = assets.filter((asset) => asset.completeness !== 'complete');
@@ -99,7 +101,11 @@ export function StartPage({
           </button>
         ))}
         {!attention.length && !drafts.length && (
-          <div className="start-empty">Nie ma pilnych spraw. Możesz spokojnie dodać kolejny przedmiot.</div>
+          <div className="start-empty">
+            {assets.length
+              ? 'Nie ma pilnych spraw. Możesz spokojnie dodać kolejny przedmiot.'
+              : 'Nie ma pilnych spraw.'}
+          </div>
         )}
       </div>
       <div className="start-overview-grid">
@@ -187,6 +193,9 @@ export function StartPage({
                 <Icon name="package" />
                 <strong>Kolekcja jest jeszcze pusta</strong>
                 <p>Dodaj pierwszy przedmiot, aby Boberit mógł pilnować jego dokumentów i terminów.</p>
+                <button className="primary" onClick={onAdd} type="button">
+                  Dodaj przedmiot
+                </button>
               </div>
             )}
           </div>
