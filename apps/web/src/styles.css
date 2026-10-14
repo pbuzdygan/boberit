@@ -72,7 +72,7 @@ main { min-height:100vh; margin-left:220px; } .topbar { position:sticky; top:0; 
   .plan-form-grid > label:first-child,.plan-form-grid .span-all { grid-column:auto; }
 }
 
-/* Kategorie, status i lokalizacja przedmiotów. */
+/* Item categories, status, and location. */
 .asset-table { overflow-x:auto; }
 .table-head,.asset-row { grid-template-columns:34px minmax(180px,2fr) minmax(125px,1fr) minmax(125px,1fr) minmax(125px,1fr) minmax(80px,1fr) minmax(105px,1fr) 24px; min-width:1040px; }
 .table-head { min-height:39px; align-items:start; padding-top:8px; padding-bottom:8px; }
@@ -460,7 +460,7 @@ main { min-height:100vh; margin-left:220px; } .topbar { position:sticky; top:0; 
   .account-settings-nav button { padding:0 6px; font-size:9px; }
 }
 
-/* Ustawienia gospodarstwa: ten sam układ nawigacyjny co konto. */
+/* Household settings: same navigation layout as the account. */
 .settings-layout { display:grid; grid-template-columns:205px minmax(0,645px); align-items:start; gap:14px; }
 .settings-nav { display:grid; gap:3px; padding:8px; border:1px solid var(--line); border-radius:9px; background:#fff; }
 .settings-nav p { margin:4px 8px; color:#7b8ca0; font-size:8px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
@@ -669,7 +669,10 @@ button.notification-row:hover { background:#f1f8ff; }
   .heading-metric { display:flex; padding:7px 8px; }
   .heading-metric strong { font-size:21px; }
   .heading-metric--storage strong { font-size:16px; }
-  .heading-metric--value strong { max-width:calc(100% - 55px); font-size:15px; }
+  /* Metrics move below the greeting; the value label wraps under the amount so the amount keeps the tile width. */
+  .start-heading { flex-direction:column; align-items:stretch; gap:14px; }
+  .heading-metric--value { flex-direction:column; align-items:flex-start; justify-content:center; gap:3px; }
+  .heading-metric--value strong { max-width:100%; font-size:17px; }
   .heading-metric span { font-size:8px; }
   .file-row { align-items:flex-start; flex-wrap:wrap; }
   .file-row > .file-delete { margin-left:33px; }
@@ -682,21 +685,21 @@ button.notification-row:hover { background:#f1f8ff; }
   .detail-layout { grid-template-columns:minmax(0,1fr); }
   .detail-aside { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
-/* Wspólny zapis danych przedmiotu i gwarancji. */
+/* Shared form for item and warranty data. */
 .save-asset-changes { width:auto; min-width:112px; color:#08386e; border-color:#cfe2f4; background:#f4f9ff; }
 .save-asset-changes:disabled { cursor:default; opacity:.55; }
 .save-asset-changes.is-pending,.save-changes-button.is-pending { animation:save-pending-pulse 2.4s ease-in-out infinite; }
 @keyframes save-pending-pulse { 0%,100% { border-color:#bcdcf7; box-shadow:0 0 0 0 rgba(0,104,232,0); } 50% { border-color:#79b9f8; box-shadow:0 0 0 4px rgba(0,104,232,.11); } }
 @media (prefers-reduced-motion: reduce) { .save-asset-changes.is-pending { animation:none; } }
 
-/* Układ szczegółów przedmiotu. */
+/* Item detail layout. */
 @media (min-width:681px) {
   .detail-main { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .detail-main > .panel:first-child { grid-column:1 / -1; }
   .detail-aside { grid-template-columns:1fr; }
 }
 
-/* Kompaktowe dane przedmiotu oraz formularz konserwacji dopasowany do połowy widoku. */
+/* Compact item data and a maintenance form sized to half of the view. */
 .asset-info-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
 .form-select-field { display:grid; min-width:0; gap:5px; color:#51677f; font-size:9px; font-weight:700; }
 .form-select-field.is-label-hidden { gap:0; }

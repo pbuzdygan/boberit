@@ -7,6 +7,7 @@ services:
       - "${APP_PORT:-3219}:3000"
     environment:
       APP_ENC_KEY: ${APP_ENC_KEY:?Set APP_ENC_KEY, ex. openssl rand -hex 32}
+      TZ: ${TZ:-UTC}
     volumes:
       - boberit-data:/data
     restart: unless-stopped

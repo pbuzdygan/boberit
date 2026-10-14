@@ -158,3 +158,5 @@ export interface ApiError {
   message: string;
   fields?: Record<string, string>;
 }
+
+export { daysUntil, localDate } from './dates.js';

@@ -19,6 +19,13 @@ Boberit is a self-hosted home archive for items and documents. It keeps purchase
 
 The interface is currently available in Polish; English is planned.
 
+## Preview
+
+<p align="center">
+  <img src="docs/images/start-desktop.png" alt="Start screen with deadlines and recent items on desktop" width="72%">
+  <img src="docs/images/start-mobile.png" alt="Start screen on a phone" width="24%">
+</p>
+
 ## Quick start
 
 Requirements: Docker with Compose.
@@ -35,6 +42,7 @@ Requirements: Docker with Compose.
          - "${APP_PORT:-3219}:3000"
        environment:
          APP_ENC_KEY: ${APP_ENC_KEY:?Set APP_ENC_KEY, ex. openssl rand -hex 32}
+         TZ: ${TZ:-UTC}
        volumes:
          - boberit-data:/data
        restart: unless-stopped

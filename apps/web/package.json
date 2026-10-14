@@ -6,6 +6,7 @@
   "scripts": {
     "build": "tsc -b && vite build",
     "check": "tsc -b --pretty false",
+    "test": "node --test tests/labels.test.mjs",
     "dev": "vite"
   },
   "dependencies": {

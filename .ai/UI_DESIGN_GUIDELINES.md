@@ -18,6 +18,17 @@ The goal is to create interfaces that are:
 
 The interface should follow contemporary web-design standards while avoiding short-lived visual gimmicks.
 
+## Contents
+
+Read only the sections relevant to the change; find one with `grep -n "^#* N\." .ai/UI_DESIGN_GUIDELINES.md`.
+
+- **Principles:** 1 Design philosophy · 27 Modern principles · 28 Avoid the "AI-generated" look · 29 Do not redesign without reason · 30 Function before style · 44 Age well · 48 Design decision rule · 50 Final design character
+- **Visual foundations:** 2 Hierarchy · 3 Layout · 4 Spacing · 5 Typography · 6 Color · 7 Surfaces and cards · 8 Borders, shadows, radius · 10 Icons · 23 Dark mode · 25 Visual consistency · 26 Design system
+- **Components and patterns:** 9 Buttons · 11 Navigation · 12 Forms · 13 Tables and dense data · 14 States · 15 Empty states · 16 Feedback · 19 Microinteractions · 20 Modals and dialogs · 21 Dashboards · 22 Search · 24 Content design
+- **Application structure:** 33 Web application vs marketing website · 34 Shell · 35 Information density · 36 Page header · 37 Sidebars · 38 Toolbars · 39 CRUD flows · 40 Detail pages · 41 Settings · 42 Admin interfaces · 43 Application vs product website
+- **Responsive and accessibility:** 17 Responsive design · 18 Accessibility · 45 Productive desktop · 46 Mobile experience · 47 Responsive priority
+- **Final checks:** 31 UI quality checklist · 32 Implementation rule · 49 Professionalism test
+
 ---
 
 ## 1. DESIGN PHILOSOPHY

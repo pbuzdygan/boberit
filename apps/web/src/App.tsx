@@ -1,7 +1,9 @@
 import { FormEvent, Fragment, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { AssetFileKind, AssetOption, AssetOptionKind, AssetSummary, BinderDocument, CreateBinderDocumentInput, DocumentType, InboxFile, CreateAssetInput, TrashEntry, TrashKind, IntervalUnit, ItemStatus, MaintenancePlan, MaintenanceRecord, ScheduleKind, WarrantyKind } from '@boberit/shared';
+import { daysUntil, localDate } from '@boberit/shared';
 import { api, setAccessToken } from './api';
+import { intervalLabel } from './labels';
 
 type IconName = 'home' | 'package' | 'search' | 'plus' | 'shield-check' | 'tool' | 'calendar-event' | 'arrow-left' | 'x' | 'receipt' | 'file-text' | 'dots' | 'bell' | 'trash' | 'list' | 'filter';
 const icon = (name: IconName) => `/icons/${name}.svg`;
@@ -15,7 +17,7 @@ function warrantyLabel(asset: AssetSummary): { text: string; state: 'good' | 'wa
   if (!warranty || warranty.kind === 'unknown') return { text: 'Brak danych', state: 'quiet' };
   if (warranty.kind === 'lifetime') return { text: 'Dożywotnia', state: 'good' };
   if (!warranty.expiresOn) return { text: 'Brak danych', state: 'quiet' };
-  const days = Math.ceil((new Date(`${warranty.expiresOn}T12:00:00`).valueOf() - Date.now()) / 86_400_000);
+  const days = daysUntil(warranty.expiresOn);
   if (days < 0) return { text: 'Po gwarancji', state: 'quiet' };
   if (days <= 30) return { text: `${days} dni`, state: 'warning' };
   return { text: `Do ${new Intl.DateTimeFormat('pl-PL', { year: 'numeric', month: 'short' }).format(new Date(`${warranty.expiresOn}T12:00:00`))}`, state: 'good' };
@@ -331,8 +333,8 @@ export function App() {
   }, []);
 
   const attention = useMemo(() => assets.filter((asset) => warrantyLabel(asset).state === 'warning').slice(0, 2), [assets]);
-  const reminders = useMemo(() => assets.flatMap((asset): ReminderEntry[] => { const warranty = asset.warranty; const warrantyEntry = warranty?.kind === 'fixed' && warranty.expiresOn ? [{ id: `warranty-${asset.id}`, dueOn: warranty.expiresOn, kind: 'warranty' as const, asset }] : []; const maintenanceEntries = (asset.maintenancePlans ?? []).filter((plan) => plan.status === 'active' && plan.nextDueOn && (!plan.lastCompletedOn || plan.nextDueOn <= new Date().toISOString().slice(0, 10))).map((plan) => ({ id: plan.id, dueOn: plan.nextDueOn!, kind: 'maintenance' as const, asset, plan })); return [...warrantyEntry, ...maintenanceEntries]; }).filter((entry) => daysFromToday(entry.dueOn) <= 30).sort((a, b) => a.dueOn.localeCompare(b.dueOn)), [assets]);
-  const todayReminders = useMemo(() => reminders.filter((entry) => daysFromToday(entry.dueOn) === 0), [reminders]);
+  const reminders = useMemo(() => assets.flatMap((asset): ReminderEntry[] => { const warranty = asset.warranty; const warrantyEntry = warranty?.kind === 'fixed' && warranty.expiresOn ? [{ id: `warranty-${asset.id}`, dueOn: warranty.expiresOn, kind: 'warranty' as const, asset }] : []; const maintenanceEntries = (asset.maintenancePlans ?? []).filter((plan) => plan.status === 'active' && plan.nextDueOn && (!plan.lastCompletedOn || plan.nextDueOn <= localDate())).map((plan) => ({ id: plan.id, dueOn: plan.nextDueOn!, kind: 'maintenance' as const, asset, plan })); return [...warrantyEntry, ...maintenanceEntries]; }).filter((entry) => daysUntil(entry.dueOn) <= 30).sort((a, b) => a.dueOn.localeCompare(b.dueOn)), [assets]);
+  const todayReminders = useMemo(() => reminders.filter((entry) => daysUntil(entry.dueOn) === 0), [reminders]);
   const hasUnreadToday = todayReminders.length > 0 && todayReadOn !== localDateKey();
   function markTodayRead() { const today = localDateKey(); setTodayReadOn(today); try { localStorage.setItem("boberit-today-notifications-read", today); } catch { /* Browser storage is optional. */ } }
   const collectionAssets = useMemo(() => assets.filter((asset) => filter === 'all' || (filter === 'warranty' && asset.warranty && asset.warranty.kind !== 'unknown') || (filter === 'draft' && asset.completeness !== 'complete')), [assets, filter]);
@@ -609,7 +611,7 @@ function SettingsPage() {
 
 function BackupSettings() {
   const [file, setFile] = useState<File | null>(null); const [confirmation, setConfirmation] = useState(""); const [busy, setBusy] = useState(false); const [message, setMessage] = useState<string | null>(null);
-  async function download() { try { const blob=await api.downloadBackup(); const url=URL.createObjectURL(blob); const link=document.createElement("a"); link.href=url; link.download="boberit-backup-" + new Date().toISOString().slice(0,10) + ".json"; link.click(); URL.revokeObjectURL(url); } catch(error) { setMessage(error instanceof Error?error.message:"Nie udało się pobrać backupu."); } }
+  async function download() { try { const blob=await api.downloadBackup(); const url=URL.createObjectURL(blob); const link=document.createElement("a"); link.href=url; link.download="boberit-backup-" + localDate() + ".json"; link.click(); URL.revokeObjectURL(url); } catch(error) { setMessage(error instanceof Error?error.message:"Nie udało się pobrać backupu."); } }
   async function restore() { if (!file || confirmation !== "ZASTĄP") return; setBusy(true); try { await api.importBackup(file); window.location.reload(); } catch (error) { setMessage(error instanceof Error ? error.message : "Nie udało się odtworzyć backupu."); } finally { setBusy(false); } }
   return <div className="settings-grid settings-grid--single"><section className="settings-card"><span><Icon name="file-text" /></span><div><p className="eyebrow">Backup</p><h2>Pakiet Boberit</h2><p>Pobierz dane i załączniki aktywnego gospodarstwa w jednym pliku JSON.</p><button className="primary" onClick={()=>void download()} type="button">Pobierz backup</button></div></section><section className="settings-card"><span><Icon name="package" /></span><div><p className="eyebrow">Odtwarzanie</p><h2>Przywróć pakiet</h2><p>Ta operacja zastąpi dane i pliki tylko aktywnego gospodarstwa. Najpierw pobierz aktualny backup.</p><label className="restore-file secondary">Wybierz backup<input accept="application/json,.json" onChange={(event) => setFile(event.currentTarget.files?.[0] ?? null)} type="file" /></label>{file && <label>Wpisz <b>ZASTĄP</b>, aby potwierdzić<input value={confirmation} onChange={(event) => setConfirmation(event.target.value)} /></label>}<button className="secondary danger-button" disabled={!file || confirmation !== "ZASTĄP" || busy} onClick={() => void restore()} type="button">{busy ? "Odtwarzanie…" : "Zastąp dane backupem"}</button>{message && <p className="form-error">{message}</p>}</div></section></div>;
 }
@@ -625,7 +627,7 @@ function StartPage({ assets, documentCount, storageBytes, purchaseValues, attent
       {!attention.length && !drafts.length && <div className="start-empty">Nie ma pilnych spraw. Możesz spokojnie dodać kolejny przedmiot.</div>}
     </div>
     <div className="start-overview-grid">
-    <section className="start-reminders"><div className="section-heading"><div><p className="eyebrow">Przypomnienia</p><h2>Wymagają uwagi <em>{reminders.length}</em></h2></div><button className="text-action" onClick={onTimeline} type="button">Wszystkie terminy →</button></div>{reminders.length ? <div className="reminder-list">{reminders.slice(0, 4).map((entry) => { const days = daysFromToday(entry.dueOn); const label = days < 0 ? `${Math.abs(days)} dni po terminie` : days === 0 ? 'Dzisiaj' : days === 1 ? 'Jutro' : `Za ${days} dni`; return <button className={days < 0 ? 'reminder-row overdue' : 'reminder-row'} key={`${entry.kind}-${entry.id}`} onClick={() => void onOpen(entry.asset.id)} type="button"><span className="reminder-icon"><Icon name={entry.kind === 'maintenance' ? 'tool' : 'shield-check'} /></span><span><strong>{entry.kind === 'maintenance' ? entry.plan?.title : 'Koniec gwarancji'} · {entry.asset.name}</strong><small>{entry.kind === 'maintenance' ? 'Konserwacja' : 'Gwarancja'} · {formatDate(entry.dueOn)}</small></span><b>{label}</b></button>; })}</div> : <div className="start-empty">Nie ma gwarancji ani konserwacji wymagających uwagi w ciągu 30 dni.</div>}</section>
+    <section className="start-reminders"><div className="section-heading"><div><p className="eyebrow">Przypomnienia</p><h2>Wymagają uwagi <em>{reminders.length}</em></h2></div><button className="text-action" onClick={onTimeline} type="button">Wszystkie terminy →</button></div>{reminders.length ? <div className="reminder-list">{reminders.slice(0, 4).map((entry) => { const days = daysUntil(entry.dueOn); const label = days < 0 ? `${Math.abs(days)} dni po terminie` : days === 0 ? 'Dzisiaj' : days === 1 ? 'Jutro' : `Za ${days} dni`; return <button className={days < 0 ? 'reminder-row overdue' : 'reminder-row'} key={`${entry.kind}-${entry.id}`} onClick={() => void onOpen(entry.asset.id)} type="button"><span className="reminder-icon"><Icon name={entry.kind === 'maintenance' ? 'tool' : 'shield-check'} /></span><span><strong>{entry.kind === 'maintenance' ? entry.plan?.title : 'Koniec gwarancji'} · {entry.asset.name}</strong><small>{entry.kind === 'maintenance' ? 'Konserwacja' : 'Gwarancja'} · {formatDate(entry.dueOn)}</small></span><b>{label}</b></button>; })}</div> : <div className="start-empty">Nie ma gwarancji ani konserwacji wymagających uwagi w ciągu 30 dni.</div>}</section>
     <section className="start-recent">
     <div className="section-heading"><div><p className="eyebrow">Kolekcja</p><h2>Ostatnio zapisane</h2></div><button className="text-action" type="button" onClick={onAllItems}>Wszystkie {assets.length} →</button></div>
     <div className="recent-list">{assets.slice(0, 5).map((asset) => <button className="recent-row" key={asset.id} type="button" onClick={() => void onOpen(asset.id)}><span className="asset-icon"><Icon name="package" /></span><span><strong>{asset.name}</strong><small>{[asset.manufacturer, asset.modelNumber].filter(Boolean).join(' · ') || 'Szkic — uzupełnij dane'}</small></span><span className={`warranty ${warrantyLabel(asset).state}`}><b />{warrantyLabel(asset).text}</span></button>)}{assets.length === 0 && <div className="empty"><Icon name="package" /><strong>Kolekcja jest jeszcze pusta</strong><p>Dodaj pierwszy przedmiot, aby Boberit mógł pilnować jego dokumentów i terminów.</p></div>}</div></section>
@@ -724,30 +726,21 @@ function TrashPage({ entries, onRestore, onEmpty }: { entries: TrashEntry[]; onR
 
 type TimelineEntry = ReminderEntry;
 
-function daysFromToday(value: string): number {
-  const start = new Date(); start.setHours(0, 0, 0, 0);
-  return Math.round((new Date(`${value}T12:00:00`).valueOf() - start.valueOf()) / 86_400_000);
-}
-function intervalLabel(plan: MaintenancePlan): string {
-  if (plan.scheduleKind === 'one_off') return 'Jednorazowo';
-  const names: Record<NonNullable<MaintenancePlan['intervalUnit']>, string> = { days: 'dni', weeks: 'tygodnie', months: 'miesiące', years: 'lata' };
-  return `Co ${plan.intervalValue} ${plan.intervalUnit ? names[plan.intervalUnit] : ''}`;
-}
 function TimelinePage({ assets, filter, onFilter, onOpen, onComplete }: { assets: AssetSummary[]; filter: TimelineFilter; onFilter: (filter: TimelineFilter) => void; onOpen: (id: string) => Promise<void>; onComplete: (plan: MaintenancePlan) => void }) {
   const entries = useMemo(() => assets.flatMap((asset): TimelineEntry[] => {
     const warranty = asset.warranty;
     const warrantyEntry = warranty?.kind === 'fixed' && warranty.expiresOn ? [{ id: `warranty-${asset.id}`, dueOn: warranty.expiresOn, kind: 'warranty' as const, asset }] : [];
-    const maintenanceEntries = (asset.maintenancePlans ?? []).filter((plan) => plan.status === 'active' && plan.nextDueOn && (!plan.lastCompletedOn || plan.nextDueOn <= new Date().toISOString().slice(0, 10))).map((plan) => ({ id: plan.id, dueOn: plan.nextDueOn!, kind: 'maintenance' as const, asset, plan }));
+    const maintenanceEntries = (asset.maintenancePlans ?? []).filter((plan) => plan.status === 'active' && plan.nextDueOn && (!plan.lastCompletedOn || plan.nextDueOn <= localDate())).map((plan) => ({ id: plan.id, dueOn: plan.nextDueOn!, kind: 'maintenance' as const, asset, plan }));
     return [...warrantyEntry, ...maintenanceEntries];
   }).sort((a, b) => a.dueOn.localeCompare(b.dueOn)), [assets]);
   const visible = entries.filter((entry) => filter === 'all' || entry.kind === filter);
-  const overdue = visible.filter((entry) => daysFromToday(entry.dueOn) < 0).length;
-  const soon = visible.filter((entry) => { const days = daysFromToday(entry.dueOn); return days >= 0 && days <= 30; }).length;
+  const overdue = visible.filter((entry) => daysUntil(entry.dueOn) < 0).length;
+  const soon = visible.filter((entry) => { const days = daysUntil(entry.dueOn); return days >= 0 && days <= 30; }).length;
   const later = visible.length - overdue - soon;
   const groups: { key: 'overdue' | 'soon' | 'later'; label: string; entries: TimelineEntry[] }[] = [
-    { key: 'overdue', label: 'Zaległe', entries: visible.filter((entry) => daysFromToday(entry.dueOn) < 0) },
-    { key: 'soon', label: 'Najbliższe 30 dni', entries: visible.filter((entry) => { const days = daysFromToday(entry.dueOn); return days >= 0 && days <= 30; }) },
-    { key: 'later', label: 'Później', entries: visible.filter((entry) => daysFromToday(entry.dueOn) > 30) },
+    { key: 'overdue', label: 'Zaległe', entries: visible.filter((entry) => daysUntil(entry.dueOn) < 0) },
+    { key: 'soon', label: 'Najbliższe 30 dni', entries: visible.filter((entry) => { const days = daysUntil(entry.dueOn); return days >= 0 && days <= 30; }) },
+    { key: 'later', label: 'Później', entries: visible.filter((entry) => daysUntil(entry.dueOn) > 30) },
   ];
   return <>
     <div className="page-heading"><div><p className="eyebrow">Planowanie domu</p><h1>Terminy</h1><p>Gwarancje i konserwacje w jednym, uporządkowanym miejscu.</p></div></div>
@@ -755,7 +748,7 @@ function TimelinePage({ assets, filter, onFilter, onOpen, onComplete }: { assets
     <div className="collection-heading timeline-toolbar"><div><h2>Nadchodzące terminy <em>{visible.length}</em></h2><p>Oznaczenie konserwacji jako wykonanej od razu wyliczy jej kolejny termin.</p></div><div className="filters"><button className={`filter ${filter === 'all' ? 'active' : ''}`} type="button" onClick={() => onFilter('all')}>Wszystkie</button><button className={`filter ${filter === 'maintenance' ? 'active' : ''}`} type="button" onClick={() => onFilter('maintenance')}>Konserwacja</button><button className={`filter ${filter === 'warranty' ? 'active' : ''}`} type="button" onClick={() => onFilter('warranty')}>Gwarancje</button></div></div>
     {visible.length > 0 ? <div className="timeline-groups">{groups.filter((group) => group.entries.length > 0).map((group) => <section className={`timeline-group ${group.key}`} key={group.key} aria-labelledby={`timeline-group-${group.key}`}>
       <div className="timeline-group-heading"><span aria-hidden="true" /><strong id={`timeline-group-${group.key}`}>{group.label}</strong><small>{group.entries.length}</small></div>
-      <div className="timeline-list">{group.entries.map((entry) => { const days = daysFromToday(entry.dueOn); const label = days < 0 ? `${Math.abs(days)} dni po terminie` : days === 0 ? 'Dzisiaj' : days === 1 ? 'Jutro' : `Za ${days} dni`; return <article className={`timeline-row ${days < 0 ? 'overdue' : days <= 30 ? 'soon' : ''}`} key={entry.id}><div className="date-tile"><strong>{new Date(`${entry.dueOn}T12:00:00`).getDate()}</strong><span>{new Intl.DateTimeFormat('pl-PL', { month: 'short' }).format(new Date(`${entry.dueOn}T12:00:00`))}</span></div><span className="timeline-icon"><Icon name={entry.kind === 'maintenance' ? 'tool' : 'shield-check'} /></span><div className="timeline-copy"><small>{entry.kind === 'maintenance' ? `Konserwacja · ${entry.plan ? intervalLabel(entry.plan) : ''}` : 'Gwarancja producenta'}</small><strong>{entry.kind === 'maintenance' ? entry.plan?.title : 'Koniec gwarancji'} · {entry.asset.name}</strong><p>{label}</p></div>{entry.kind === 'maintenance' && entry.plan ? <button className="secondary" type="button" onClick={() => onComplete(entry.plan!)}>Wykonane</button> : <button className="text-action" type="button" onClick={() => void onOpen(entry.asset.id)}>Sprawdź</button>}</article>; })}</div>
+      <div className="timeline-list">{group.entries.map((entry) => { const days = daysUntil(entry.dueOn); const label = days < 0 ? `${Math.abs(days)} dni po terminie` : days === 0 ? 'Dzisiaj' : days === 1 ? 'Jutro' : `Za ${days} dni`; return <article className={`timeline-row ${days < 0 ? 'overdue' : days <= 30 ? 'soon' : ''}`} key={entry.id}><div className="date-tile"><strong>{new Date(`${entry.dueOn}T12:00:00`).getDate()}</strong><span>{new Intl.DateTimeFormat('pl-PL', { month: 'short' }).format(new Date(`${entry.dueOn}T12:00:00`))}</span></div><span className="timeline-icon"><Icon name={entry.kind === 'maintenance' ? 'tool' : 'shield-check'} /></span><div className="timeline-copy"><small>{entry.kind === 'maintenance' ? `Konserwacja · ${entry.plan ? intervalLabel(entry.plan) : ''}` : 'Gwarancja producenta'}</small><strong>{entry.kind === 'maintenance' ? entry.plan?.title : 'Koniec gwarancji'} · {entry.asset.name}</strong><p>{label}</p></div>{entry.kind === 'maintenance' && entry.plan ? <button className="secondary" type="button" onClick={() => onComplete(entry.plan!)}>Wykonane</button> : <button className="text-action" type="button" onClick={() => void onOpen(entry.asset.id)}>Sprawdź</button>}</article>; })}</div>
     </section>)}</div> : <div className="timeline-empty"><div className="empty"><Icon name="calendar-event" /><strong>Brak terminów w tym widoku</strong><p>Dodaj gwarancję lub plan konserwacji do wybranego przedmiotu.</p></div></div>}
   </>;
 }
@@ -809,7 +802,7 @@ function AssetRow({ asset, onOpen }: { asset: AssetSummary; onOpen: (id: string)
 }
 
 function CompletionDialog({ plan, onClose, onSave }: { plan: MaintenancePlan; onClose: () => void; onSave: (input: { performedOn?: string; notes?: string }) => void }) {
-  const [performedOn, setPerformedOn] = useState(new Date().toISOString().slice(0, 10)); const [notes, setNotes] = useState('');
+  const [performedOn, setPerformedOn] = useState(() => localDate()); const [notes, setNotes] = useState('');
   return <div className="dialog-backdrop" role="presentation"><form className="dialog completion-dialog" onSubmit={(event) => { event.preventDefault(); onSave(notes.trim() ? { performedOn, notes: notes.trim() } : { performedOn }); }}><header><div><p className="eyebrow">Konserwacja</p><h2>Oznacz jako wykonane</h2></div><button type="button" className="icon-button" onClick={onClose}><Icon name="x" label="Zamknij" /></button></header><p className="dialog-intro">Zapis trafi do historii czynności dla „{plan.title}”.</p><label>Data wykonania<input value={performedOn} onChange={(event) => setPerformedOn(event.target.value)} required type="date" /></label><label>Notatka <small>opcjonalnie</small><textarea value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="np. użyty filtr, koszt lub dodatkowa informacja" rows={3} /></label><footer><button className="secondary" type="button" onClick={onClose}>Anuluj</button><button className="primary" type="submit">Zapisz wykonanie</button></footer></form></div>;
 }
 

@@ -10,6 +10,7 @@
 
 - Precedence: code is authoritative for implemented behavior; the blueprint describes intended direction and is read only for product-scope work. Accepted decisions live in [.ai/decisions/](decisions/).
 - Language: code, comments, and documentation in English. The UI is currently Polish only; English UI with a language switch is planned, so keep user-facing strings easy to extract.
+- Node.js: `.nvmrc` pins major 26 to match the Dockerfile; on the dev VM nvm switches automatically (`nvm use` if not). Other projects keep the system Node.
 - `compose.yaml` is the public example for users (prebuilt GHCR image); local builds after code changes use the ignored `compose_local_dev.yaml`.
 - Release channels: release `X.Y.Z` targeting `main` publishes `latest`; prerelease `devX.Y.Z` targeting `dev` publishes `dev_latest`. The workflow file must also exist on `main`.
 - Changelog: add entries only when asked; the user specifies the target version.

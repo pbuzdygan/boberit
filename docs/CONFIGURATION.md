@@ -6,9 +6,14 @@
 |---|---|---|---|
 | `APP_ENC_KEY` | yes | — | 64 hex characters (`openssl rand -hex 32`). Encrypts webhook secrets with AES-256-GCM and keys session token hashes. |
 | `APP_PORT` | no | `3219` | Host port published by `compose.yaml`. The container listens on `3000`. |
+| `TZ` | no | `UTC` | Server time zone as an IANA name, e.g. `Europe/Warsaw`. Sets the server's notion of "today" for date-only values (see below). |
 | `PUID` / `PGID` | no | `1000` | User and group the container runs as; set them to the owner of a bind-mounted data directory. |
 
 Keep `APP_ENC_KEY` in an environment variable or in the Git-ignored `.env` file; Compose refuses to start without it. Keep a secure copy of the key separately from Boberit backups: backups do not contain it, and losing or changing it makes stored webhook secrets undecryptable (webhooks with a secret must then be saved again) and invalidates all active sessions.
+
+## Time zone
+
+Dates such as purchase dates, warranty expiry, and maintenance due dates are calendar dates without a time. The web app shows deadlines ("today", "in 6 days") using the browser's time zone. The server uses `TZ` only where it has to decide what "today" is on its own, currently the completion date of a maintenance task when the client sends none. Set `TZ` to the household's zone (for example `TZ=Europe/Warsaw` in `.env`) so that server-side dates match what users see; the default `UTC` can be a day off around midnight. Timestamps such as creation times are always stored in UTC.
 
 ## Data layout
 
