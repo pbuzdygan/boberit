@@ -17,8 +17,8 @@ import { ProvisionalFileKind, AddAssetFileControl } from '../components/AddAsset
 import { FormSelect } from '../components/FormSelect';
 import { Icon } from '../components/Icon';
 import { MaintenancePlanDialog } from '../components/MaintenancePlanDialog';
-import { formatDate, addYearsToDate } from '../format';
-import { warrantyLabel, itemStatusMeta, fileKindLabels } from '../labels';
+import { formatDate, addYearsToDate, fileSize } from '../format';
+import { warrantyLabel, itemStatusMeta, fileKindLabels, intervalLabel } from '../labels';
 
 export function Detail({
   asset,
@@ -315,7 +315,7 @@ export function Detail({
                       <strong>{file.originalName}</strong>
                       {/* One line keeps a single text node; a formatter break would emit {' '} instead. */}
                       {/* prettier-ignore */}
-                      <small>{file.kindLocked ? fileKindLabels[file.kind] : 'Typ do określenia'} · {(file.byteSize / 1024 / 1024).toFixed(1)} MB</small>
+                      <small>{file.kindLocked ? fileKindLabels[file.kind] : 'Typ do określenia'} · {fileSize(file.byteSize)}</small>
                     </button>
                     {!file.kindLocked && (
                       <ProvisionalFileKind assetId={asset.id} fileId={file.id} onSave={onClassifyFile} />
@@ -366,7 +366,7 @@ export function Detail({
                       <small>
                         {plan.status === 'completed'
                           ? 'Czynność zakończona'
-                          : `${plan.scheduleKind === 'recurring' ? `Co ${plan.intervalValue} ${plan.intervalUnit} · ` : ''}następny termin: ${formatDate(plan.nextDueOn)}`}
+                          : `${plan.scheduleKind === 'recurring' ? `${intervalLabel(plan)} · ` : ''}następny termin: ${formatDate(plan.nextDueOn)}`}
                       </small>
                     </div>
                     <div className="plan-actions">

@@ -23,7 +23,9 @@ export async function previewAttachment(id: string, name: string): Promise<void>
       target?.close();
       return await downloadAttachment(id, name);
     }
-    const url = URL.createObjectURL(new Blob([response], { type }));
+    // Without a charset the browser decodes text as Windows-1252, which garbles Polish characters.
+    const blobType = type === 'text/plain' ? 'text/plain;charset=utf-8' : type;
+    const url = URL.createObjectURL(new Blob([response], { type: blobType }));
     if (target) target.location.href = url;
     else window.open(url, '_blank', 'noopener');
     window.setTimeout(() => URL.revokeObjectURL(url), 60_000);

@@ -4,7 +4,19 @@ Changes are described from the user's perspective, without implementation detail
 
 ## 0.1.2
 
+### Security
+
+- Only a household owner can download a backup, restore data, or permanently empty the trash. Downloading and restoring a backup ask for the owner's current password and are recorded in the household history; API clients must now request the backup with `POST` and the password.
+- Restoring a backup checks the whole package first and changes only the household being restored. If anything fails, the household keeps its current data and files.
+- Restored attachments accept the same file types as uploads. Only images, PDFs, and plain text open as a preview; other files are downloaded.
+- After repeated failed sign-ins, further attempts for that login pause for 15 minutes; other users can still sign in.
+- Oversized requests are rejected before they are processed.
+- Webhooks are sent only to public internet addresses, without following redirects and with a 10-second timeout. A service in the local network can be allowed with `WEBHOOK_ALLOW_PRIVATE_NETWORKS=true`.
+
 ### Bug fixes
+
+- Previewing an attachment no longer opens an extra blank tab, and text files show Polish characters correctly.
+- Small attachments in item details show their size in KB instead of "0.0 MB".
 
 - Deadlines show the correct number of days: a task due today is labeled "Today" instead of "Tomorrow", and the warranty banner and deadline lists always agree.
 - Dates around midnight follow the local calendar day, including the default completion date of a maintenance task.
