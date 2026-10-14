@@ -10,6 +10,7 @@ Shared by coding agents. Correctness and security outrank speed and token saving
 - Read `.ai/STATE.md` only to resume unfinished work, if present. Read linked plans and decisions only when needed.
 - For root README creation or restructuring, read `.ai/README_GUIDE.md`.
 - For changes to trust boundaries or security controls, locate and read the relevant sections of `.ai/SECURITY.md`. Ordinary layout, copy, or internal refactoring does not require the whole baseline unless it affects security.
+- For user interface design or visual changes, locate and read the relevant sections of `.ai/UI_DESIGN_GUIDELINES.md`. Backend, copy-only, or non-visual changes do not require it.
 
 ## Work and verification
 

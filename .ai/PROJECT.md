@@ -1,22 +1,16 @@
 # Project Profile
 
-Fill the three required fields from inspected evidence before active use. State unknowns honestly. Keep only project facts that are not reliably discoverable from code, manifests, CI, or existing documentation; link to those sources instead of copying them.
-
 ## Required
 
-- Goal and scope: {{PROJECT_GOAL_AND_SCOPE}}
-- Required verification: {{CHECK_COMMANDS_OR_LINK_TO_CANONICAL_SOURCE}}
-- Protected resources and unsafe commands: {{PROTECTED_RESOURCES_OR_NONE_CONFIRMED}}
+- Goal and scope: Boberit is a self-hosted home archive for items and documents (purchase data, warranties, maintenance, attachments, local OCR, households) delivered as a responsive PWA in a single Docker container. Product direction: [docs/PRODUCT_BLUEPRINT.md](../docs/PRODUCT_BLUEPRINT.md); implemented behavior: code, [README.md](../README.md), and [CHANGELOG.md](../CHANGELOG.md).
+- Required verification: from the repository root run `npm run build`, `npm run check`, and `npm test` (on a clean checkout the web type check needs the `@boberit/shared` build output, so build first). For container changes also build the image (`docker compose -f compose_local_dev.yaml build`). Release images are built only by [.github/workflows/release.yml](../.github/workflows/release.yml) after a published GitHub Release.
+- Protected resources and unsafe commands: never print, change, or commit `APP_ENC_KEY` or `.env*` files; changing the key makes stored webhook secrets undecryptable. The local test instance (`compose_local_dev.yaml`, ignored) binds real test data at `/srv/docker/boberit_test/data`; do not delete it, run `docker compose down -v`, or restore backups over it without explicit approval. Do not publish GitHub Releases or push images without explicit approval.
 
-## Optional project constraints
+## Project constraints
 
-Delete unused guidance. Add a short bullet only when it changes how an agent should work:
-
-- Authoritative specification or architectural decision; precedence if sources conflict.
-- Non-obvious entry point, contract, invariant, or excluded legacy material.
-- Command working directory, missing setup step, or resource limit.
-- Repository and conversation language when not clear from context.
-- Branch, commit, release, dependency approval, or deployment policy differing from the shared defaults.
-- Environment or data boundary that cannot be inferred safely.
-
-Do not create an inventory of the stack, directories, or every available command. Keep detailed instructions in their existing source of truth.
+- Precedence: code is authoritative for implemented behavior; the blueprint describes intended direction and is read only for product-scope work. Accepted decisions live in [.ai/decisions/](decisions/).
+- Language: code, comments, and documentation in English. The UI is currently Polish only; English UI with a language switch is planned, so keep user-facing strings easy to extract.
+- `compose.yaml` is the public example for users (prebuilt GHCR image); local builds after code changes use the ignored `compose_local_dev.yaml`.
+- Release channels: release `X.Y.Z` targeting `main` publishes `latest`; prerelease `devX.Y.Z` targeting `dev` publishes `dev_latest`. The workflow file must also exist on `main`.
+- Changelog: add entries only when asked; the user specifies the target version.
+- UI colors: [docs/COLOR_SYSTEM.md](../docs/COLOR_SYSTEM.md), implemented as CSS variables in `apps/web/src/styles.css`.

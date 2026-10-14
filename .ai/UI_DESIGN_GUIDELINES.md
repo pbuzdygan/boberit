@@ -1292,204 +1292,7 @@ over visual storytelling.
 
 ---
 
-# 43. MARKETING WEBSITES
-
-Marketing websites have different priorities.
-
-Primary goals may include:
-
-- explaining the product
-- communicating value
-- establishing trust
-- showing differentiation
-- presenting features
-- encouraging signup/download/contact
-- presenting brand identity
-
-Marketing pages may use more expressive visual design than application interfaces.
-
-They may include:
-
-hero sections  
-illustrations  
-product screenshots  
-feature sections  
-testimonials  
-comparisons  
-social proof  
-pricing  
-FAQ  
-calls to action
-
-But the design should still remain restrained and professional.
-
----
-
-# 44. MARKETING PAGE HIERARCHY
-
-A typical marketing homepage may follow:
-
-Hero  
-Value proposition  
-Product preview  
-Key benefits  
-Features  
-Use cases  
-Proof / trust  
-CTA  
-Footer
-
-Not every project requires every section.
-
-Only include sections that contribute useful information.
-
-Avoid making pages long simply because modern landing pages are often long.
-
----
-
-# 45. HERO SECTIONS
-
-Hero sections should communicate:
-
-what the product is  
-who it is for  
-why it matters  
-what the visitor should do next
-
-A strong hero usually contains:
-
-headline  
-short supporting statement  
-primary CTA  
-optional secondary CTA  
-visual representation of the product
-
-Avoid vague slogans that do not explain the product.
-
-Bad:
-
-"Transform your digital future."
-
-Better:
-
-"Lightweight self-hosted documentation for teams that want clarity without enterprise bloat."
-
----
-
-# 46. PRODUCT SCREENSHOTS
-
-For software products, showing the product itself is often more valuable than decorative illustrations.
-
-Prefer authentic interface previews.
-
-Screenshots should:
-
-- demonstrate real workflows
-- use realistic content
-- match the actual application
-- be visually legible
-- avoid fake functionality
-
-Do not create misleading product previews.
-
----
-
-# 47. MARKETING CTA HIERARCHY
-
-Marketing pages should have a clear primary conversion action.
-
-Examples:
-
-Get started  
-Try demo  
-Download  
-View documentation  
-Contact sales
-
-Do not display several equally strong CTA buttons next to one another.
-
-Choose one primary conversion path.
-
-Secondary actions should remain visually subordinate.
-
----
-
-# 48. BRAND EXPRESSION
-
-Marketing surfaces may use stronger brand identity than application surfaces.
-
-This may include:
-
-- brand typography
-- distinctive illustration
-- accent colors
-- product graphics
-- subtle gradients
-- photography
-- motion
-
-However branding must not reduce readability.
-
-The application itself should usually be visually calmer than its marketing website.
-
----
-
-# 49. LANDING PAGE VISUAL RHYTHM
-
-Alternate content density to create rhythm.
-
-For example:
-
-strong hero  
-focused section  
-product preview  
-short feature grid  
-large visual section  
-compact CTA
-
-Avoid repeating identical:
-
-three-card sections
-
-throughout the entire page.
-
-The page should feel composed rather than generated from reusable templates.
-
----
-
-# 50. MARKETING COPY
-
-Marketing copy should be:
-
-specific  
-concise  
-benefit-oriented  
-credible
-
-Avoid excessive buzzwords.
-
-Avoid:
-
-revolutionary  
-game-changing  
-next-generation  
-cutting-edge
-
-unless there is meaningful evidence supporting those claims.
-
-Explain concrete benefits.
-
-Instead of:
-
-"Powerful document management."
-
-Prefer:
-
-"Organize technical documentation, notes and procedures in one lightweight workspace."
-
----
-
-# 51. PRODUCT APPLICATION VS PRODUCT WEBSITE
+# 43. PRODUCT APPLICATION VS PRODUCT WEBSITE
 
 A software product may have two distinct visual systems.
 
@@ -1523,7 +1326,7 @@ Do not copy landing-page patterns directly into the application UI.
 
 ---
 
-# 52. APPLICATION UI SHOULD AGE WELL
+# 44. APPLICATION UI SHOULD AGE WELL
 
 Avoid design decisions based entirely on temporary trends.
 
@@ -1542,7 +1345,7 @@ The application should still look professional several years after release.
 
 ---
 
-# 53. PRODUCTIVE DESKTOP EXPERIENCE
+# 45. PRODUCTIVE DESKTOP EXPERIENCE
 
 For applications primarily used on desktop:
 
@@ -1562,7 +1365,7 @@ Do not force mobile-style single-column layouts onto desktop users.
 
 ---
 
-# 54. MOBILE APPLICATION EXPERIENCE
+# 46. MOBILE APPLICATION EXPERIENCE
 
 On mobile, prioritize the most important tasks.
 
@@ -1586,7 +1389,7 @@ Provide alternative representations when needed.
 
 ---
 
-# 55. RESPONSIVE PRIORITY
+# 47. RESPONSIVE PRIORITY
 
 Responsive design should answer:
 
@@ -1604,7 +1407,7 @@ Do not simply scale every desktop component down.
 
 ---
 
-# 56. DESIGN DECISION RULE
+# 48. DESIGN DECISION RULE
 
 Whenever deciding between two UI approaches, ask:
 
@@ -1622,7 +1425,7 @@ Prefer that approach.
 
 ---
 
-# 57. PROFESSIONALISM TEST
+# 49. PROFESSIONALISM TEST
 
 The interface should look appropriate for a real production product used by paying customers or professionals.
 
@@ -1638,7 +1441,7 @@ Every major visual decision should appear intentional.
 
 ---
 
-# 58. FINAL DESIGN CHARACTER
+# 50. FINAL DESIGN CHARACTER
 
 The desired overall impression is:
 
