@@ -1,5 +1,6 @@
 import type { BinderDocument, CreateBinderDocumentInput } from '@boberit/shared';
-import { FormEvent, useState } from 'react';
+import { FormEvent, useId, useState } from 'react';
+import { useDialog } from '../hooks/useDialog';
 import { useDocumentTypes } from '../hooks/useDocumentTypes';
 import { FormSelect } from './FormSelect';
 import { Icon } from './Icon';
@@ -29,6 +30,8 @@ export function DocumentEditDialog({
     typeId !== (document.typeId ?? '') ||
     JSON.stringify(formTags) !== JSON.stringify(document.tags) ||
     notes.trim() !== (document.notes ?? '');
+  const dialog = useDialog<HTMLFormElement>(onClose);
+  const titleId = useId();
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (!hasChanges) return;
@@ -45,11 +48,18 @@ export function DocumentEditDialog({
   }
   return (
     <div className="dialog-backdrop" role="presentation">
-      <form className="dialog document-edit-dialog" onSubmit={submit}>
+      <form
+        {...dialog}
+        aria-labelledby={titleId}
+        aria-modal="true"
+        role="dialog"
+        className="dialog document-edit-dialog"
+        onSubmit={submit}
+      >
         <header>
           <div>
             <p className="eyebrow">Dokument</p>
-            <h2>Edytuj dane</h2>
+            <h2 id={titleId}>Edytuj dane</h2>
           </div>
           <button className="icon-button" onClick={onClose} type="button">
             <Icon label="Zamknij" name="x" />

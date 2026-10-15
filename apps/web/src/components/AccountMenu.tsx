@@ -29,8 +29,15 @@ export function AccountMenu({
     function closeOnOutsideClick(event: MouseEvent) {
       if (!menuRef.current?.contains(event.target as Node)) setOpen(false);
     }
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') setOpen(false);
+    }
     window.document.addEventListener('mousedown', closeOnOutsideClick);
-    return () => window.document.removeEventListener('mousedown', closeOnOutsideClick);
+    window.document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      window.document.removeEventListener('mousedown', closeOnOutsideClick);
+      window.document.removeEventListener('keydown', closeOnEscape);
+    };
   }, [open]);
   function choose(section: AccountSection) {
     onSelect(section);

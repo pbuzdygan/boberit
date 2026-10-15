@@ -199,14 +199,11 @@ function InboxRow({
           </div>
         ) : (
           <div className="inbox-document-fields">
-            <input
-              aria-label="Nazwa dokumentu"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="Nazwa dokumentu"
-            />
+            <label>
+              Nazwa dokumentu
+              <input value={name} onChange={(event) => setName(event.target.value)} />
+            </label>
             <FormSelect
-              hideLabel
               label="Typ dokumentu"
               value={typeId}
               onChange={setTypeId}
@@ -215,18 +212,18 @@ function InboxRow({
                 ...documentTypes.map((type) => ({ value: type.id, label: type.name })),
               ]}
             />
-            <input
-              aria-label="Tagi"
-              value={tags}
-              onChange={(event) => setTags(event.target.value)}
-              placeholder="Tagi, po przecinku"
-            />
-            <input
-              aria-label="Notatka"
-              value={notes}
-              onChange={(event) => setNotes(event.target.value)}
-              placeholder="Notatka"
-            />
+            <label>
+              <span>
+                Tagi <small>oddziel przecinkami</small>
+              </span>
+              <input value={tags} onChange={(event) => setTags(event.target.value)} />
+            </label>
+            <label>
+              <span>
+                Notatka <small>opcjonalnie</small>
+              </span>
+              <input value={notes} onChange={(event) => setNotes(event.target.value)} />
+            </label>
             <button className="secondary" disabled={!name.trim() || busy} onClick={() => void submit()} type="button">
               {busy ? 'Zapisywanie…' : 'Dodaj do Dokumentów'}
             </button>

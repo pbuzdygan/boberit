@@ -22,8 +22,15 @@ export function NotificationsMenu({
     const closeOnOutside = (event: MouseEvent) => {
       if (!menuRef.current?.contains(event.target as Node)) setOpen(false);
     };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
     window.document.addEventListener('mousedown', closeOnOutside);
-    return () => window.document.removeEventListener('mousedown', closeOnOutside);
+    window.document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      window.document.removeEventListener('mousedown', closeOnOutside);
+      window.document.removeEventListener('keydown', closeOnEscape);
+    };
   }, [open]);
   function toggle() {
     const next = !open;

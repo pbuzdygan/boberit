@@ -307,12 +307,26 @@ export function App() {
             trashCount={trashEntries.length}
           />
         )}
-        {toast && (
-          <button className={`toast toast--${toast.tone}`} onClick={() => setMessage(null)} type="button">
-            <span>{toast.message}</span>
-            <Icon name="x" />
-          </button>
-        )}
+        {/* Live regions exist before a message appears, so screen readers announce it; errors interrupt. */}
+        {(['info', 'error'] as const).map((tone) => (
+          <div
+            aria-live={tone === 'error' ? 'assertive' : 'polite'}
+            key={tone}
+            role={tone === 'error' ? 'alert' : 'status'}
+          >
+            {toast?.tone === tone && (
+              <button
+                aria-label={`${toast.message} Zamknij powiadomienie.`}
+                className={`toast toast--${tone}`}
+                onClick={() => setMessage(null)}
+                type="button"
+              >
+                <span>{toast.message}</span>
+                <Icon name="x" />
+              </button>
+            )}
+          </div>
+        ))}
       </div>
     </ReportErrorContext.Provider>
   );

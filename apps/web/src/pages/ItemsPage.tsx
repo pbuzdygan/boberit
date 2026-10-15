@@ -31,11 +31,16 @@ export function AssetColumnHeader({
       if (!controlRef.current?.contains(target) && !menuRef.current?.contains(target)) setMenuPosition(null);
     };
     const closeOnMove = () => setMenuPosition(null);
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuPosition(null);
+    };
     window.document.addEventListener('mousedown', close);
+    window.document.addEventListener('keydown', closeOnEscape);
     window.addEventListener('resize', closeOnMove);
     window.addEventListener('scroll', closeOnMove, true);
     return () => {
       window.document.removeEventListener('mousedown', close);
+      window.document.removeEventListener('keydown', closeOnEscape);
       window.removeEventListener('resize', closeOnMove);
       window.removeEventListener('scroll', closeOnMove, true);
     };

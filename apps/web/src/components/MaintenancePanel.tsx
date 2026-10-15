@@ -183,7 +183,9 @@ export function MaintenancePanel({
             </>
           )}
           <label className="span-all">
-            Notatka <small>opcjonalnie</small>
+            <span>
+              Notatka <small>opcjonalnie</small>
+            </span>
             <input
               value={planNotes}
               onChange={(e) => setPlanNotes(e.target.value)}

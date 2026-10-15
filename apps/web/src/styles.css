@@ -238,6 +238,15 @@ kbd {
   color: #0064dc;
   background: none;
 }
+/* Disabled actions keep their outline and a readable label instead of fading into the background. */
+.secondary:disabled,
+.icon-button:disabled {
+  color: #7b8da2;
+  border-color: #d8e2ed;
+  background: #f1f5f9;
+  box-shadow: none;
+  opacity: 1;
+}
 .content {
   max-width: 1460px;
   padding: 28px clamp(20px, 3vw, 42px) 64px;
@@ -1915,10 +1924,8 @@ textarea {
 
 /* Inbox: capture first, classify later. */
 .inbox-upload {
+  position: relative;
   cursor: pointer;
-}
-.inbox-upload input {
-  display: none;
 }
 .inbox-guide {
   display: flex;
@@ -2802,24 +2809,47 @@ textarea {
 .settings-card > div {
   min-width: 0;
 }
-.settings-card > div > input,
-.settings-card > div > .settings-inline-select {
+.settings-card > div > input {
   margin-top: 7px;
 }
-/* Backup file picker: the native input stays focusable but invisible, and the label acts as the button. */
+/* Labeled fields inside a settings card; one column on phones. */
+.settings-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 10px 0 12px;
+}
+.settings-form input {
+  margin: 0;
+}
+@media (max-width: 680px) {
+  .settings-form {
+    grid-template-columns: 1fr;
+  }
+}
+/* File pickers: the native input stays focusable but invisible, and its label acts as the button. */
 .restore-file {
   position: relative;
+  display: flex;
   width: max-content;
+  margin-bottom: 10px;
   cursor: pointer;
 }
-.restore-file input {
+.settings-card > div > label + .primary {
+  margin-top: 10px;
+}
+.restore-file input,
+.inbox-upload input,
+.document-action-upload input {
   position: absolute;
   width: 1px;
   height: 1px;
   opacity: 0;
   pointer-events: none;
 }
-.restore-file:focus-within {
+.restore-file:has(input:focus-visible),
+.inbox-upload:has(input:focus-visible),
+.document-action-upload:has(input:focus-visible) {
   outline: 3px solid rgba(0, 136, 248, 0.32);
   outline-offset: 2px;
 }
@@ -3835,6 +3865,7 @@ button.notification-row:hover {
 }
 .document-actions-menu button,
 .document-action-upload {
+  position: relative;
   display: flex;
   width: 100%;
   min-height: 32px;
@@ -3857,9 +3888,6 @@ button.notification-row:hover {
 .document-actions-menu .danger-action:hover {
   color: #b92f42;
   background: #fff1f3;
-}
-.document-action-upload input {
-  display: none;
 }
 .document-edit-dialog {
   width: min(620px, 100%);
@@ -4476,7 +4504,6 @@ button.notification-row:hover {
 }
 .save-asset-changes:disabled {
   cursor: default;
-  opacity: 0.55;
 }
 .save-asset-changes.is-pending,
 .save-changes-button.is-pending {
@@ -4494,7 +4521,8 @@ button.notification-row:hover {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .save-asset-changes.is-pending {
+  .save-asset-changes.is-pending,
+  .save-changes-button.is-pending {
     animation: none;
   }
 }

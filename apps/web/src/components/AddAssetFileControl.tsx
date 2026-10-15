@@ -65,8 +65,15 @@ export function AddAssetFileControl({
     const close = (event: MouseEvent) => {
       if (!wrapperRef.current?.contains(event.target as Node)) setOpen(false);
     };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
     window.document.addEventListener('mousedown', close);
-    return () => window.document.removeEventListener('mousedown', close);
+    window.document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      window.document.removeEventListener('mousedown', close);
+      window.document.removeEventListener('keydown', closeOnEscape);
+    };
   }, [open]);
   function choose(kind: AssetFileKind) {
     kindRef.current = kind;

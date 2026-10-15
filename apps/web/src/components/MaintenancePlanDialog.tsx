@@ -1,5 +1,6 @@
 import type { IntervalUnit, MaintenancePlan, ScheduleKind } from '@boberit/shared';
-import { FormEvent, useState } from 'react';
+import { FormEvent, useId, useState } from 'react';
+import { useDialog } from '../hooks/useDialog';
 import { FormSelect } from './FormSelect';
 import { Icon } from './Icon';
 
@@ -22,6 +23,8 @@ export function MaintenancePlanDialog({
   const [notes, setNotes] = useState(plan.notes ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const dialog = useDialog<HTMLFormElement>(onClose);
+  const titleId = useId();
   async function submit(event: FormEvent) {
     event.preventDefault();
     setBusy(true);
@@ -42,11 +45,18 @@ export function MaintenancePlanDialog({
   }
   return (
     <div className="dialog-backdrop" role="presentation">
-      <form aria-label="Edycja planu konserwacji" className="dialog maintenance-edit-dialog" onSubmit={submit}>
+      <form
+        {...dialog}
+        aria-labelledby={titleId}
+        aria-modal="true"
+        role="dialog"
+        className="dialog maintenance-edit-dialog"
+        onSubmit={submit}
+      >
         <header>
           <div>
             <p className="eyebrow">Konserwacja</p>
-            <h2>Edytuj plan</h2>
+            <h2 id={titleId}>Edytuj plan</h2>
           </div>
           <button className="icon-button" onClick={onClose} type="button">
             <Icon label="Zamknij" name="x" />
@@ -97,7 +107,9 @@ export function MaintenancePlanDialog({
           )}
         </div>
         <label>
-          Notatka <small>opcjonalnie</small>
+          <span>
+            Notatka <small>opcjonalnie</small>
+          </span>
           <textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={3} />
         </label>
         {error && <p className="form-error">{error}</p>}

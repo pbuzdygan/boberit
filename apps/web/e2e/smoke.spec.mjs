@@ -263,3 +263,30 @@ test('a maintenance plan added from the item detail appears, and logout returns 
   await expect(page.getByPlaceholder('Twój login')).toBeVisible();
   expect(await page.evaluate(() => sessionStorage.getItem('boberit-session'))).toBeNull();
 });
+
+test('dialogs and file pickers work from the keyboard', async ({ page }) => {
+  await login(page, 'owner');
+  const add = page.locator('.topbar-save');
+  await add.click();
+  const dialog = page.getByRole('dialog', { name: 'Co chcesz dodać?' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByLabel('Nazwa przedmiotu')).toBeFocused();
+
+  // Escape on an open select list closes only the list.
+  await dialog.locator('.quick-kind-tabs button', { hasText: 'Dokument' }).click();
+  await dialog.getByRole('button', { name: /Typ dokumentu/ }).press('ArrowDown');
+  await expect(dialog.getByRole('listbox')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(dialog.getByRole('listbox')).toBeHidden();
+  await expect(dialog).toBeVisible();
+
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(add).toBeFocused();
+
+  // The inbox import picker can take keyboard focus (it used to be display: none).
+  await nav(page, 'Do przypisania');
+  const importInput = page.locator('.inbox-upload input[type="file"]');
+  await importInput.focus();
+  await expect(importInput).toBeFocused();
+});

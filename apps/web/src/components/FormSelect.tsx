@@ -67,6 +67,9 @@ export function FormSelect({
 
   function handleKeyDown(event: React.KeyboardEvent) {
     if (event.key === 'Escape') {
+      if (!open) return;
+      // Marks the key as handled, so an enclosing dialog stays open while only the list closes.
+      event.preventDefault();
       setOpen(false);
       triggerRef.current?.focus();
       return;

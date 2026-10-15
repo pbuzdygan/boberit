@@ -1,3 +1,5 @@
+import { useId } from 'react';
+import { useDialog } from '../hooks/useDialog';
 import { Icon } from './Icon';
 
 export function MobileMoreMenu({
@@ -11,13 +13,15 @@ export function MobileMoreMenu({
   onNavigate: (view: 'timeline' | 'inbox' | 'trash' | 'settings') => void;
   trashCount: number;
 }) {
+  const dialog = useDialog<HTMLElement>(onClose);
+  const titleId = useId();
   return (
     <div className="dialog-backdrop mobile-more-backdrop" role="presentation">
-      <section aria-modal="true" className="mobile-more-dialog" role="dialog">
+      <section {...dialog} aria-labelledby={titleId} aria-modal="true" className="mobile-more-dialog" role="dialog">
         <header>
           <div>
             <p className="eyebrow">Nawigacja</p>
-            <h2>Więcej</h2>
+            <h2 id={titleId}>Więcej</h2>
           </div>
           <button className="icon-button" onClick={onClose} type="button">
             <Icon label="Zamknij" name="x" />

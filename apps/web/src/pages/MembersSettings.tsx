@@ -63,25 +63,36 @@ export function MembersSettings() {
         <h2>Członkowie</h2>
         {canManage && (
           <>
-            <input value={login} onChange={(e) => setLogin(e.target.value)} placeholder="Login" />
-            <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="E-mail" />
-            <input
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Hasło, min. 12 znaków"
-              type="password"
-            />
-            <FormSelect
-              className="settings-inline-select"
-              hideLabel
-              label="Rola nowego członka"
-              value={role}
-              onChange={(value) => setRole(value as 'owner' | 'member')}
-              options={[
-                { value: 'member', label: 'Członek' },
-                { value: 'owner', label: 'Właściciel' },
-              ]}
-            />
+            <div className="settings-form">
+              <label>
+                Login
+                <input autoComplete="off" value={login} onChange={(e) => setLogin(e.target.value)} />
+              </label>
+              <label>
+                E-mail
+                <input autoComplete="off" value={email} onChange={(e) => setEmail(e.target.value)} type="email" />
+              </label>
+              <label>
+                <span>
+                  Hasło <small>minimum 12 znaków</small>
+                </span>
+                <input
+                  autoComplete="new-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  type="password"
+                />
+              </label>
+              <FormSelect
+                label="Rola"
+                value={role}
+                onChange={(value) => setRole(value as 'owner' | 'member')}
+                options={[
+                  { value: 'member', label: 'Członek' },
+                  { value: 'owner', label: 'Właściciel' },
+                ]}
+              />
+            </div>
             <button
               className="secondary"
               disabled={!login || !email || password.length < 12}

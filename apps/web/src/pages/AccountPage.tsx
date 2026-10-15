@@ -103,22 +103,23 @@ function SecuritySettings({ onLogout }: { onLogout: () => Promise<void> }) {
       <div>
         <p className="eyebrow">Bezpieczeństwo konta</p>
         <h2>Hasło i sesje</h2>
-        <input
-          aria-label="Obecne hasło"
-          autoComplete="current-password"
-          value={current}
-          onChange={(e) => setCurrent(e.target.value)}
-          type="password"
-          placeholder="Obecne hasło"
-        />
-        <input
-          aria-label="Nowe hasło"
-          autoComplete="new-password"
-          value={next}
-          onChange={(e) => setNext(e.target.value)}
-          type="password"
-          placeholder="Nowe hasło, min. 12 znaków"
-        />
+        <div className="settings-form">
+          <label>
+            Obecne hasło
+            <input
+              autoComplete="current-password"
+              value={current}
+              onChange={(e) => setCurrent(e.target.value)}
+              type="password"
+            />
+          </label>
+          <label>
+            <span>
+              Nowe hasło <small>minimum 12 znaków</small>
+            </span>
+            <input autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} type="password" />
+          </label>
+        </div>
         <div className="settings-actions">
           <button
             className="secondary"

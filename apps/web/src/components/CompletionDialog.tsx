@@ -1,5 +1,6 @@
 import { type MaintenancePlan, localDate } from '@boberit/shared';
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useId, useState } from 'react';
+import { useDialog } from '../hooks/useDialog';
 import { Icon } from './Icon';
 
 export function CompletionDialog({
@@ -15,6 +16,8 @@ export function CompletionDialog({
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const dialog = useDialog<HTMLFormElement>(onClose);
+  const titleId = useId();
   async function submit(event: FormEvent) {
     event.preventDefault();
     // Blocks a second click: each submit would add its own history record.
@@ -30,11 +33,18 @@ export function CompletionDialog({
   }
   return (
     <div className="dialog-backdrop" role="presentation">
-      <form className="dialog completion-dialog" onSubmit={(event) => void submit(event)}>
+      <form
+        {...dialog}
+        aria-labelledby={titleId}
+        aria-modal="true"
+        role="dialog"
+        className="dialog completion-dialog"
+        onSubmit={(event) => void submit(event)}
+      >
         <header>
           <div>
             <p className="eyebrow">Konserwacja</p>
-            <h2>Oznacz jako wykonane</h2>
+            <h2 id={titleId}>Oznacz jako wykonane</h2>
           </div>
           <button type="button" className="icon-button" onClick={onClose}>
             <Icon name="x" label="Zamknij" />
@@ -46,7 +56,9 @@ export function CompletionDialog({
           <input value={performedOn} onChange={(event) => setPerformedOn(event.target.value)} required type="date" />
         </label>
         <label>
-          Notatka <small>opcjonalnie</small>
+          <span>
+            Notatka <small>opcjonalnie</small>
+          </span>
           <textarea
             value={notes}
             onChange={(event) => setNotes(event.target.value)}

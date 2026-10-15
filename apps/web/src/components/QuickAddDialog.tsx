@@ -1,5 +1,6 @@
 import type { CreateBinderDocumentInput, CreateAssetInput } from '@boberit/shared';
-import { FormEvent, useState } from 'react';
+import { FormEvent, useId, useState } from 'react';
+import { useDialog } from '../hooks/useDialog';
 import { useDocumentTypes } from '../hooks/useDocumentTypes';
 import { FormSelect } from './FormSelect';
 import { Icon } from './Icon';
@@ -30,6 +31,8 @@ export function QuickAddDialog({
   const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const dialog = useDialog<HTMLFormElement>(onClose);
+  const titleId = useId();
   function selectFiles(list: FileList | null) {
     const selectedFiles = Array.from(list ?? []);
     if (selectedFiles.length) setFiles((current) => [...current, ...selectedFiles]);
@@ -59,11 +62,18 @@ export function QuickAddDialog({
   }
   return (
     <div className="dialog-backdrop quick-add-backdrop" role="presentation">
-      <form className="dialog quick-add-dialog" onSubmit={submit}>
+      <form
+        {...dialog}
+        aria-labelledby={titleId}
+        aria-modal="true"
+        role="dialog"
+        className="dialog quick-add-dialog"
+        onSubmit={submit}
+      >
         <header>
           <div>
             <p className="eyebrow">Szybki zapis</p>
-            <h2>Co chcesz dodać?</h2>
+            <h2 id={titleId}>Co chcesz dodać?</h2>
           </div>
           <button type="button" className="icon-button" onClick={onClose}>
             <Icon name="x" label="Zamknij" />
@@ -141,13 +151,17 @@ export function QuickAddDialog({
               ]}
             />
             <label>
-              Notatka <small>opcjonalnie</small>
+              <span>
+                Notatka <small>opcjonalnie</small>
+              </span>
               <textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={2} />
             </label>
           </>
         )}
         <label>
-          Tagi <small>oddziel przecinkami</small>
+          <span>
+            Tagi <small>oddziel przecinkami</small>
+          </span>
           <input value={tags} onChange={(event) => setTags(event.target.value)} placeholder="np. kuchnia, usługi" />
         </label>
         {error && <p className="form-error">{error}</p>}

@@ -119,25 +119,28 @@ export function WebhookSettings() {
           <p className="eyebrow">Integracje</p>
           <h2>{editingId ? 'Edytuj webhook' : 'Konfiguracja webhooka'}</h2>
           <p>Podaj endpoint odbierający zdarzenia. Secret jest opcjonalny i służy do podpisywania żądań.</p>
-          <input
-            aria-label="Nazwa webhooka"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder="Nazwa webhooka"
-          />
-          <input
-            aria-label="Adres webhooka"
-            value={url}
-            onChange={(event) => setUrl(event.target.value)}
-            placeholder="https://…"
-          />
-          <input
-            aria-label="Secret webhooka"
-            value={secret}
-            onChange={(event) => setSecret(event.target.value)}
-            placeholder={editingId ? 'Nowy secret — pozostaw puste, aby zachować obecny' : 'Secret (opcjonalnie)'}
-            type="password"
-          />
+          <div className="settings-form">
+            <label>
+              Nazwa
+              <input value={name} onChange={(event) => setName(event.target.value)} placeholder="np. Home Assistant" />
+            </label>
+            <label>
+              Adres URL
+              <input value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://…" type="url" />
+            </label>
+            <label className="span-all">
+              <span>
+                {editingId ? 'Nowy secret' : 'Secret'}{' '}
+                <small>{editingId ? 'pozostaw puste, aby zachować obecny' : 'opcjonalnie'}</small>
+              </span>
+              <input
+                autoComplete="off"
+                value={secret}
+                onChange={(event) => setSecret(event.target.value)}
+                type="password"
+              />
+            </label>
+          </div>
           <div className="webhook-form-actions">
             <button
               className="secondary"
