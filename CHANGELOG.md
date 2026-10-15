@@ -25,9 +25,22 @@ Changes are described from the user's perspective, without implementation detail
 ### Improvements
 
 - "OCR of pending documents" processes up to 25 documents per run, about one minute at most, and reports how many are left, so long runs no longer time out.
+- Larger text, clearer form labels, and consistent icons make the app easier to read and navigate.
+- Settings bring household and account options together, making members, categories, backups, security, and integrations easier to find.
+- Item details give warranty information more room and let you add maintenance plans from a separate dialog.
+- Phone layouts keep important actions within reach and show warranty information directly in the item list.
+- Dialogs and file pickers work with the keyboard, and screen readers announce action results.
+- Loading indicators, retry buttons, and shortcuts to add the first item or document make it clearer what to do next.
+- Household history is grouped by day and can be filtered to find relevant changes faster.
+- Webhook changes are saved together from one dialog, so it is clear when they take effect.
+- Deadlines show the next occurrence of recurring maintenance in advance, with counts for each filter and years on dates.
 
 ### Bug fixes
 
+- Failed uploads, saves, and deletions now show an error; adding a maintenance plan keeps your input if saving fails.
+- Loading or a connection error no longer makes an existing collection appear empty.
+- On phones, the inbox fits the screen and its Import button remains accessible.
+- Documents without attachments no longer appear to be waiting for text recognition.
 - Previewing an attachment no longer opens an extra blank tab, and text files show Polish characters correctly.
 - Small attachments in item details show their size in KB instead of "0.0 MB".
 - Adding a household member with a login or e-mail address that is already in use shows a clear message.
