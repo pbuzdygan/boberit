@@ -100,7 +100,7 @@ export function QuickAddDialog({
           />
         </label>
         <div className="quick-file-actions">
-          <label className="secondary inbox-upload">
+          <label className="secondary inbox-upload quick-photo">
             Zrób zdjęcie
             <input
               accept="image/*"

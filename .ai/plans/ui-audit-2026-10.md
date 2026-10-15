@@ -45,9 +45,9 @@ Audit from 2026-10-15 (desktop 1366 px, phone 390 px, isolated instance with dem
 - [x] F12c Plan rows: actions moved to a second row in step 4 (titles wrapped at the larger text size); revisit in the redesign.
 - [x] F12 Warranty card is a dark gradient with shadow, unlike other panels, and on phones sits below the whole plan form; the add-plan form is always expanded; plan rows are cramped. Needs approval of the layout before implementing.
 
-### Step 7 — phone layout
+### Step 7 — phone layout (done)
 
-- [ ] F13 Two add buttons (top bar and bottom bar); the item list hides warranty but shows status; the OCR batch button wraps to three lines; the detail heading badge wraps; "Zrób zdjęcie" shows on desktop. Needs approval of the layout before implementing.
+- [x] F13 Two add buttons (top bar and bottom bar); the item list hides warranty but shows status; the OCR batch button wraps to three lines; the detail heading badge wraps; "Zrób zdjęcie" shows on desktop. Needs approval of the layout before implementing.
 
 ### Step 8 — settings structure (approved: rebuild now)
 
@@ -64,7 +64,7 @@ Audit from 2026-10-15 (desktop 1366 px, phone 390 px, isolated instance with dem
 
 ## Cleanup after the last step
 
-- Delete `.tmp/ui-audit/` (screenshot script and images; ignored by Git).
+- Delete `.tmp/ui-audit/` (screenshot and comparison scripts, images; ignored by Git).
 - Delete this plan file once all findings are done or explicitly dropped.
 
 ## References

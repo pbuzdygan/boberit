@@ -1009,13 +1009,6 @@ textarea {
     height: auto;
     padding: 9px 12px;
   }
-  .topbar .primary {
-    width: 36px;
-    padding: 0;
-  }
-  .topbar .primary:not(.icon) {
-    font-size: 0;
-  }
   .content {
     padding: 20px 12px 42px;
   }
@@ -1657,12 +1650,8 @@ textarea {
   }
   .asset-row .category-cell,
   .asset-row .location-cell,
-  .asset-row .tags,
-  .asset-row .warranty {
+  .asset-row .tags {
     display: none;
-  }
-  .asset-row .item-status {
-    justify-self: end;
   }
   .file-kind-picker {
     width: calc(100% - 33px);
@@ -3269,16 +3258,6 @@ textarea {
   .topbar-actions {
     gap: 6px;
   }
-  .topbar-actions .topbar-save {
-    width: auto;
-    min-width: 64px;
-    padding: 0 9px;
-    font-size: var(--text-sm);
-  }
-  .topbar-actions .topbar-save .icon {
-    width: 14px;
-    height: 14px;
-  }
   .topbar-avatar {
     width: 34px;
     height: 34px;
@@ -3320,12 +3299,6 @@ textarea {
 @media (max-width: 430px) {
   .topbar {
     padding-inline: 8px;
-  }
-  .topbar-actions .topbar-save {
-    min-width: 36px;
-    width: 36px;
-    padding: 0;
-    font-size: 0;
   }
   .account-settings-nav button {
     padding: 0 6px;
@@ -4590,4 +4563,54 @@ button.notification-row:hover {
 }
 .search-clear:hover {
   background: #e3edf7;
+}
+
+/* Phone layout: one add button, warranty in item rows, page actions below the title. */
+.asset-name .asset-row-status {
+  display: none;
+}
+@media (pointer: fine) {
+  /* Camera capture only makes sense on touch devices; desktops keep "Wybierz plik". */
+  .quick-photo {
+    display: none;
+  }
+}
+@media (max-width: 680px) {
+  /* The bottom bar already has "Dodaj"; the top bar keeps search, notifications, and account. */
+  .topbar-actions .topbar-save {
+    display: none;
+  }
+  .page-heading:not(.start-heading) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .page-heading:not(.start-heading) > :not(div:first-child) {
+    width: 100%;
+  }
+  .page-heading:not(.start-heading) > button,
+  .page-heading:not(.start-heading) .inbox-upload {
+    justify-content: center;
+    width: 100%;
+    white-space: nowrap;
+  }
+  .asset-row .item-status {
+    display: none;
+  }
+  .asset-row .warranty {
+    justify-self: end;
+    padding-right: 4px;
+    white-space: nowrap;
+  }
+  .asset-name .asset-row-status {
+    display: block;
+    margin-top: 2px;
+    font-weight: 650;
+  }
+  .asset-row-status.in-repair {
+    color: var(--warning);
+  }
+  .asset-row-status.in-use {
+    color: #0665bd;
+  }
 }

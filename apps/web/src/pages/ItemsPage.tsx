@@ -376,6 +376,10 @@ function AssetRow({ asset, onOpen }: { asset: AssetSummary; onOpen: (id: string)
       <span className="asset-name">
         <strong>{asset.name}</strong>
         <small>{[asset.manufacturer, asset.modelNumber].filter(Boolean).join(' · ') || 'Szkic — uzupełnij dane'}</small>
+        {/* Phones show the warranty column only; a status other than "available" moves here. */}
+        {asset.itemStatus !== 'available' && (
+          <small className={`asset-row-status ${status.className}`}>{status.label}</small>
+        )}
       </span>
       <span className="asset-taxonomy category-cell">{asset.categoryName || '—'}</span>
       <span className={`item-status ${status.className}`}>
