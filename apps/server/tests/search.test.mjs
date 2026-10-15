@@ -6,17 +6,27 @@ import { after, test } from 'node:test';
 
 const dataDirectory = mkdtempSync(join(tmpdir(), 'boberit-search-'));
 process.env.APP_DATA_DIR = dataDirectory;
-const { database, createDocument, createAsset, listDocuments, listAssets,
-  saveDocumentOcrText, moveDocumentToTrash, moveAssetToTrash } = await import('../src/db.ts');
-after(() => { database.close(); rmSync(dataDirectory, { recursive: true, force: true }); });
+const { database } = await import('../src/db/database.ts');
+const { createDocument, listDocuments, saveDocumentOcrText } = await import('../src/db/documents.ts');
+const { createAsset, listAssets } = await import('../src/db/assets.ts');
+const { moveDocumentToTrash, moveAssetToTrash } = await import('../src/db/trash.ts');
+after(() => {
+  database.close();
+  rmSync(dataDirectory, { recursive: true, force: true });
+});
 for (const id of ['home', 'other']) {
   database.prepare('INSERT INTO households(id,name,created_at) VALUES(?,?,?)').run(id, id, new Date().toISOString());
 }
 const document = createDocument('home', { name: 'Instrukcja', tags: ['elektronika'] });
 saveDocumentOcrText('home', document.id, 'INFORMATION Gwarancja ŻÓŁĆ model AB%_12 "quoted"');
-const asset = createAsset('home', { name: 'Information panel', serialNumber: 'AB%_12', notes: 'ŻÓŁĆ', tags: ['elektronika'] });
-const documentIds = (query, household = 'home') => listDocuments(household, query).map(value => value.id);
-const assetIds = (query, household = 'home') => listAssets(household, query).map(value => value.id);
+const asset = createAsset('home', {
+  name: 'Information panel',
+  serialNumber: 'AB%_12',
+  notes: 'ŻÓŁĆ',
+  tags: ['elektronika'],
+});
+const documentIds = (query, household = 'home') => listDocuments(household, query).map((value) => value.id);
+const assetIds = (query, household = 'home') => listAssets(household, query).map((value) => value.id);
 
 test('OCR and asset search find full words, prefixes, middle and suffix in either case', () => {
   for (const query of ['INFORMATION', 'information', 'INFOR', 'ORMATIO', 'ormatio', 'MATION', 'io', 'I']) {

@@ -1,14 +1,24 @@
 services:
   boberit:
-    build:
-      context: .
+    image: ghcr.io/pbuzdygan/boberit:latest
+    container_name: boberit
     user: "${PUID:-1000}:${PGID:-1000}"
     ports:
       - "${APP_PORT:-3219}:3000"
     environment:
-      APP_ENC_KEY: ${APP_ENC_KEY:?Ustaw APP_ENC_KEY, np. openssl rand -hex 32}
+      APP_ENC_KEY: ${APP_ENC_KEY:?Set APP_ENC_KEY, ex. openssl rand -hex 32}
+      TZ: ${TZ:-UTC}
     volumes:
       - boberit-data:/data
+    # Hardening: no Linux capabilities or privilege escalation are needed. Raise the limits
+    # if large OCR jobs or backup restores run out of memory.
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 2g
+    cpus: 2
+    pids_limit: 256
     restart: unless-stopped
 
 volumes:

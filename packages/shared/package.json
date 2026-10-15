@@ -1,6 +1,5 @@
 {
   "name": "@boberit/shared",
-  "version": "0.1.1",
   "private": true,
   "type": "module",
   "exports": {
@@ -11,7 +10,8 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "check": "tsc --noEmit -p tsconfig.json"
+    "check": "tsc --noEmit -p tsconfig.json",
+    "test": "node --test tests/dates.test.mjs"
   },
   "devDependencies": {
     "typescript": "^7.0.2"

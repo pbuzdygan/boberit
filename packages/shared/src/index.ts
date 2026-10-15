@@ -158,3 +158,16 @@ export interface ApiError {
   message: string;
   fields?: Record<string, string>;
 }
+
+export { daysUntil, localDate } from './dates.js';
+
+export type ReleaseChannel = 'main' | 'dev';
+export type UpdateStatus = 'unchecked' | 'current' | 'available' | 'preparing' | 'ahead' | 'error';
+export type AppInformation = {
+  version: string | null;
+  channel: ReleaseChannel | null;
+  status: UpdateStatus;
+  checkedAt: string | null;
+  latestVersion: string | null;
+  releaseUrl: string | null;
+};

@@ -1,41 +1,40 @@
-# Boberit — system kolorów UI
+# Boberit UI color system
 
-## Cel
+## Purpose
 
-Paleta interfejsu pochodzi bezpośrednio z zatwierdzonych plików `branding/boberit-icon.png` i `branding/boberit-banner.png`. Ma łączyć techniczny, profesjonalny charakter brandingu z jasnym i zwartym obszarem roboczym. Granat służy do budowania tożsamości, a nie do zalewania nim całej aplikacji.
+The interface palette comes directly from the approved brand files `branding/boberit-icon.png` and `branding/boberit_banner.png`. It combines the technical, professional character of the brand with a light, compact workspace. Navy builds identity; it must not flood the whole application.
 
-## Tokeny marki
+Tokens are implemented as CSS variables in `:root` of `apps/web/src/styles.css`. Use the variables instead of repeating hex values.
 
-| Token | Wartość | Zastosowanie |
+## Brand tokens
+
+| CSS variable | Value | Use |
 |---|---:|---|
-| Brand 950 | `#000B22` | najgłębsze tło i cień |
-| Brand 900 | `#00102F` | panel nawigacji, browser theme |
-| Brand 800 | `#00205F` | ciemne powierzchnie i gradienty |
-| Brand 700 | `#003AA8` | mocny akcent |
-| Brand 600 | `#0068E8` | główne akcje, linki, zaznaczenia |
-| Brand 500 | `#0088F8` | światło, hover i akcent gradientu |
-| Brand 100 | `#D8EAFA` | obramowania i spokojne wyróżnienia |
-| Brand 50 | `#EDF6FF` | aktywne tła i ikony kategorii |
-| Silver 100 | `#D0E0F0` | chłodne powierzchnie inspirowane ogonem logo |
+| `--navy` | `#00102F` | navigation panel, browser theme color |
+| `--navy-2` | `#001B48` | dark surfaces and gradients |
+| `--blue` | `#0068E8` | primary actions, links, selection |
+| `--electric` | `#0088F8` | highlights, hover, gradient accent |
+| `--blue-50` | `#EDF6FF` | active backgrounds, category icons |
+| `--silver` | `#D0E0F0` | cool surfaces inspired by the logo's tail |
 
-## Neutralne i semantyczne
+## Neutral and semantic tokens
 
-- tło aplikacji: `#F3F7FB`;
-- powierzchnia treści: `#FFFFFF`;
-- tekst główny: `#0A1D38`;
-- tekst pomocniczy: `#65758A`;
-- obramowanie: `#D8E2ED`;
-- sukces: `#087F60`;
-- ostrzeżenie/błąd: `#C9384A`.
+| CSS variable | Value | Use |
+|---|---:|---|
+| `--paper` | `#F3F7FB` | application background |
+| `--surface` | `#FFFFFF` | content surfaces |
+| `--ink` | `#0A1D38` | primary text |
+| `--muted` | `#65758A` | secondary text |
+| `--line` | `#D8E2ED` | borders |
+| `--success` | `#087F60` | success state |
+| `--danger` | `#C9384A` | errors, overdue dates, and urgent warnings (e.g. an expiring warranty) |
+| `--warning` | `#A75C00` | states that need attention but are not errors (e.g. an item in repair, a date within 30 days) |
 
-## Zastosowanie w mockupie
+## Usage rules
 
-- ciemny granatowy sidebar kotwiczy branding i dobrze eksponuje logo;
-- główna przestrzeń pozostaje jasna i gęsta informacyjnie;
-- kobalt jest zarezerwowany dla działań, zaznaczeń, filtrów i linków;
-- elektryczny błękit występuje oszczędnie w gradientach i stanach hover;
-- wyróżniona karta gwarancji przejmuje ciemną stylistykę bannera;
-- czerwony i zielony pozostają kolorami semantycznymi, a nie dekoracyjnymi;
-- cienie są chłodne, płytkie i stosowane wyłącznie do hierarchii.
-
-Implementacja mockupu znajduje się w `prototype/styles-v3-brand.css`. Arkusz jest ładowany po bazowym `styles-v2.css`, więc zmienia paletę bez naruszania zwartego layoutu.
+- The dark navy sidebar anchors the brand and showcases the logo.
+- The main workspace stays light and information-dense.
+- Cobalt blue is reserved for actions, selection, filters, and links.
+- Electric blue appears sparingly, in gradients and hover states.
+- Red, amber, and green are semantic colors only, never decoration, and are always paired with text or an icon.
+- Shadows are cool, shallow, and used only for hierarchy.

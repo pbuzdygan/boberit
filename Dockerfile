@@ -18,6 +18,11 @@ ENV NODE_ENV=production
 ENV APP_DATA_DIR=/data
 ENV WEB_DIST=/app/apps/web/dist
 ENV MALLOC_ARENA_MAX=2
+ARG APP_VERSION=local
+ARG APP_RELEASE_CHANNEL=local
+ENV APP_VERSION=${APP_VERSION}
+ENV APP_RELEASE_CHANNEL=${APP_RELEASE_CHANNEL}
+LABEL org.opencontainers.image.version=${APP_VERSION}
 
 # Refresh packages inherited from the pinned base image as well as OCR tools.
 RUN apt-get update \
@@ -42,4 +47,7 @@ RUN mkdir -p /data && chown node:node /data \
         /usr/local/bin/yarn /usr/local/bin/yarnpkg
 USER node
 EXPOSE 3000
+# The image has no curl or wget; Node's fetch checks the health endpoint instead.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD ["node", "-e", "fetch('http://127.0.0.1:' + (process.env.PORT || 3000) + '/api/v1/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
 CMD ["node", "apps/server/dist/index.js"]

@@ -1,0 +1,84 @@
+# Configuration and data
+
+## Environment variables
+
+| Variable | Required | Default | Purpose |
+|---|---|---|---|
+| `APP_ENC_KEY` | yes | — | 64 hex characters (`openssl rand -hex 32`). Encrypts webhook secrets with AES-256-GCM and keys session token hashes. |
+| `APP_PORT` | no | `3219` | Host port published by `compose.yaml`. The container listens on `3000`. |
+| `TZ` | no | `UTC` | Server time zone as an IANA name, e.g. `Europe/Warsaw`. Sets the server's notion of "today" for date-only values (see below). |
+| `PUID` / `PGID` | no | `1000` | User and group the container runs as; set them to the owner of a bind-mounted data directory. |
+| `SETUP_TOKEN` | no | generated | Code required to create the first account, at least 12 characters. Without it, a random code is generated at startup and printed to the server log. Only used until the first account exists. |
+| `WEBHOOK_ALLOW_PRIVATE_NETWORKS` | no | `false` | Set to `true` to let webhooks reach private network addresses (for example a Home Assistant or ntfy server in your LAN). Loopback, link-local, and cloud metadata addresses stay blocked. |
+
+Keep `APP_ENC_KEY` in an environment variable or in the Git-ignored `.env` file; Compose refuses to start without it. Keep a secure copy of the key separately from Boberit backups: backups do not contain it, and losing or changing it makes stored webhook secrets undecryptable (webhooks with a secret must then be saved again) and invalidates all active sessions.
+
+## Application information and updates
+
+**Ustawienia → Informacje** (Settings → About) shows the installed version, release channel, and the last successful update check in your browser's time zone. Opening this section checks for updates; **Sprawdź ponownie** checks again. Results, including connection failures, are cached for one minute across all users. No background polling runs elsewhere in the app.
+
+The server contacts GitHub Releases and GHCR for `pbuzdygan/boberit` over HTTPS, without sending household data or account credentials. Stable (`main`) installations check stable releases; development (`dev`) installations check `devX.Y.Z` prereleases. A newer release is offered only after its versioned container image is available in GHCR. Connection errors and releases whose images are not yet available have separate messages.
+
+Release images receive `APP_VERSION` (the release tag) and `APP_RELEASE_CHANNEL` (`main` or `dev`) from the release workflow as Docker build arguments. Builds without valid release metadata show a local version and do not contact external services. Custom local builds can supply these build arguments when they intentionally represent an existing release. The changelog is not used to identify the running version.
+
+The app only reports updates. An administrator installs them with Docker after creating a backup.
+
+## Time zone
+
+Dates such as purchase dates, warranty expiry, and maintenance due dates are calendar dates without a time. The web app shows deadlines ("today", "in 6 days") using the browser's time zone. The server uses `TZ` only where it has to decide what "today" is on its own, currently the completion date of a maintenance task when the client sends none. Set `TZ` to the household's zone (for example `TZ=Europe/Warsaw` in `.env`) so that server-side dates match what users see; the default `UTC` can be a day off around midnight. Timestamps such as creation times are always stored in UTC.
+
+## Data layout
+
+All persistent data lives in `/data` inside the container (the `boberit-data` volume in `compose.yaml`):
+
+- `db` — SQLite database in WAL mode;
+- `items/<household_id>`, `documents/<household_id>`, `inbox/<household_id>` — attachments, separated per household.
+
+Older layouts, including the legacy `uploads` directory, are migrated automatically on the first start of a newer version.
+
+To use a host directory instead of the named volume, set `PUID` and `PGID` to its owner:
+
+```bash
+printf 'PUID=%s\nPGID=%s\n' "$(id -u)" "$(id -g)" >> .env
+sudo chown -R "$(id -u):$(id -g)" /path/to/data   # only once, for an existing directory owned by someone else
+```
+
+## Uploads
+
+- Only allowed file types are accepted, up to 25 MB per file. The content must match the declared type (PDF, Word, plain text, JPEG, PNG, WebP); restored backups are checked the same way.
+- Photos are scaled to at most 2000 px and stored as JPEG; images with transparency are stored as PNG.
+- Previews and downloads always go through the authenticated API; files are never served statically. Only images, PDF, and plain text open as a preview; other files are downloaded.
+
+## First-run setup
+
+Creating the first account requires a one-time setup code, so only someone with access to the server can claim a new instance. On every start without an account, Boberit prints the code to its log:
+
+```bash
+docker compose logs boberit | grep "Kod pierwszej konfiguracji"
+```
+
+Case, spaces, and dashes do not matter when you type it. A new code is generated after each restart until the first account exists; after that no code is printed or accepted. For automated setups you can set your own code with `SETUP_TOKEN` instead. Complete the setup right after the first start.
+
+## Sign-in protection
+
+After 5 failed sign-ins for one login from one address, further attempts for that login are refused for 15 minutes. Other logins are never affected. Behind a reverse proxy all clients share the proxy's address, so the limit then applies to the login regardless of where the attempts come from. Counters reset when the container restarts.
+
+## Webhooks
+
+Webhooks are sent only to public addresses, without following redirects, with a 10-second timeout. The address is checked when a webhook is saved and again on every delivery. To reach a service in your local network, set `WEBHOOK_ALLOW_PRIVATE_NETWORKS=true`. Webhook secrets are encrypted with `APP_ENC_KEY`; if the key changes, affected webhooks are skipped and the delivery list asks you to save the secret again.
+
+## OCR
+
+Tesseract runs locally inside the container for Polish and English. It reads images, PDFs with a text layer, and scanned PDFs up to 12 pages. No external OCR service is used.
+
+## Container and HTTPS
+
+The image runs as an unprivileged user and reports its health to Docker through `/api/v1/health`. The example `compose.yaml` drops all Linux capabilities, blocks privilege escalation, and limits memory (2 GB), CPU (2 cores), and processes (256); raise the limits if large OCR jobs or backup restores run out of memory.
+
+Boberit sends browser security headers, including a Content Security Policy, and serves the app and API from one origin without cross-origin access. When you publish it over HTTPS through a reverse proxy, set `Strict-Transport-Security` there; the app does not send it because it may run on plain HTTP in a local network.
+
+## Backup and restore
+
+**Ustawienia → Kopia zapasowa** (Settings → Backup) exports the active household with its data and attachments. Only a household owner can export, restore, or permanently empty the trash, and export and restore ask for the owner's current password. Restore replaces the household's data only after explicit confirmation. It validates the whole package first and gives every restored record and attachment a new identifier; if anything fails, the household keeps its current data and files. Webhook configuration and secrets are excluded from backups.
+
+Download a backup before every upgrade. Never run `docker compose down -v` if you want to keep your data: it deletes the volume.

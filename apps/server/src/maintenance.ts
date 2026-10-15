@@ -1,8 +1,9 @@
-import type { IntervalUnit } from '@boberit/shared';
+import { localDate, type IntervalUnit } from '@boberit/shared';
+import { PublicError } from './http.js';
 
 export function nextDueDate(from: string, value: number, unit: IntervalUnit): string {
   const date = new Date(`${from}T12:00:00.000Z`);
-  if (Number.isNaN(date.valueOf())) throw new Error('Nieprawidłowa data terminu.');
+  if (Number.isNaN(date.valueOf())) throw new PublicError('Nieprawidłowa data terminu.');
 
   if (unit === 'days') date.setUTCDate(date.getUTCDate() + value);
   if (unit === 'weeks') date.setUTCDate(date.getUTCDate() + value * 7);
@@ -12,6 +13,7 @@ export function nextDueDate(from: string, value: number, unit: IntervalUnit): st
   return date.toISOString().slice(0, 10);
 }
 
+// Server-side fallback when the client sends no date; follows the process time zone (TZ).
 export function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  return localDate();
 }
