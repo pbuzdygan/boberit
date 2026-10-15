@@ -113,7 +113,7 @@ export function WebhookSettings() {
     <div className="webhook-settings-stack">
       <section className="settings-card webhook-card">
         <span>
-          <Icon name="dots" />
+          <Icon name="webhook" />
         </span>
         <div>
           <p className="eyebrow">Integracje</p>

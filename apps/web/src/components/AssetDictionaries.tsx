@@ -53,7 +53,7 @@ export function AssetDictionaries({ canManage, householdName }: { canManage: boo
   return (
     <section className="settings-card asset-dictionaries">
       <span>
-        <Icon name="package" />
+        <Icon name="list" />
       </span>
       <div>
         <p className="eyebrow">Aktywne gospodarstwo · {householdName}</p>

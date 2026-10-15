@@ -2,8 +2,12 @@ import { localDate } from '@boberit/shared';
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { Icon } from '../components/Icon';
+import { formatStorage } from '../format';
 import { eventLabel } from '../labels';
 import type { SettingsSection } from '../types';
+
+const activityPageSize = 20;
+const activityTime = new Intl.DateTimeFormat('pl-PL', { dateStyle: 'short', timeStyle: 'short' });
 
 function ActivitySettings() {
   const [events, setEvents] = useState<
@@ -11,6 +15,7 @@ function ActivitySettings() {
   >([]);
   const [bytes, setBytes] = useState(0);
   const [error, setError] = useState('');
+  const [visibleCount, setVisibleCount] = useState(activityPageSize);
   useEffect(() => {
     const fail = (reason: unknown) =>
       setError(reason instanceof Error ? reason.message : 'Nie udało się wczytać historii gospodarstwa.');
@@ -57,24 +62,36 @@ function ActivitySettings() {
   return (
     <section className="settings-card">
       <span>
-        <Icon name="calendar-event" />
+        <Icon name="history" />
       </span>
       <div>
         <p className="eyebrow">Aktywność i pliki</p>
         <h2>Historia gospodarstwa</h2>
-        <p>Wykorzystane miejsce: {(bytes / 1024 / 1024).toFixed(1)} MB</p>
+        <p>Wykorzystane miejsce: {formatStorage(bytes)}</p>
         {error && <p className="form-error">{error}</p>}
         <div className="webhook-list activity-list">
-          {events.map((e, i) => (
+          {events.slice(0, visibleCount).map((e, i) => (
             <div key={i}>
               <strong>{describe(e)}</strong>
               <small>
-                {e.label ?? 'Element'} · {e.user_login ?? 'system'} · {new Date(e.created_at).toLocaleString('pl-PL')}
+                {e.label ?? 'Element'} · {e.user_login ?? 'system'} · {activityTime.format(new Date(e.created_at))}
               </small>
             </div>
           ))}
           {!events.length && !error && <p>Brak zapisanych działań.</p>}
         </div>
+        {events.length > visibleCount ? (
+          <button
+            className="secondary activity-more"
+            onClick={() => setVisibleCount((count) => count + activityPageSize)}
+            type="button"
+          >
+            Pokaż więcej
+          </button>
+        ) : (
+          // The server returns at most the 100 most recent events.
+          events.length >= 100 && <p>Pokazano 100 ostatnich działań.</p>
+        )}
       </div>
     </section>
   );
@@ -103,7 +120,7 @@ export function SettingsPage({ isOwner }: { isOwner: boolean }) {
             onClick={() => setSection('activity')}
             type="button"
           >
-            <Icon name="calendar-event" />
+            <Icon name="history" />
             Historia gospodarstwa
           </button>
         </nav>

@@ -36,7 +36,7 @@ export function AccountPage({
             Gospodarstwa
           </button>
           <button className={section === 'members' ? 'active' : ''} onClick={() => onSection('members')} type="button">
-            <Icon name="package" />
+            <Icon name="users" />
             Członkowie
           </button>
           <p>Konto i integracje</p>
@@ -53,7 +53,7 @@ export function AccountPage({
             onClick={() => onSection('webhooks')}
             type="button"
           >
-            <Icon name="dots" />
+            <Icon name="webhook" />
             Webhooki
           </button>
         </nav>

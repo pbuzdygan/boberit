@@ -5,6 +5,7 @@ import {
   avatarInitials,
   filterCollection,
   remindersDueToday,
+  timelineEntries,
   upcomingReminders,
 } from '../src/collections.ts';
 
@@ -91,4 +92,31 @@ test('avatar initials use up to two characters of the login', () => {
   assert.equal(avatarInitials('  żaneta '), 'ŻA');
   assert.equal(avatarInitials(''), 'U');
   assert.equal(avatarInitials(undefined), 'U');
+});
+
+test('the timeline lists every warranty end and the next date of each active plan, completed before or not', () => {
+  const assets = [
+    asset('a', {
+      warranty: fixed('2027-09-10'),
+      maintenancePlans: [
+        // Completed once, next date in 90 days: hidden from reminders, shown on the timeline.
+        plan('p1', '2026-08-30', { lastCompletedOn: '2026-06-01' }),
+        plan('p2', '2026-05-20'),
+        plan('p3', '2026-07-01', { status: 'completed' }),
+      ],
+    }),
+    asset('b', { warranty: { kind: 'lifetime', expiresOn: null } }),
+  ];
+  assert.deepEqual(
+    timelineEntries(assets).map((entry) => [entry.kind, entry.id, entry.dueOn]),
+    [
+      ['maintenance', 'p2', '2026-05-20'],
+      ['maintenance', 'p1', '2026-08-30'],
+      ['warranty', 'warranty-a', '2027-09-10'],
+    ],
+  );
+  assert.deepEqual(
+    upcomingReminders(assets, now).map((entry) => entry.id),
+    ['p2'],
+  );
 });

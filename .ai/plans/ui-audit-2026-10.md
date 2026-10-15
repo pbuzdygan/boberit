@@ -31,13 +31,13 @@ Audit from 2026-10-15 (desktop 1366 px, phone 390 px, isolated instance with dem
 
 - [x] F7 Desktop text is 8–11 px (inputs 11 px, metadata down to ~7 px); target body 14 px, metadata ≥ 12 px (§5). Keep Inter (variable, already self-hosted) unless readability at the new sizes requires a change. Introduce type-scale tokens; deduplicate the touched rules in `styles.css` with before/after screenshot comparison.
 
-### Step 5 — icons, colors, small consistency fixes
+### Step 5 — icons, colors, small consistency fixes (done)
 
-- [ ] F10 Icon semantics: Ustawienia/Webhooki use "dots", Członkowie uses "package", Do przypisania reuses "file-text", OCR status uses calendar/shield. Add a few SVGs in the same stroke style.
-- [ ] F11 "W naprawie" uses the danger color; the warranty attention card is red on Start and blue on Items; the decorative "⋯" on item rows suggests a menu that does not exist.
-- [ ] F15 Activity shows "0.0 MB" while Start shows "154 B" (use `formatStorage`); activity list is unbounded.
-- [ ] F16 Timeline: date tiles lack the year for dates outside the current year; "Nadchodzące terminy" also counts overdue entries; filters lack counts.
-- [ ] Timeline decision (approved): a recurring plan completed at least once shows its next due date on Terminy (today it is hidden until due). Start/notification reminders keep the 30-day window.
+- [x] F10 Icon semantics: Ustawienia/Webhooki use "dots", Członkowie uses "package", Do przypisania reuses "file-text", OCR status uses calendar/shield. Add a few SVGs in the same stroke style.
+- [x] F11 "W naprawie" uses the danger color; the warranty attention card is red on Start and blue on Items; the decorative "⋯" on item rows suggests a menu that does not exist.
+- [x] F15 Activity shows "0.0 MB" while Start shows "154 B" (use `formatStorage`); activity list is unbounded.
+- [x] F16 Timeline: date tiles lack the year for dates outside the current year; "Nadchodzące terminy" also counts overdue entries; filters lack counts.
+- [x] Timeline decision (approved): a recurring plan completed at least once shows its next due date on Terminy (today it is hidden until due). Start/notification reminders keep the 30-day window.
 
 ### Step 6 — item detail
 

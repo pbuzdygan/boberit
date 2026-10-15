@@ -80,7 +80,7 @@ export function Sidebar({
             onNavigate('inbox');
           }}
         >
-          <Icon name="file-text" /> Do przypisania {showCounts && <span>{inboxCount}</span>}
+          <Icon name="inbox" /> Do przypisania {showCounts && <span>{inboxCount}</span>}
         </button>
       </nav>
       <div className="sidebar-footer">
@@ -100,7 +100,7 @@ export function Sidebar({
             onNavigate('settings');
           }}
         >
-          <Icon name="dots" /> Ustawienia
+          <Icon name="settings" /> Ustawienia
         </button>
       </div>
     </aside>

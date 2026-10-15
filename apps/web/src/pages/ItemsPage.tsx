@@ -326,7 +326,6 @@ export function ItemsPage({
           />
           <span>Tagi</span>
           <span>Gwarancja</span>
-          <span aria-hidden="true" />
         </div>
         {allAssets.length === 0 ? (
           <div className="empty">
@@ -392,9 +391,6 @@ function AssetRow({ asset, onOpen }: { asset: AssetSummary; onOpen: (id: string)
       <span className={`warranty ${warranty.state}`}>
         <b />
         {warranty.text}
-      </span>
-      <span className="more" aria-hidden="true">
-        <Icon name="dots" />
       </span>
     </button>
   );

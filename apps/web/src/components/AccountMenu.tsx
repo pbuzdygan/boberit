@@ -87,7 +87,7 @@ export function AccountMenu({
           </button>
           <button onClick={() => choose('members')} role="menuitem" type="button">
             <span className="account-menu-icon">
-              <Icon name="package" />
+              <Icon name="users" />
             </span>
             <span>
               <strong>Członkowie</strong>
@@ -106,7 +106,7 @@ export function AccountMenu({
           </button>
           <button onClick={() => choose('webhooks')} role="menuitem" type="button">
             <span className="account-menu-icon">
-              <Icon name="dots" />
+              <Icon name="webhook" />
             </span>
             <span>
               <strong>Webhooki</strong>

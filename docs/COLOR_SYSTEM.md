@@ -27,7 +27,8 @@ Tokens are implemented as CSS variables in `:root` of `apps/web/src/styles.css`.
 | `--muted` | `#65758A` | secondary text |
 | `--line` | `#D8E2ED` | borders |
 | `--success` | `#087F60` | success state |
-| `--danger` | `#C9384A` | warning and error state |
+| `--danger` | `#C9384A` | errors, overdue dates, and urgent warnings (e.g. an expiring warranty) |
+| `--warning` | `#A75C00` | states that need attention but are not errors (e.g. an item in repair, a date within 30 days) |
 
 ## Usage rules
 
@@ -35,5 +36,5 @@ Tokens are implemented as CSS variables in `:root` of `apps/web/src/styles.css`.
 - The main workspace stays light and information-dense.
 - Cobalt blue is reserved for actions, selection, filters, and links.
 - Electric blue appears sparingly, in gradients and hover states.
-- Red and green are semantic colors only, never decoration, and are always paired with text or an icon.
+- Red, amber, and green are semantic colors only, never decoration, and are always paired with text or an icon.
 - Shadows are cool, shallow, and used only for hierarchy.

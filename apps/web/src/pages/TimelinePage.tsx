@@ -1,10 +1,10 @@
-import { type AssetSummary, type MaintenancePlan, daysUntil, localDate } from '@boberit/shared';
+import { type AssetSummary, type MaintenancePlan, daysUntil } from '@boberit/shared';
 import { useMemo } from 'react';
+import { timelineEntries } from '../collections';
 import { Icon } from '../components/Icon';
+import { formatDate } from '../format';
 import { intervalLabel } from '../labels';
 import type { TimelineFilter, ReminderEntry } from '../types';
-
-type TimelineEntry = ReminderEntry;
 
 export function TimelinePage({
   assets,
@@ -19,34 +19,20 @@ export function TimelinePage({
   onOpen: (id: string) => Promise<void>;
   onComplete: (plan: MaintenancePlan) => void;
 }) {
-  const entries = useMemo(
-    () =>
-      assets
-        .flatMap((asset): TimelineEntry[] => {
-          const warranty = asset.warranty;
-          const warrantyEntry =
-            warranty?.kind === 'fixed' && warranty.expiresOn
-              ? [{ id: `warranty-${asset.id}`, dueOn: warranty.expiresOn, kind: 'warranty' as const, asset }]
-              : [];
-          const maintenanceEntries = (asset.maintenancePlans ?? [])
-            .filter(
-              (plan) =>
-                plan.status === 'active' && plan.nextDueOn && (!plan.lastCompletedOn || plan.nextDueOn <= localDate()),
-            )
-            .map((plan) => ({ id: plan.id, dueOn: plan.nextDueOn!, kind: 'maintenance' as const, asset, plan }));
-          return [...warrantyEntry, ...maintenanceEntries];
-        })
-        .sort((a, b) => a.dueOn.localeCompare(b.dueOn)),
-    [assets],
-  );
+  const entries = useMemo(() => timelineEntries(assets), [assets]);
   const visible = entries.filter((entry) => filter === 'all' || entry.kind === filter);
+  const counts = {
+    all: entries.length,
+    maintenance: entries.filter((entry) => entry.kind === 'maintenance').length,
+    warranty: entries.filter((entry) => entry.kind === 'warranty').length,
+  };
   const overdue = visible.filter((entry) => daysUntil(entry.dueOn) < 0).length;
   const soon = visible.filter((entry) => {
     const days = daysUntil(entry.dueOn);
     return days >= 0 && days <= 30;
   }).length;
   const later = visible.length - overdue - soon;
-  const groups: { key: 'overdue' | 'soon' | 'later'; label: string; entries: TimelineEntry[] }[] = [
+  const groups: { key: 'overdue' | 'soon' | 'later'; label: string; entries: ReminderEntry[] }[] = [
     { key: 'overdue', label: 'Zaległe', entries: visible.filter((entry) => daysUntil(entry.dueOn) < 0) },
     {
       key: 'soon',
@@ -84,7 +70,7 @@ export function TimelinePage({
       <div className="collection-heading timeline-toolbar">
         <div>
           <h2>
-            Nadchodzące terminy <em>{visible.length}</em>
+            Lista terminów <em>{visible.length}</em>
           </h2>
           <p>Oznaczenie konserwacji jako wykonanej od razu wyliczy jej kolejny termin.</p>
         </div>
@@ -94,21 +80,21 @@ export function TimelinePage({
             type="button"
             onClick={() => onFilter('all')}
           >
-            Wszystkie
+            Wszystkie <em>{counts.all}</em>
           </button>
           <button
             className={`filter ${filter === 'maintenance' ? 'active' : ''}`}
             type="button"
             onClick={() => onFilter('maintenance')}
           >
-            Konserwacja
+            Konserwacja <em>{counts.maintenance}</em>
           </button>
           <button
             className={`filter ${filter === 'warranty' ? 'active' : ''}`}
             type="button"
             onClick={() => onFilter('warranty')}
           >
-            Gwarancje
+            Gwarancje <em>{counts.warranty}</em>
           </button>
         </div>
       </div>
@@ -163,7 +149,9 @@ export function TimelinePage({
                           <strong>
                             {entry.kind === 'maintenance' ? entry.plan?.title : 'Koniec gwarancji'} · {entry.asset.name}
                           </strong>
-                          <p>{label}</p>
+                          <p>
+                            {label} · {formatDate(entry.dueOn)}
+                          </p>
                         </div>
                         {entry.kind === 'maintenance' && entry.plan ? (
                           <button className="secondary" type="button" onClick={() => onComplete(entry.plan!)}>

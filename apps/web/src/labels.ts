@@ -73,10 +73,10 @@ export function eventLabel(value: string): string {
 
 export function ocrStatusMeta(status: OcrStatus): { label: string; icon: IconName } {
   const statuses: Record<OcrStatus, { label: string; icon: IconName }> = {
-    pending: { label: 'nie uruchomiono', icon: 'calendar-event' },
+    pending: { label: 'nie uruchomiono', icon: 'clock' },
     processing: { label: 'w toku', icon: 'dots' },
-    completed: { label: 'gotowe', icon: 'shield-check' },
-    failed: { label: 'błąd', icon: 'x' },
+    completed: { label: 'gotowe', icon: 'circle-check' },
+    failed: { label: 'błąd', icon: 'alert-triangle' },
     unsupported: { label: 'brak obsługi', icon: 'file-text' },
   };
   return statuses[status];

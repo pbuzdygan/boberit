@@ -56,7 +56,7 @@ export function MembersSettings() {
   return (
     <section className="settings-card">
       <span>
-        <Icon name="package" />
+        <Icon name="users" />
       </span>
       <div>
         <p className="eyebrow">Gospodarstwo domowe</p>

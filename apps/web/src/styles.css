@@ -17,6 +17,7 @@
   --muted: #65758a;
   --line: #d8e2ed;
   --danger: #c9384a;
+  --warning: #a75c00;
   --success: #087f60;
   /* Type scale: metadata 12–13, body and controls 14, component headings 16–18, page titles 28–32. */
   --text-xs: 12px;
@@ -313,11 +314,12 @@ h2 {
   gap: 8px;
   min-height: 56px;
   padding: 8px 10px;
-  border: 1px solid #d4e7f8;
+  /* Same urgency styling as the warranty card on Start. */
+  border: 1px solid #f0d6dc;
   border-radius: 9px;
   color: var(--ink);
   background: #fff;
-  box-shadow: inset 3px 0 #80c3fb;
+  box-shadow: inset 3px 0 var(--danger);
   text-align: left;
 }
 .attention > span {
@@ -326,10 +328,10 @@ h2 {
   height: 28px;
   place-items: center;
   border-radius: 7px;
-  background: #e9f4ff;
+  background: #fff0f2;
 }
 .attention > span .icon {
-  filter: invert(31%) sepia(97%) saturate(2730%) hue-rotate(204deg) brightness(95%);
+  filter: invert(28%) sepia(62%) saturate(1326%) hue-rotate(314deg) brightness(95%);
 }
 .attention small,
 .attention strong {
@@ -497,10 +499,6 @@ h2 {
 }
 .warranty.quiet {
   color: #8796a7;
-}
-.more {
-  color: #7e91a7;
-  letter-spacing: 1px;
 }
 .empty {
   min-height: 200px;
@@ -1058,8 +1056,7 @@ textarea {
     min-height: 49px;
     padding: 6px 8px;
   }
-  .asset-row .tags,
-  .asset-row .more {
+  .asset-row .tags {
     display: none;
   }
   .asset-icon {
@@ -1269,10 +1266,6 @@ textarea {
   overflow: hidden;
   flex-wrap: nowrap;
 }
-.more .icon {
-  width: 15px;
-  height: 15px;
-}
 
 .plan-form {
   display: block;
@@ -1300,8 +1293,7 @@ textarea {
     min-height: 49px;
     padding: 6px 8px;
   }
-  .asset-row .tags,
-  .asset-row .more {
+  .asset-row .tags {
     display: none;
   }
   .asset-icon {
@@ -1349,7 +1341,7 @@ textarea {
 .asset-row {
   grid-template-columns:
     34px minmax(180px, 1.6fr) minmax(125px, 1fr) minmax(125px, 1fr) minmax(140px, 1fr) minmax(80px, 1fr)
-    minmax(105px, 1fr) 24px;
+    minmax(105px, 1fr);
   min-width: 1040px;
 }
 .table-head {
@@ -1565,20 +1557,20 @@ textarea {
   background: #e6f7f1;
 }
 .item-status.reserved {
-  color: #a75c00;
-  background: #fff1dc;
+  color: #3f5875;
+  background: #edf2f8;
 }
 .item-status.in-use {
   color: #0665bd;
   background: #e7f3ff;
 }
 .item-status.in-repair {
-  color: #b42336;
-  background: #ffeaed;
+  color: var(--warning);
+  background: #fff1dc;
 }
 .item-status.retired {
-  color: #a84c59;
-  background: #fff1f3;
+  color: #65758a;
+  background: #f1f4f7;
 }
 .household-settings-stack {
   display: grid;
@@ -1721,8 +1713,7 @@ textarea {
   .asset-row .category-cell,
   .asset-row .location-cell,
   .asset-row .tags,
-  .asset-row .warranty,
-  .asset-row .more {
+  .asset-row .warranty {
     display: none;
   }
   .asset-row .item-status {
@@ -1864,7 +1855,7 @@ textarea {
   background: #fff0f2;
 }
 .timeline-row.soon .date-tile {
-  color: #9a6400;
+  color: var(--warning);
   background: #fff7e6;
 }
 .timeline-icon {
@@ -2860,6 +2851,9 @@ textarea {
 .document-action-upload:has(input:focus-visible) {
   outline: 3px solid rgba(0, 136, 248, 0.32);
   outline-offset: 2px;
+}
+.activity-more {
+  margin-top: 10px;
 }
 .settings-actions {
   display: flex;

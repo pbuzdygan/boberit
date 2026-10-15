@@ -39,7 +39,7 @@ export function MobileMoreMenu({
           </button>
           <button onClick={() => onNavigate('inbox')} type="button">
             <span className="mobile-more-icon">
-              <Icon name="file-text" />
+              <Icon name="inbox" />
             </span>
             <span>
               <strong>Do przypisania ({inboxCount})</strong>
@@ -57,7 +57,7 @@ export function MobileMoreMenu({
           </button>
           <button onClick={() => onNavigate('settings')} type="button">
             <span className="mobile-more-icon">
-              <Icon name="dots" />
+              <Icon name="settings" />
             </span>
             <span>
               <strong>Ustawienia</strong>
