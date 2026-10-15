@@ -2,7 +2,7 @@
 
 Changes are described from the user's perspective, without implementation details.
 
-## 0.1.2
+## 0.2.0
 
 ### Security
 
