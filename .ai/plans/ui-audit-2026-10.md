@@ -27,9 +27,9 @@ Audit from 2026-10-15 (desktop 1366 px, phone 390 px, isolated instance with dem
 - [x] F9b Backup: "Wybierz backup" and "Zastąp dane backupem" touch without a gap.
 - [x] F9 Disabled buttons look like empty fields (Zapisz dane, Przypisz, Utwórz konto).
 
-### Step 4 — typography (approved: larger desktop text)
+### Step 4 — typography (done)
 
-- [ ] F7 Desktop text is 8–11 px (inputs 11 px, metadata down to ~7 px); target body 14 px, metadata ≥ 12 px (§5). Keep Inter (variable, already self-hosted) unless readability at the new sizes requires a change. Introduce type-scale tokens; deduplicate the touched rules in `styles.css` with before/after screenshot comparison.
+- [x] F7 Desktop text is 8–11 px (inputs 11 px, metadata down to ~7 px); target body 14 px, metadata ≥ 12 px (§5). Keep Inter (variable, already self-hosted) unless readability at the new sizes requires a change. Introduce type-scale tokens; deduplicate the touched rules in `styles.css` with before/after screenshot comparison.
 
 ### Step 5 — icons, colors, small consistency fixes
 
@@ -42,6 +42,7 @@ Audit from 2026-10-15 (desktop 1366 px, phone 390 px, isolated instance with dem
 ### Step 6 — item detail
 
 - [ ] F12b Warranty card fields (scope, end date) have no visible labels; label them in the redesign.
+- [ ] F12c Plan rows: actions moved to a second row in step 4 (titles wrapped at the larger text size); revisit in the redesign.
 - [ ] F12 Warranty card is a dark gradient with shadow, unlike other panels, and on phones sits below the whole plan form; the add-plan form is always expanded; plan rows are cramped. Needs approval of the layout before implementing.
 
 ### Step 7 — phone layout
