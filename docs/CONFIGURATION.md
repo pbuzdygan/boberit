@@ -69,6 +69,6 @@ Boberit sends browser security headers, including a Content Security Policy, and
 
 ## Backup and restore
 
-**Settings → Backup** exports the active household with its data and attachments. Only a household owner can export, restore, or permanently empty the trash, and export and restore ask for the owner's current password. Restore replaces the household's data only after explicit confirmation. It validates the whole package first and gives every restored record and attachment a new identifier; if anything fails, the household keeps its current data and files. Webhook configuration and secrets are excluded from backups.
+**Ustawienia → Kopia zapasowa** (Settings → Backup) exports the active household with its data and attachments. Only a household owner can export, restore, or permanently empty the trash, and export and restore ask for the owner's current password. Restore replaces the household's data only after explicit confirmation. It validates the whole package first and gives every restored record and attachment a new identifier; if anything fails, the household keeps its current data and files. Webhook configuration and secrets are excluded from backups.
 
 Download a backup before every upgrade. Never run `docker compose down -v` if you want to keep your data: it deletes the volume.

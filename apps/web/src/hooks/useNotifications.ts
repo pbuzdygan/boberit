@@ -33,7 +33,7 @@ export function useNotifications() {
     if (!next) return;
     setNotifications((current) =>
       [
-        { id: String(Date.now()) + '-' + String(Math.random()), message: next, createdAt: Date.now() },
+        { id: String(Date.now()) + '-' + String(Math.random()), message: next, createdAt: Date.now(), tone },
         ...current,
       ].slice(0, 50),
     );
@@ -67,5 +67,9 @@ export function useNotifications() {
     }
   }
 
-  return { toast, setMessage, showError, notifications, todayReadOn, markTodayRead };
+  function clearHistory() {
+    setNotifications([]);
+  }
+
+  return { toast, setMessage, showError, notifications, clearHistory, todayReadOn, markTodayRead };
 }

@@ -84,7 +84,7 @@ Data is stored in the `boberit-data` volume and survives `docker compose down`. 
 
 ### Updating
 
-Download a backup in **Settings → Backup** first, then:
+Download a backup in **Ustawienia → Kopia zapasowa** (Settings → Backup) first, then:
 
 ```bash
 docker compose pull

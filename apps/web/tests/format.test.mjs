@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict';
 import { mock, test } from 'node:test';
-import { addYearsToDate, fileSize, formatPurchaseValues, formatStorage, formatTimestampDate } from '../src/format.ts';
+import {
+  addYearsToDate,
+  dayLabel,
+  fileSize,
+  formatPurchaseValues,
+  formatStorage,
+  formatTimestampDate,
+  groupByDay,
+} from '../src/format.ts';
 import { eventLabel, warrantyLabel, warrantySummary } from '../src/labels.ts';
 
 test('adding years keeps the day or clamps it to the end of the month', () => {
@@ -89,4 +97,20 @@ test('the warranty summary states the end date', () => {
 test('unknown webhook events fall back to their identifier', () => {
   assert.equal(eventLabel('asset.created'), 'Utworzono przedmiot');
   assert.equal(eventLabel('custom.event'), 'custom.event');
+});
+
+test('day labels and day groups for chronological lists', () => {
+  const now = new Date(2026, 9, 15, 10);
+  assert.equal(dayLabel(new Date(2026, 9, 15, 0, 5), now), 'Dzisiaj');
+  assert.equal(dayLabel(new Date(2026, 9, 14, 23, 59), now), 'Wczoraj');
+  assert.equal(dayLabel(new Date(2026, 9, 2, 12), now), '2 października');
+  assert.equal(dayLabel(new Date(2025, 11, 31, 12), now), '31 grudnia 2025');
+  const items = [new Date(2026, 9, 15, 9), new Date(2026, 9, 15, 1), new Date(2026, 9, 13, 8)];
+  assert.deepEqual(
+    groupByDay(items, (at) => at, now).map((group) => [group.label, group.items.length]),
+    [
+      ['Dzisiaj', 2],
+      ['13 października', 1],
+    ],
+  );
 });

@@ -17,6 +17,32 @@ export function formatTimestampDate(value: string): string {
   return formatDate(localDate(new Date(value)));
 }
 
+/** Heading for a day in a chronological list: "Dzisiaj", "Wczoraj", or the date (year only when not this year). */
+export function dayLabel(at: Date, now: Date = new Date()): string {
+  const day = localDate(at);
+  if (day === localDate(now)) return 'Dzisiaj';
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (day === localDate(yesterday)) return 'Wczoraj';
+  const options: Intl.DateTimeFormatOptions =
+    at.getFullYear() === now.getFullYear()
+      ? { day: 'numeric', month: 'long' }
+      : { day: 'numeric', month: 'long', year: 'numeric' };
+  return new Intl.DateTimeFormat('pl-PL', options).format(at);
+}
+
+/** Groups items that are already sorted newest first under their day headings. */
+export function groupByDay<T>(items: T[], timeOf: (item: T) => Date, now: Date = new Date()) {
+  const groups: { label: string; items: T[] }[] = [];
+  for (const item of items) {
+    const label = dayLabel(timeOf(item), now);
+    const last = groups[groups.length - 1];
+    if (last?.label === label) last.items.push(item);
+    else groups.push({ label, items: [item] });
+  }
+  return groups;
+}
+
 export function addYearsToDate(value: string, years: number): string {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return '';
   const year = Number(value.slice(0, 4));

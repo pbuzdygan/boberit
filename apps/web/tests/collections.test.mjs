@@ -4,6 +4,8 @@ import {
   attentionAssets,
   avatarInitials,
   filterCollection,
+  nameInitials,
+  paletteSlot,
   remindersDueToday,
   timelineEntries,
   upcomingReminders,
@@ -119,4 +121,13 @@ test('the timeline lists every warranty end and the next date of each active pla
     upcomingReminders(assets, now).map((entry) => entry.id),
     ['p2'],
   );
+});
+
+test('household badges use initials and a stable color slot', () => {
+  assert.equal(nameInitials('Mieszkanie Kraków'), 'MK');
+  assert.equal(nameInitials('  dom  '), 'DO');
+  assert.equal(nameInitials('Łódź Dom Letni'), 'ŁD');
+  assert.equal(nameInitials(''), '?');
+  assert.equal(paletteSlot('Mieszkanie Kraków', 6), paletteSlot('Mieszkanie Kraków', 6));
+  assert.ok(paletteSlot('Domek letniskowy', 6) < 6);
 });

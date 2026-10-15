@@ -18,7 +18,6 @@ import { useNotifications } from './hooks/useNotifications';
 import { ReportErrorContext } from './hooks/useReportError';
 import { useSearch } from './hooks/useSearch';
 import { useSession } from './hooks/useSession';
-import { AccountPage } from './pages/AccountPage';
 import { Detail } from './pages/AssetDetail';
 import { AuthScreen } from './pages/AuthScreen';
 import { BinderPage } from './pages/BinderPage';
@@ -30,16 +29,19 @@ import { SettingsPage } from './pages/SettingsPage';
 import { StartPage } from './pages/StartPage';
 import { TimelinePage } from './pages/TimelinePage';
 import { TrashPage } from './pages/TrashPage';
-import type { AccountSection, TimelineFilter, CollectionFilter, View } from './types';
+import type { SettingsSection, TimelineFilter, CollectionFilter, View } from './types';
 
 /** Views built from the household collections; they wait for the first successful load. */
+/** Settings sections about the signed-in account rather than the household; the avatar marks them. */
+const accountSections: (SettingsSection | null)[] = ['households', 'security', 'integrations'];
+
 const collectionViews: View[] = ['start', 'items', 'binder', 'timeline', 'inbox', 'trash'];
 
 export function App() {
   // Hook order matters: the session hook's effect sets the API token before data loads.
   const session = useSession();
   const { accessToken, account, households, activeHouseholdId, isOwner } = session;
-  const { toast, setMessage, showError, notifications, todayReadOn, markTodayRead } = useNotifications();
+  const { toast, setMessage, showError, notifications, clearHistory, todayReadOn, markTodayRead } = useNotifications();
   const search = useSearch(accessToken);
   const { query, searchAssets, searchDocuments, isSearching, searchError, searchInputRef, clearSearch } = search;
   const navigation = useNavigation(search, setMessage);
@@ -53,7 +55,8 @@ export function App() {
   const [timelineFilter, setTimelineFilter] = useState<TimelineFilter>('all');
   const [completionPlan, setCompletionPlan] = useState<MaintenancePlan | null>(null);
   const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [accountSection, setAccountSection] = useState<AccountSection>('households');
+  // Null opens the settings overview (the section list on phones).
+  const [settingsSection, setSettingsSection] = useState<SettingsSection | null>(null);
   const actions = useLibraryActions({
     collections,
     navigation,
@@ -97,8 +100,12 @@ export function App() {
     collections.clearCollections();
     session.signOut();
   }
-  function openAccount(section: AccountSection) {
-    if (navigateTo('account')) setAccountSection(section);
+  function openSettings(section: SettingsSection | null) {
+    if (navigateTo('settings')) setSettingsSection(section);
+  }
+  function navigate(next: View) {
+    if (next === 'settings') openSettings(null);
+    else void navigateTo(next);
   }
 
   const attention = useMemo(() => attentionAssets(assets), [assets]);
@@ -120,12 +127,12 @@ export function App() {
           inboxCount={inboxFiles.length}
           trashCount={trashEntries.length}
           showCounts={collections.hasLoaded}
-          onNavigate={(next) => void navigateTo(next)}
+          onNavigate={navigate}
         />
         <MobileNav
           view={view}
           hasSelection={Boolean(selected)}
-          onNavigate={(next) => void navigateTo(next)}
+          onNavigate={navigate}
           onQuickAdd={() => openQuickAdd()}
           onMore={() => setMobileMenuOpen(true)}
         />
@@ -163,18 +170,19 @@ export function App() {
               <NotificationsMenu
                 hasUnreadToday={hasUnreadToday}
                 history={notifications}
+                onClearHistory={clearHistory}
                 onOpenAsset={(id) => void openDetail(id)}
                 onReadToday={markTodayRead}
                 todayReminders={todayReminders}
               />
               <AccountMenu
                 account={account}
-                active={view === 'account'}
+                active={view === 'settings' && accountSections.includes(settingsSection)}
                 activeHouseholdId={activeHouseholdId}
                 avatarInitials={avatarInitials(account?.login)}
                 households={households}
                 onLogout={logout}
-                onSelect={openAccount}
+                onSelect={openSettings}
                 onSwitch={switchHousehold}
               />
             </div>
@@ -251,10 +259,18 @@ export function App() {
                 onRestore={actions.restoreTrash}
                 onEmpty={actions.emptyTrash}
               />
-            ) : view === 'account' ? (
-              <AccountPage section={accountSection} onSection={setAccountSection} onLogout={logout} />
             ) : view === 'settings' ? (
-              <SettingsPage isOwner={isOwner} />
+              <SettingsPage
+                account={account}
+                activeHouseholdId={activeHouseholdId}
+                documentCount={documents.length}
+                households={households}
+                itemCount={assets.length}
+                onSection={setSettingsSection}
+                onSwitchHousehold={switchHousehold}
+                section={settingsSection}
+                storageBytes={storageBytes}
+              />
             ) : view === 'search' ? (
               <SearchPage
                 query={query}
@@ -302,7 +318,9 @@ export function App() {
             inboxCount={inboxFiles.length}
             onClose={() => setMobileMenuOpen(false)}
             onNavigate={(next) => {
-              if (navigateTo(next)) setMobileMenuOpen(false);
+              const opened = next === 'settings' ? navigateTo('settings') : navigateTo(next);
+              if (next === 'settings' && opened) setSettingsSection(null);
+              if (opened) setMobileMenuOpen(false);
             }}
             trashCount={trashEntries.length}
           />

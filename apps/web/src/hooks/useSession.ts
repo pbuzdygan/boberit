@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, setAccessToken } from '../api';
-
-type HouseholdMembership = { id: string; name: string; role: string };
+import type { HouseholdMembership } from '../types';
 
 const sessionKey = 'boberit-session';
 

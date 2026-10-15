@@ -268,7 +268,7 @@ export const api = {
     const response = await send('/api/v1/inbox/files', { method: 'POST', headers: authHeaders(), body: form });
     if (!response.ok) {
       const body = (await response.json().catch(() => null)) as ApiErrorEnvelope | null;
-      throw new Error(body?.error.message ?? 'Nie udało się dodać pliku do Skrzynki.');
+      throw new Error(body?.error.message ?? 'Nie udało się dodać pliku do listy Do przypisania.');
     }
     return response.json() as Promise<ApiEnvelope<InboxFile>>;
   },

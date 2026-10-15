@@ -54,7 +54,7 @@ export function BinderPage({
     <>
       <div className="page-heading">
         <div>
-          <p className="eyebrow">Dokumenty niezależne</p>
+          <p className="eyebrow">Archiwum</p>
           <h1>Dokumenty</h1>
           <p>Umowy, faktury, potwierdzenia i pełnotekstowe wyszukiwanie OCR.</p>
         </div>

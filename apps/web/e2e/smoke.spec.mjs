@@ -139,10 +139,19 @@ test('image preview renders in its tab under the app CSP', async ({ page }) => {
   await preview.close();
 });
 
+// Opens a section from the settings menu; the hint under each label is ignored.
+async function settingsSection(page, label) {
+  await page
+    .locator('.settings-menu button')
+    .filter({ has: page.locator('.settings-menu-text', { hasText: new RegExp(`^${label}`) }) })
+    .click();
+}
+
 test('backup download requires the current password', async ({ page }) => {
   await login(page, 'owner');
   await nav(page, 'Ustawienia');
-  const downloadButton = page.getByRole('button', { name: 'Pobierz backup' });
+  await settingsSection(page, 'Kopia zapasowa');
+  const downloadButton = page.getByRole('button', { name: 'Pobierz kopię zapasową' });
   const passwordInput = page.locator('label', { hasText: 'Obecne hasło' }).first().locator('input');
   await expect(downloadButton).toBeDisabled();
 
@@ -154,16 +163,19 @@ test('backup download requires the current password', async ({ page }) => {
   const [download] = await Promise.all([page.waitForEvent('download'), downloadButton.click()]);
   expect(download.suggestedFilename()).toMatch(/^boberit-backup-/);
 
-  await page.locator('.settings-nav button', { hasText: 'Historia gospodarstwa' }).click();
-  await expect(page.getByText('Pobrano backup')).toBeVisible();
+  await settingsSection(page, 'Historia');
+  await expect(page.getByText('Pobrano kopię zapasową')).toBeVisible();
 });
 
 test('member cannot manage backups or empty the trash', async ({ openPage }) => {
   const page = await openPage();
   await login(page, 'member');
   await nav(page, 'Ustawienia');
-  await expect(page.getByText('Backupem i odtwarzaniem danych zarządza właściciel gospodarstwa.')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Pobierz backup' })).toHaveCount(0);
+  await settingsSection(page, 'Kopia zapasowa');
+  await expect(page.getByText('Kopią zapasową i przywracaniem danych zarządza właściciel gospodarstwa.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Pobierz kopię zapasową' })).toHaveCount(0);
+  await settingsSection(page, 'Kategorie i typy');
+  await expect(page.getByRole('button', { name: 'Dodaj kategorię' })).toHaveCount(0);
   await nav(page, 'Kosz');
   await expect(page.getByText('Stara lampa')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Opróżnij kosz' })).toHaveCount(0);
@@ -290,4 +302,36 @@ test('dialogs and file pickers work from the keyboard', async ({ page }) => {
   const importInput = page.locator('.inbox-upload input[type="file"]');
   await importInput.focus();
   await expect(importInput).toBeFocused();
+});
+
+test('settings: categories are chips edited in place, webhooks are saved from one dialog', async ({ page }) => {
+  await login(page, 'owner');
+  await nav(page, 'Ustawienia');
+  await settingsSection(page, 'Kategorie i typy');
+  const categories = page.getByRole('list', { name: 'Kategorie przedmiotów' });
+  await page.getByRole('button', { name: 'Dodaj kategorię' }).click();
+  await page.getByLabel('Dodaj kategorię').fill('Ogród');
+  await page.getByLabel('Dodaj kategorię').press('Enter');
+  await expect(categories.getByText('Ogród', { exact: true })).toBeVisible();
+  // The field stays open for the next entry.
+  await expect(page.getByLabel('Dodaj kategorię')).toHaveValue('');
+  await page.getByLabel('Dodaj kategorię').press('Escape');
+
+  await page.getByRole('button', { name: 'Zmień nazwę: Ogród' }).click();
+  await page.getByLabel('Nowa nazwa: Ogród').fill('Ogród i taras');
+  await page.getByLabel('Nowa nazwa: Ogród').press('Enter');
+  await expect(categories.getByText('Ogród i taras', { exact: true })).toBeVisible();
+
+  await settingsSection(page, 'Integracje');
+  await page.getByRole('button', { name: 'Dodaj webhook' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Nowy webhook' });
+  await dialog.getByLabel('Nazwa').fill('Test hook');
+  await dialog.getByLabel('Adres URL').fill('https://example.com/boberit');
+  await dialog.getByRole('button', { name: 'Wykonano konserwację' }).click();
+  await expect(dialog.getByRole('button', { name: 'Wykonano konserwację' })).toHaveAttribute('aria-pressed', 'true');
+  await dialog.getByRole('button', { name: 'Dodaj webhook' }).click();
+  await expect(dialog).toBeHidden();
+  const card = page.locator('.webhook-cards li', { hasText: 'Test hook' }).first();
+  await expect(card).toContainText('Wykonano konserwację');
+  await expect(card).toContainText('Utworzono przedmiot');
 });

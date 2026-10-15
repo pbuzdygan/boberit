@@ -1,255 +1,135 @@
-import { localDate } from '@boberit/shared';
-import { useEffect, useState } from 'react';
-import { api } from '../api';
-import { Icon } from '../components/Icon';
-import { formatStorage } from '../format';
-import { eventLabel } from '../labels';
-import type { SettingsSection } from '../types';
+import { type IconName, Icon } from '../components/Icon';
+import type { HouseholdMembership, SettingsSection } from '../types';
+import { ActivitySettings } from './ActivitySettings';
+import { BackupSettings } from './BackupSettings';
+import { DataSettings } from './DataSettings';
+import { GeneralSettings } from './GeneralSettings';
+import { HouseholdSettings } from './HouseholdSettings';
+import { MembersSettings } from './MembersSettings';
+import { SecuritySettings } from './SecuritySettings';
+import { WebhookSettings } from './WebhookSettings';
 
-const activityPageSize = 20;
-const activityTime = new Intl.DateTimeFormat('pl-PL', { dateStyle: 'short', timeStyle: 'short' });
+type MenuItem = { section: SettingsSection; label: string; hint: string; icon: IconName };
 
-function ActivitySettings() {
-  const [events, setEvents] = useState<
-    { action: string; entity_kind: string; label: string | null; user_login: string | null; created_at: string }[]
-  >([]);
-  const [bytes, setBytes] = useState(0);
-  const [error, setError] = useState('');
-  const [visibleCount, setVisibleCount] = useState(activityPageSize);
-  useEffect(() => {
-    const fail = (reason: unknown) =>
-      setError(reason instanceof Error ? reason.message : 'Nie udało się wczytać historii gospodarstwa.');
-    void api
-      .activity()
-      .then((r) => setEvents(r.data))
-      .catch(fail);
-    void api
-      .storage()
-      .then((r) => setBytes(r.data.bytes))
-      .catch(fail);
-  }, []);
-  const actionLabels: Record<string, string> = {
-    created: 'Utworzono',
-    trashed: 'Przeniesiono do Kosza',
-    restored: 'Przywrócono',
-    deleted: 'Usunięto',
-    exported: 'Pobrano',
-    emptied: 'Opróżniono',
-    'password.changed': 'Zmieniono hasło użytkownika',
-    'sessions.revoked': 'Wylogowano inne sesje',
-    'login.locked': 'Zablokowano logowanie po nieudanych próbach',
-    'member.added': 'Dodano członka gospodarstwa',
-    'member.promoted': 'Nadano rolę właściciela',
-    'member.demoted': 'Zmieniono rolę na członka',
-    'member.removed': 'Usunięto członka gospodarstwa',
-    'webhook.created': 'Dodano webhook',
-    'webhook.updated': 'Zmieniono webhook',
-    'webhook.deleted': 'Usunięto webhook',
-  };
-  const entityLabels: Record<string, string> = {
-    asset: 'przedmiot',
-    document: 'dokument',
-    account: 'konto',
-    session: 'sesję',
-    backup: 'backup',
-    trash: 'Kosz',
-  };
-  // Compound actions ("member.added") are complete phrases; simple ones are combined with the entity.
-  const describe = (event: { action: string; entity_kind: string }) =>
-    event.action.includes('.')
-      ? (actionLabels[event.action] ?? event.action)
-      : `${actionLabels[event.action] ?? eventLabel(`${event.entity_kind}.${event.action}`)} ${entityLabels[event.entity_kind] ?? event.entity_kind}`;
-  return (
-    <section className="settings-card">
-      <span>
-        <Icon name="history" />
-      </span>
-      <div>
-        <p className="eyebrow">Aktywność i pliki</p>
-        <h2>Historia gospodarstwa</h2>
-        <p>Wykorzystane miejsce: {formatStorage(bytes)}</p>
-        {error && <p className="form-error">{error}</p>}
-        <div className="webhook-list activity-list">
-          {events.slice(0, visibleCount).map((e, i) => (
-            <div key={i}>
-              <strong>{describe(e)}</strong>
-              <small>
-                {e.label ?? 'Element'} · {e.user_login ?? 'system'} · {activityTime.format(new Date(e.created_at))}
-              </small>
-            </div>
+const householdItems: MenuItem[] = [
+  { section: 'general', label: 'Ogólne', hint: 'Nazwa i zawartość gospodarstwa', icon: 'settings' },
+  { section: 'members', label: 'Członkowie', hint: 'Kto ma dostęp i z jaką rolą', icon: 'users' },
+  { section: 'data', label: 'Kategorie i typy', hint: 'Kategorie, lokalizacje, typy dokumentów', icon: 'tag' },
+  { section: 'backup', label: 'Kopia zapasowa', hint: 'Pobieranie i przywracanie danych', icon: 'archive' },
+  { section: 'activity', label: 'Historia', hint: 'Kto i kiedy zmieniał dane', icon: 'history' },
+];
+const accountItems: MenuItem[] = [
+  { section: 'households', label: 'Gospodarstwa', hint: 'Przełączanie i nowe gospodarstwa', icon: 'home' },
+  { section: 'security', label: 'Bezpieczeństwo', hint: 'Hasło i zalogowane urządzenia', icon: 'shield-check' },
+  { section: 'integrations', label: 'Integracje', hint: 'Webhooki do innych usług', icon: 'webhook' },
+];
+
+/**
+ * Settings of the active household and of the signed-in account in one place. With no section
+ * chosen, phones show the section list and desktops show "Ogólne" next to the menu.
+ */
+export function SettingsPage({
+  section,
+  onSection,
+  account,
+  households,
+  activeHouseholdId,
+  onSwitchHousehold,
+  itemCount,
+  documentCount,
+  storageBytes,
+}: {
+  section: SettingsSection | null;
+  onSection: (section: SettingsSection | null) => void;
+  account: { login: string; email: string } | null;
+  households: HouseholdMembership[];
+  activeHouseholdId: string | null;
+  onSwitchHousehold: (id: string) => Promise<void>;
+  itemCount: number;
+  documentCount: number;
+  storageBytes: number;
+}) {
+  const household = households.find((entry) => entry.id === activeHouseholdId);
+  const isOwner = household?.role === 'owner';
+  const current = section ?? 'general';
+
+  function menuGroup(title: string, subtitle: string | undefined, items: MenuItem[]) {
+    return (
+      <div className="settings-menu-group">
+        <p>
+          {title}
+          {subtitle && <small>{subtitle}</small>}
+        </p>
+        <ul>
+          {items.map((item) => (
+            <li key={item.section}>
+              <button
+                aria-current={current === item.section ? 'page' : undefined}
+                className={current === item.section ? 'active' : ''}
+                onClick={() => onSection(item.section)}
+                type="button"
+              >
+                <span aria-hidden="true" className="settings-menu-icon">
+                  <Icon name={item.icon} />
+                </span>
+                <span className="settings-menu-text">
+                  {item.label}
+                  <small>{item.hint}</small>
+                </span>
+                <span aria-hidden="true" className="settings-menu-chevron">
+                  <Icon name="chevron-right" />
+                </span>
+              </button>
+            </li>
           ))}
-          {!events.length && !error && <p>Brak zapisanych działań.</p>}
+        </ul>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`settings-shell${section ? ' is-reading' : ''}`}>
+      <div className="page-heading settings-page-heading">
+        <div>
+          <h1>Ustawienia</h1>
+          <p>Gospodarstwo, z którym pracujesz, oraz Twoje konto.</p>
         </div>
-        {events.length > visibleCount ? (
-          <button
-            className="secondary activity-more"
-            onClick={() => setVisibleCount((count) => count + activityPageSize)}
-            type="button"
-          >
-            Pokaż więcej
-          </button>
+      </div>
+      <nav aria-label="Sekcje ustawień" className="settings-menu">
+        {menuGroup('Gospodarstwo', household?.name, householdItems)}
+        {menuGroup('Twoje konto', account?.login, accountItems)}
+      </nav>
+      <div className="settings-main">
+        <button className="back settings-back" onClick={() => onSection(null)} type="button">
+          <Icon name="arrow-left" /> Ustawienia
+        </button>
+        {current === 'general' ? (
+          <GeneralSettings
+            documentCount={documentCount}
+            household={household}
+            itemCount={itemCount}
+            storageBytes={storageBytes}
+          />
+        ) : current === 'members' ? (
+          <MembersSettings currentLogin={account?.login ?? null} />
+        ) : current === 'data' ? (
+          <DataSettings canManage={isOwner} />
+        ) : current === 'backup' ? (
+          <BackupSettings isOwner={isOwner} />
+        ) : current === 'activity' ? (
+          <ActivitySettings />
+        ) : current === 'households' ? (
+          <HouseholdSettings
+            activeHouseholdId={activeHouseholdId}
+            households={households}
+            onSwitch={onSwitchHousehold}
+          />
+        ) : current === 'security' ? (
+          <SecuritySettings account={account} />
         ) : (
-          // The server returns at most the 100 most recent events.
-          events.length >= 100 && <p>Pokazano 100 ostatnich działań.</p>
+          <WebhookSettings />
         )}
       </div>
-    </section>
-  );
-}
-
-export function SettingsPage({ isOwner }: { isOwner: boolean }) {
-  const [section, setSection] = useState<SettingsSection>('backup');
-  return (
-    <>
-      <div className="page-heading">
-        <div>
-          <p className="eyebrow">Administracja</p>
-          <h1>Ustawienia</h1>
-          <p>Zarządzaj kopią danych oraz historią aktywnego gospodarstwa.</p>
-        </div>
-      </div>
-      <div className="settings-layout">
-        <nav aria-label="Sekcje ustawień" className="settings-nav">
-          <p>Gospodarstwo</p>
-          <button className={section === 'backup' ? 'active' : ''} onClick={() => setSection('backup')} type="button">
-            <Icon name="file-text" />
-            Backup
-          </button>
-          <button
-            className={section === 'activity' ? 'active' : ''}
-            onClick={() => setSection('activity')}
-            type="button"
-          >
-            <Icon name="history" />
-            Historia gospodarstwa
-          </button>
-        </nav>
-        <div className="settings-content">
-          {section === 'backup' ? <BackupSettings isOwner={isOwner} /> : <ActivitySettings />}
-        </div>
-      </div>
-    </>
-  );
-}
-
-function BackupSettings({ isOwner }: { isOwner: boolean }) {
-  const [file, setFile] = useState<File | null>(null);
-  const [confirmation, setConfirmation] = useState('');
-  const [exportPassword, setExportPassword] = useState('');
-  const [restorePassword, setRestorePassword] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  async function download() {
-    if (!exportPassword) return;
-    setMessage(null);
-    try {
-      const blob = await api.downloadBackup(exportPassword);
-      setExportPassword('');
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'boberit-backup-' + localDate() + '.json';
-      link.click();
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Nie udało się pobrać backupu.');
-    }
-  }
-  async function restore() {
-    if (!file || confirmation !== 'ZASTĄP' || !restorePassword) return;
-    setBusy(true);
-    setMessage(null);
-    try {
-      await api.importBackup(file, restorePassword);
-      window.location.reload();
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Nie udało się odtworzyć backupu.');
-    } finally {
-      setBusy(false);
-    }
-  }
-  if (!isOwner)
-    return (
-      <section className="settings-card">
-        <span>
-          <Icon name="file-text" />
-        </span>
-        <div>
-          <p className="eyebrow">Backup</p>
-          <h2>Pakiet Boberit</h2>
-          <p>Backupem i odtwarzaniem danych zarządza właściciel gospodarstwa.</p>
-        </div>
-      </section>
-    );
-  return (
-    <div className="settings-grid settings-grid--single">
-      <section className="settings-card">
-        <span>
-          <Icon name="file-text" />
-        </span>
-        <div>
-          <p className="eyebrow">Backup</p>
-          <h2>Pakiet Boberit</h2>
-          <p>Pobierz dane i załączniki aktywnego gospodarstwa w jednym pliku JSON.</p>
-          <label>
-            Obecne hasło
-            <input
-              autoComplete="current-password"
-              onChange={(event) => setExportPassword(event.target.value)}
-              type="password"
-              value={exportPassword}
-            />
-          </label>
-          <button className="primary" disabled={!exportPassword} onClick={() => void download()} type="button">
-            Pobierz backup
-          </button>
-        </div>
-      </section>
-      <section className="settings-card">
-        <span>
-          <Icon name="package" />
-        </span>
-        <div>
-          <p className="eyebrow">Odtwarzanie</p>
-          <h2>Przywróć pakiet</h2>
-          <p>Ta operacja zastąpi dane i pliki tylko aktywnego gospodarstwa. Najpierw pobierz aktualny backup.</p>
-          <label className="restore-file secondary">
-            Wybierz backup
-            <input
-              accept="application/json,.json"
-              onChange={(event) => setFile(event.currentTarget.files?.[0] ?? null)}
-              type="file"
-            />
-          </label>
-          {file && (
-            <>
-              <p>Wybrany plik: {file.name}</p>
-              <label>
-                Wpisz <b>ZASTĄP</b>, aby potwierdzić
-                <input value={confirmation} onChange={(event) => setConfirmation(event.target.value)} />
-              </label>
-              <label>
-                Obecne hasło
-                <input
-                  autoComplete="current-password"
-                  onChange={(event) => setRestorePassword(event.target.value)}
-                  type="password"
-                  value={restorePassword}
-                />
-              </label>
-            </>
-          )}
-          <button
-            className="secondary danger-button"
-            disabled={!file || confirmation !== 'ZASTĄP' || !restorePassword || busy}
-            onClick={() => void restore()}
-            type="button"
-          >
-            {busy ? 'Odtwarzanie…' : 'Zastąp dane backupem'}
-          </button>
-          {message && <p className="form-error">{message}</p>}
-        </div>
-      </section>
     </div>
   );
 }

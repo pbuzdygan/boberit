@@ -63,3 +63,18 @@ export function avatarInitials(login: string | undefined): string {
     .join('')
     .toLocaleUpperCase('pl-PL');
 }
+
+/** Up to two initials of a name ("Mieszkanie Kraków" → "MK"), for household badges. */
+export function nameInitials(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  const letters =
+    words.length > 1 ? words.slice(0, 2).map((word) => Array.from(word)[0]) : Array.from(words[0] ?? '?').slice(0, 2);
+  return letters.join('').toLocaleUpperCase('pl-PL');
+}
+
+/** A stable palette slot for a name, so a household keeps its badge color. */
+export function paletteSlot(name: string, size: number): number {
+  let hash = 0;
+  for (const char of name) hash = (hash * 31 + char.codePointAt(0)!) >>> 0;
+  return hash % size;
+}

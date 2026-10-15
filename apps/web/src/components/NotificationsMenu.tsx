@@ -1,16 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ReminderEntry, UiNotification } from '../types';
+import { groupByDay } from '../format';
 import { Icon } from './Icon';
+
+const timeOfDay = new Intl.DateTimeFormat('pl-PL', { hour: '2-digit', minute: '2-digit' });
 
 export function NotificationsMenu({
   hasUnreadToday,
   history,
+  onClearHistory,
   onOpenAsset,
   onReadToday,
   todayReminders,
 }: {
   hasUnreadToday: boolean;
   history: UiNotification[];
+  onClearHistory: () => void;
   onOpenAsset: (id: string) => void;
   onReadToday: () => void;
   todayReminders: ReminderEntry[];
@@ -53,17 +58,14 @@ export function NotificationsMenu({
       {open && (
         <section aria-label="Powiadomienia" className="notifications-panel" role="dialog">
           <header>
-            <div>
-              <p className="eyebrow">Powiadomienia</p>
-              <h2>Centrum powiadomień</h2>
-            </div>
+            <h2>Powiadomienia</h2>
             <button className="icon-button" onClick={() => setOpen(false)} type="button">
               <Icon label="Zamknij" name="x" />
             </button>
           </header>
           <div className="notifications-scroll">
             <section className="notifications-section">
-              <h3>Dzisiaj</h3>
+              <h3>Na dziś</h3>
               {todayReminders.length ? (
                 todayReminders.map((entry) => (
                   <button
@@ -91,21 +93,35 @@ export function NotificationsMenu({
               )}
             </section>
             <section className="notifications-section">
-              <h3>Historia działań</h3>
+              <div className="notifications-section-title">
+                <h3>Ostatnie działania</h3>
+                {history.length > 0 && (
+                  <button className="text-action" onClick={onClearHistory} type="button">
+                    Wyczyść
+                  </button>
+                )}
+              </div>
               {history.length ? (
-                history.slice(0, 20).map((entry) => (
-                  <div className="notification-row notification-row--history" key={entry.id}>
-                    <span className="notification-row-icon">
-                      <Icon name="bell" />
-                    </span>
-                    <span>
-                      <strong>{entry.message}</strong>
-                      <small>
-                        {new Intl.DateTimeFormat('pl-PL', { hour: '2-digit', minute: '2-digit' }).format(
-                          new Date(entry.createdAt),
-                        )}
-                      </small>
-                    </span>
+                groupByDay(history.slice(0, 20), (entry) => new Date(entry.createdAt)).map((group) => (
+                  <div className="notifications-day" key={group.label}>
+                    <p>{group.label}</p>
+                    {group.items.map((entry) => (
+                      <div
+                        className={`notification-row notification-row--history${entry.tone === 'error' ? ' is-error' : ''}`}
+                        key={entry.id}
+                      >
+                        <span className="notification-row-icon">
+                          <Icon
+                            label={entry.tone === 'error' ? 'Błąd' : 'Wykonano'}
+                            name={entry.tone === 'error' ? 'alert-triangle' : 'circle-check'}
+                          />
+                        </span>
+                        <span>
+                          <strong>{entry.message}</strong>
+                        </span>
+                        <small>{timeOfDay.format(new Date(entry.createdAt))}</small>
+                      </div>
+                    ))}
                   </div>
                 ))
               ) : (

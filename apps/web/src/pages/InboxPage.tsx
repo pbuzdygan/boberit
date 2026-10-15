@@ -28,13 +28,13 @@ export function InboxPage({
     <>
       <div className="page-heading">
         <div>
-          <p className="eyebrow">Masowy import</p>
+          <p className="eyebrow">Pliki</p>
           <h1>Do przypisania</h1>
           <p>Dodaj pliki teraz. Przypisz je do przedmiotów albo zachowaj jako dokument później.</p>
         </div>
         <div className="inbox-capture-actions">
           <label className="primary inbox-upload">
-            Import
+            Dodaj pliki
             <input
               type="file"
               multiple
@@ -52,7 +52,7 @@ export function InboxPage({
         <div>
           <p className="eyebrow">Do uporządkowania</p>
           <h2>
-            Pliki w Skrzynce <em>{files.length}</em>
+            Pliki do przypisania <em>{files.length}</em>
           </h2>
         </div>
       </div>

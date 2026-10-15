@@ -38,7 +38,7 @@ inboxRoutes.post('/api/v1/inbox/files', async (c) => {
 inboxRoutes.delete('/api/v1/inbox/:id', (c) => {
   const scope = householdId(c.req.raw);
   const storedName = deleteInboxFile(scope, c.req.param('id'));
-  if (!storedName) return c.json(failure('Nie znaleziono pliku w Skrzynce.', 404, 'NOT_FOUND'), 404);
+  if (!storedName) return c.json(failure('Nie znaleziono pliku na liście Do przypisania.', 404, 'NOT_FOUND'), 404);
   removeStoredFiles([{ householdId: scope, storedName }]);
   return c.body(null, 204);
 });
@@ -61,5 +61,5 @@ inboxRoutes.post('/api/v1/inbox/:id/to-document', async (c) => {
   }
   return document
     ? c.json({ data: document })
-    : c.json(failure('Nie znaleziono pliku w Skrzynce.', 404, 'NOT_FOUND'), 404);
+    : c.json(failure('Nie znaleziono pliku na liście Do przypisania.', 404, 'NOT_FOUND'), 404);
 });

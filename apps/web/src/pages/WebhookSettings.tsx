@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react';
+import { type FormEvent, useEffect, useId, useState } from 'react';
 import { api } from '../api';
 import { Icon } from '../components/Icon';
+import { SettingsHeader } from '../components/SettingsBlock';
+import { useDialog } from '../hooks/useDialog';
 import { eventLabel } from '../labels';
 
 type WebhookRecord = {
@@ -11,37 +13,28 @@ type WebhookRecord = {
   scopeAll: boolean;
   householdIds: string[];
 };
-const availableWebhookEvents = [
-  'asset.created',
-  'asset.deleted',
-  'document.created',
-  'document.deleted',
-  'maintenance.created',
-  'maintenance.completed',
-  'backup.exported',
-  'backup.restored',
+type Household = { id: string; name: string };
+
+const eventGroups = [
+  { label: 'Przedmioty', events: ['asset.created', 'asset.deleted'] },
+  { label: 'Dokumenty', events: ['document.created', 'document.deleted'] },
+  { label: 'Konserwacja', events: ['maintenance.created', 'maintenance.completed'] },
+  { label: 'Kopia zapasowa', events: ['backup.exported', 'backup.restored'] },
 ];
 
+/** Webhooks of the signed-in user: endpoints that receive selected household events. */
 export function WebhookSettings() {
   const [hooks, setHooks] = useState<WebhookRecord[]>([]);
-  const [households, setHouseholds] = useState<{ id: string; name: string }[]>([]);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [name, setName] = useState('');
-  const [url, setUrl] = useState('');
-  const [secret, setSecret] = useState('');
-  const [events, setEvents] = useState<string[]>(['asset.created']);
-  const [householdIds, setHouseholdIds] = useState<string[]>([]);
+  const [households, setHouseholds] = useState<Household[]>([]);
+  // The webhook being edited, `null` for a new one; `undefined` while the dialog is closed.
+  const [editing, setEditing] = useState<WebhookRecord | null | undefined>(undefined);
   const [error, setError] = useState('');
   function load() {
     const fail = (reason: unknown) =>
       setError(reason instanceof Error ? reason.message : 'Nie udało się wczytać webhooków.');
     void api
       .listWebhooks()
-      .then((response) => {
-        setHooks(response.data);
-        const [onlyHook] = response.data;
-        if (onlyHook && response.data.length === 1 && !editingId) edit(onlyHook);
-      })
+      .then((response) => setHooks(response.data))
       .catch(fail);
     void api
       .households()
@@ -49,184 +42,234 @@ export function WebhookSettings() {
       .catch(fail);
   }
   useEffect(load, []);
-  function reset() {
-    setEditingId(null);
-    setName('');
-    setUrl('');
-    setSecret('');
-    setEvents(['asset.created']);
-    setHouseholdIds([]);
-    setError('');
-  }
-  function edit(hook: WebhookRecord) {
-    setEditingId(hook.id);
-    setName(hook.name);
-    setUrl(hook.url);
-    setSecret('');
-    setEvents(hook.events);
-    setHouseholdIds(hook.scopeAll ? [] : hook.householdIds);
-    setError('');
-  }
-  async function saveNotificationSettings(nextEvents: string[], nextHouseholdIds: string[]) {
-    if (!editingId) return;
-    try {
-      setError('');
-      const input = secret
-        ? { name, url, secret, events: nextEvents, householdIds: nextHouseholdIds }
-        : { name, url, events: nextEvents, householdIds: nextHouseholdIds };
-      await api.updateWebhook(editingId, input);
-      setSecret('');
-      load();
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Nie udało się zapisać ustawień powiadomień.');
-    }
-  }
-  async function save() {
-    try {
-      setError('');
-      const input = secret ? { name, url, secret, events, householdIds } : { name, url, events, householdIds };
-      if (editingId) {
-        await api.updateWebhook(editingId, input);
-        setSecret('');
-      } else {
-        const created = await api.createWebhook(input);
-        setEditingId(created.data.id);
-        setSecret('');
-      }
-      load();
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Nie udało się zapisać webhooka.');
-    }
-  }
   async function remove(hook: WebhookRecord) {
     if (!window.confirm('Usunąć webhook „' + hook.name + '”?')) return;
     try {
       setError('');
       await api.deleteWebhook(hook.id);
-      if (editingId === hook.id) reset();
       load();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Nie udało się usunąć webhooka.');
     }
   }
+  const scopeText = (hook: WebhookRecord) =>
+    hook.scopeAll || !hook.householdIds.length
+      ? 'Wszystkie gospodarstwa'
+      : households
+          .filter((household) => hook.householdIds.includes(household.id))
+          .map((household) => household.name)
+          .join(', ');
+
   return (
-    <div className="webhook-settings-stack">
-      <section className="settings-card webhook-card">
-        <span>
-          <Icon name="webhook" />
-        </span>
-        <div>
-          <p className="eyebrow">Integracje</p>
-          <h2>{editingId ? 'Edytuj webhook' : 'Konfiguracja webhooka'}</h2>
-          <p>Podaj endpoint odbierający zdarzenia. Secret jest opcjonalny i służy do podpisywania żądań.</p>
-          <div className="settings-form">
-            <label>
-              Nazwa
-              <input value={name} onChange={(event) => setName(event.target.value)} placeholder="np. Home Assistant" />
-            </label>
-            <label>
-              Adres URL
-              <input value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://…" type="url" />
-            </label>
-            <label className="span-all">
-              <span>
-                {editingId ? 'Nowy secret' : 'Secret'}{' '}
-                <small>{editingId ? 'pozostaw puste, aby zachować obecny' : 'opcjonalnie'}</small>
+    <>
+      <SettingsHeader
+        action={
+          <button className="primary" onClick={() => setEditing(null)} type="button">
+            <Icon name="plus" /> Dodaj webhook
+          </button>
+        }
+        description="Wysyłaj wybrane zdarzenia z Boberit do innych usług, np. Home Assistant lub n8n."
+        title="Integracje"
+      />
+      {error && <p className="form-error">{error}</p>}
+      {hooks.length ? (
+        <ul className="webhook-cards">
+          {hooks.map((hook) => (
+            <li key={hook.id}>
+              <span aria-hidden="true" className="webhook-card-icon">
+                <Icon name="webhook" />
               </span>
-              <input
-                autoComplete="off"
-                value={secret}
-                onChange={(event) => setSecret(event.target.value)}
-                type="password"
-              />
-            </label>
-          </div>
-          <div className="webhook-form-actions">
-            <button
-              className="secondary"
-              disabled={!name.trim() || !url.trim() || !events.length}
-              onClick={() => void save()}
-              type="button"
-            >
-              {editingId ? 'Zapisz zmiany' : 'Dodaj webhook'}
-            </button>
-            {editingId && (
-              <button className="text-action" onClick={reset} type="button">
-                Anuluj edycję
-              </button>
-            )}
-          </div>
-          {error && <p className="form-error">{error}</p>}
-          <div className="webhook-list webhook-config-list">
-            {hooks.map((hook) => (
-              <div key={hook.id}>
-                <span>
-                  <strong>{hook.name}</strong>
-                  <small>{hook.url}</small>
-                </span>
-                <button className="text-action" onClick={() => edit(hook)} type="button">
+              <div className="webhook-card-body">
+                <strong>{hook.name}</strong>
+                <code>{hook.url}</code>
+                <ul aria-label="Zdarzenia" className="tag-chips">
+                  {hook.events.map((event) => (
+                    <li key={event}>{eventLabel(event)}</li>
+                  ))}
+                </ul>
+                <small>{scopeText(hook)}</small>
+              </div>
+              <div className="webhook-card-actions">
+                <button className="secondary" onClick={() => setEditing(hook)} type="button">
                   Edytuj
                 </button>
-                <button className="text-action danger-action" onClick={() => void remove(hook)} type="button">
-                  Usuń
+                <button
+                  aria-label={`Usuń webhook ${hook.name}`}
+                  className="icon-button icon-button--danger"
+                  onClick={() => void remove(hook)}
+                  title="Usuń"
+                  type="button"
+                >
+                  <Icon name="x" />
                 </button>
               </div>
-            ))}
-            {!hooks.length && <p className="subtle">Nie skonfigurowano jeszcze żadnego webhooka.</p>}
-          </div>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <div className="empty settings-empty">
+          <Icon name="webhook" />
+          <strong>Nie ma jeszcze webhooków</strong>
+          <p>Dodaj adres, pod który Boberit wyśle informację, gdy np. dodasz przedmiot lub wykonasz konserwację.</p>
         </div>
-      </section>
-      <section className="settings-card webhook-notification-card">
-        <span>
-          <Icon name="bell" />
-        </span>
-        <div>
-          <p className="eyebrow">Powiadomienia</p>
-          <h2>Zakres powiadomień</h2>
-          <p>Wybierz gospodarstwa oraz zdarzenia dla aktualnie tworzonego lub edytowanego webhooka.</p>
-          <h3>Gospodarstwa</h3>
-          <div className="webhook-events">
+      )}
+      {editing !== undefined && (
+        <WebhookDialog
+          hook={editing}
+          households={households}
+          onClose={() => setEditing(undefined)}
+          onSaved={() => {
+            setEditing(undefined);
+            load();
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+function WebhookDialog({
+  hook,
+  households,
+  onClose,
+  onSaved,
+}: {
+  hook: WebhookRecord | null;
+  households: Household[];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [name, setName] = useState(hook?.name ?? '');
+  const [url, setUrl] = useState(hook?.url ?? '');
+  const [secret, setSecret] = useState('');
+  const [events, setEvents] = useState<string[]>(hook?.events ?? ['asset.created']);
+  const [householdIds, setHouseholdIds] = useState<string[]>(hook && !hook.scopeAll ? hook.householdIds : []);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const dialog = useDialog<HTMLFormElement>(onClose);
+  const titleId = useId();
+  const toggle = (list: string[], value: string) =>
+    list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    setBusy(true);
+    setError('');
+    try {
+      const input = secret ? { name, url, secret, events, householdIds } : { name, url, events, householdIds };
+      if (hook) await api.updateWebhook(hook.id, input);
+      else await api.createWebhook(input);
+      onSaved();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Nie udało się zapisać webhooka.');
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="dialog-backdrop" role="presentation">
+      <form
+        {...dialog}
+        aria-labelledby={titleId}
+        aria-modal="true"
+        className="dialog webhook-dialog"
+        onSubmit={(event) => void submit(event)}
+        role="dialog"
+      >
+        <header>
+          <div>
+            <p className="eyebrow">Integracje</p>
+            <h2 id={titleId}>{hook ? 'Edytuj webhook' : 'Nowy webhook'}</h2>
+          </div>
+          <button className="icon-button" onClick={onClose} type="button">
+            <Icon label="Zamknij" name="x" />
+          </button>
+        </header>
+        <div className="form-grid">
+          <label>
+            Nazwa
+            <input
+              autoFocus
+              onChange={(event) => setName(event.target.value)}
+              placeholder="np. Home Assistant"
+              required
+              value={name}
+            />
+          </label>
+          <label>
+            Adres URL
+            <input
+              onChange={(event) => setUrl(event.target.value)}
+              placeholder="https://…"
+              required
+              type="url"
+              value={url}
+            />
+          </label>
+          <label className="span-all">
+            <span>
+              {hook ? 'Nowy secret' : 'Secret'}{' '}
+              <small>{hook ? 'pozostaw puste, aby zachować obecny' : 'opcjonalnie, do podpisywania żądań'}</small>
+            </span>
+            <input
+              autoComplete="off"
+              onChange={(event) => setSecret(event.target.value)}
+              type="password"
+              value={secret}
+            />
+          </label>
+        </div>
+        <fieldset className="toggle-group">
+          <legend>Zdarzenia</legend>
+          {eventGroups.map((group) => (
+            <div className="toggle-row" key={group.label}>
+              <span>{group.label}</span>
+              <div>
+                {group.events.map((eventName) => (
+                  <button
+                    aria-pressed={events.includes(eventName)}
+                    className="toggle-chip"
+                    key={eventName}
+                    onClick={() => setEvents((current) => toggle(current, eventName))}
+                    type="button"
+                  >
+                    {events.includes(eventName) && <Icon name="check" />}
+                    {eventLabel(eventName)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </fieldset>
+        <fieldset className="toggle-group">
+          <legend>
+            Gospodarstwa <small>bez zaznaczenia: wszystkie, do których należysz</small>
+          </legend>
+          <div>
             {households.map((household) => (
-              <label key={household.id}>
-                <input
-                  checked={householdIds.includes(household.id)}
-                  onChange={() => {
-                    const next = householdIds.includes(household.id)
-                      ? householdIds.filter((id) => id !== household.id)
-                      : [...householdIds, household.id];
-                    setHouseholdIds(next);
-                    void saveNotificationSettings(events, next);
-                  }}
-                  type="checkbox"
-                />
+              <button
+                aria-pressed={householdIds.includes(household.id)}
+                className="toggle-chip"
+                key={household.id}
+                onClick={() => setHouseholdIds((current) => toggle(current, household.id))}
+                type="button"
+              >
+                {householdIds.includes(household.id) && <Icon name="check" />}
                 {household.name}
-              </label>
+              </button>
             ))}
           </div>
-          <small className="webhook-scope-hint">
-            Brak zaznaczenia oznacza wszystkie gospodarstwa, do których należysz.
-          </small>
-          <h3>Typy zdarzeń</h3>
-          <div className="webhook-events">
-            {availableWebhookEvents.map((eventName) => (
-              <label key={eventName}>
-                <input
-                  checked={events.includes(eventName)}
-                  onChange={() => {
-                    const next = events.includes(eventName)
-                      ? events.filter((value) => value !== eventName)
-                      : [...events, eventName];
-                    setEvents(next);
-                    void saveNotificationSettings(next, householdIds);
-                  }}
-                  type="checkbox"
-                />
-                {eventLabel(eventName)}
-              </label>
-            ))}
-          </div>
-        </div>
-      </section>
+        </fieldset>
+        {error && <p className="form-error">{error}</p>}
+        <footer>
+          <button className="secondary" onClick={onClose} type="button">
+            Anuluj
+          </button>
+          <button className="primary" disabled={busy || !name.trim() || !url.trim() || !events.length} type="submit">
+            {busy ? 'Zapisywanie…' : hook ? 'Zapisz zmiany' : 'Dodaj webhook'}
+          </button>
+        </footer>
+      </form>
     </div>
   );
 }

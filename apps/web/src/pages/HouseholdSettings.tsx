@@ -1,127 +1,159 @@
-import { useEffect, useState } from 'react';
+import { type FormEvent, useState } from 'react';
 import { api } from '../api';
-import { AssetDictionaries } from '../components/AssetDictionaries';
+import { nameInitials, paletteSlot } from '../collections';
 import { Icon } from '../components/Icon';
+import { SettingsHeader } from '../components/SettingsBlock';
+import type { HouseholdMembership } from '../types';
 
-export function HouseholdSettings() {
-  const [households, setHouseholds] = useState<{ id: string; name: string; role: string }[]>([]);
-  const [activeHouseholdId, setActiveHouseholdId] = useState<string | null>(null);
-  const [name, setName] = useState('');
+const badgeColors = 6;
+const householdsChanged = () => window.dispatchEvent(new Event('boberit-households-changed'));
+
+/** The signed-in user's households as cards: switch, rename (owners), and create a new one. */
+export function HouseholdSettings({
+  households,
+  activeHouseholdId,
+  onSwitch,
+}: {
+  households: HouseholdMembership[];
+  activeHouseholdId: string | null;
+  onSwitch: (id: string) => Promise<void>;
+}) {
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const load = () =>
-    void api
-      .households()
-      .then((r) => {
-        setHouseholds(r.data.households);
-        setActiveHouseholdId(r.data.activeHouseholdId);
-      })
-      .catch((e) => setError(e instanceof Error ? e.message : 'Nie udało się wczytać gospodarstw.'));
-  useEffect(load, []);
-  async function create() {
+
+  async function run(action: () => Promise<void>, fallback: string) {
+    setBusy(true);
+    setError('');
     try {
-      setError('');
-      await api.createHousehold(name);
-      setName('');
-      load();
-      window.dispatchEvent(new Event('boberit-households-changed'));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Nie udało się utworzyć gospodarstwa.');
+      await action();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : fallback);
+    } finally {
+      setBusy(false);
     }
   }
-  async function rename(id: string) {
+  function create(event: FormEvent) {
+    event.preventDefault();
+    if (!newName.trim()) return;
+    void run(async () => {
+      await api.createHousehold(newName.trim());
+      setNewName('');
+      setCreating(false);
+      householdsChanged();
+    }, 'Nie udało się utworzyć gospodarstwa.');
+  }
+  function rename(event: FormEvent, id: string) {
+    event.preventDefault();
     if (!editingName.trim()) return;
-    try {
-      setError('');
-      await api.renameHousehold(id, editingName);
+    void run(async () => {
+      await api.renameHousehold(id, editingName.trim());
       setEditingId(null);
-      setEditingName('');
-      load();
-      window.dispatchEvent(new Event('boberit-households-changed'));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Nie udało się zmienić nazwy.');
-    }
+      householdsChanged();
+    }, 'Nie udało się zmienić nazwy.');
   }
-  const active = households.find((h) => h.id === activeHouseholdId);
+
   return (
-    <div className="household-settings-stack">
-      <section className="settings-card">
-        <span>
-          <Icon name="home" />
-        </span>
-        <div>
-          <p className="eyebrow">Gospodarstwa domowe</p>
-          <h2>Twoje gospodarstwa</h2>
-          <p>Każde gospodarstwo ma własne przedmioty, dokumenty, terminy i backup.</p>
-          <div className="inline-form">
-            <input
-              aria-label="Nazwa nowego gospodarstwa"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              maxLength={80}
-              placeholder="Np. Dom letniskowy"
-            />
-            <button className="secondary" disabled={!name.trim()} onClick={() => void create()} type="button">
-              Utwórz gospodarstwo
-            </button>
-          </div>
-          {error && <p className="form-error">{error}</p>}
-          <div className="webhook-list">
-            {households.map((h) => (
-              <div key={h.id}>
-                {editingId === h.id ? (
-                  <div className="inline-form household-rename">
-                    <input
-                      autoFocus
-                      aria-label={`Nowa nazwa ${h.name}`}
-                      value={editingName}
-                      maxLength={80}
-                      onChange={(e) => setEditingName(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') void rename(h.id);
-                        if (e.key === 'Escape') setEditingId(null);
-                      }}
-                    />
+    <>
+      <SettingsHeader
+        description="Każde gospodarstwo ma własne przedmioty, dokumenty, terminy i kopię zapasową."
+        title="Gospodarstwa"
+      />
+      {error && <p className="form-error">{error}</p>}
+      <ul className="household-cards">
+        {households.map((household) => {
+          const active = household.id === activeHouseholdId;
+          return (
+            <li className={`household-card${active ? ' is-active' : ''}`} key={household.id}>
+              <span aria-hidden="true" className={`household-badge tone-${paletteSlot(household.name, badgeColors)}`}>
+                {nameInitials(household.name)}
+              </span>
+              {editingId === household.id ? (
+                <form className="household-rename" onSubmit={(event) => rename(event, household.id)}>
+                  <input
+                    aria-label={`Nowa nazwa: ${household.name}`}
+                    autoFocus
+                    maxLength={80}
+                    onChange={(event) => setEditingName(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Escape') setEditingId(null);
+                    }}
+                    value={editingName}
+                  />
+                  <button className="secondary" disabled={busy || !editingName.trim()} type="submit">
+                    Zapisz
+                  </button>
+                  <button className="text-action" onClick={() => setEditingId(null)} type="button">
+                    Anuluj
+                  </button>
+                </form>
+              ) : (
+                <div className="household-card-body">
+                  <strong>{household.name}</strong>
+                  <span className="household-card-meta">
+                    <span className="role-badge">{household.role === 'owner' ? 'Właściciel' : 'Członek'}</span>
+                    {active && <span className="active-badge">Aktywne</span>}
+                  </span>
+                </div>
+              )}
+              {editingId !== household.id && (
+                <div className="household-card-actions">
+                  {household.role === 'owner' && (
                     <button
-                      className="text-action"
-                      disabled={!editingName.trim()}
-                      onClick={() => void rename(h.id)}
+                      aria-label={`Zmień nazwę: ${household.name}`}
+                      className="icon-button"
+                      onClick={() => {
+                        setEditingId(household.id);
+                        setEditingName(household.name);
+                      }}
+                      title="Zmień nazwę"
                       type="button"
                     >
-                      Zapisz
+                      <Icon name="pencil" />
                     </button>
-                    <button className="text-action" onClick={() => setEditingId(null)} type="button">
-                      Anuluj
+                  )}
+                  {!active && (
+                    <button className="secondary" onClick={() => void onSwitch(household.id)} type="button">
+                      Przełącz
                     </button>
-                  </div>
-                ) : (
-                  <>
-                    <strong>
-                      {h.name}
-                      {h.id === activeHouseholdId ? ' · aktywne' : ''}
-                    </strong>
-                    <small>{h.role === 'owner' ? 'Właściciel' : 'Członek'}</small>
-                    {h.role === 'owner' && (
-                      <button
-                        className="text-action"
-                        onClick={() => {
-                          setEditingId(h.id);
-                          setEditingName(h.name);
-                        }}
-                        type="button"
-                      >
-                        Zmień nazwę
-                      </button>
-                    )}
-                  </>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-      {active && <AssetDictionaries canManage={active.role === 'owner'} householdName={active.name} />}
-    </div>
+                  )}
+                </div>
+              )}
+            </li>
+          );
+        })}
+        <li className="household-card household-card--new">
+          {creating ? (
+            <form className="household-rename" onSubmit={create}>
+              <input
+                aria-label="Nazwa nowego gospodarstwa"
+                autoFocus
+                maxLength={80}
+                onChange={(event) => setNewName(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Escape') setCreating(false);
+                }}
+                placeholder="np. Dom letniskowy"
+                value={newName}
+              />
+              <button className="primary" disabled={busy || !newName.trim()} type="submit">
+                Utwórz
+              </button>
+              <button className="text-action" onClick={() => setCreating(false)} type="button">
+                Anuluj
+              </button>
+            </form>
+          ) : (
+            <button className="household-new-button" onClick={() => setCreating(true)} type="button">
+              <Icon name="plus" />
+              Nowe gospodarstwo
+            </button>
+          )}
+        </li>
+      </ul>
+    </>
   );
 }

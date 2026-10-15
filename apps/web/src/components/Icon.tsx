@@ -22,7 +22,12 @@ export type IconName =
   | 'history'
   | 'clock'
   | 'circle-check'
-  | 'alert-triangle';
+  | 'alert-triangle'
+  | 'archive'
+  | 'pencil'
+  | 'check'
+  | 'tag'
+  | 'chevron-right';
 export const icon = (name: IconName) => `/icons/${name}.svg`;
 
 export function Icon({ name, label }: { name: IconName; label?: string }) {

@@ -49,12 +49,12 @@ Audit from 2026-10-15 (desktop 1366 px, phone 390 px, isolated instance with dem
 
 - [x] F13 Two add buttons (top bar and bottom bar); the item list hides warranty but shows status; the OCR batch button wraps to three lines; the detail heading badge wraps; "Zrób zdjęcie" shows on desktop. Needs approval of the layout before implementing.
 
-### Step 8 — settings structure (approved: rebuild now)
+### Step 8 — settings structure (done: one settings page, chips, cards, dialogs)
 
-- [ ] F18 Household settings are split: Backup and Historia under "Ustawienia", Członkowie and data dictionaries under "Moje konto". Target: "Ustawienia" holds everything about the active household (dictionaries, members, backup, history); "Moje konto" holds the user's households list, security, and webhooks. Remove the card-in-card nesting of dictionaries. Navigation proposal is shown to the user before implementing.
-- [ ] F18b Inline "add" fields in households and data dictionaries rely on placeholders ("Np. Garaż"); give them labels in the rebuild.
-- [ ] F19 Webhooks mix autosaving checkboxes with an explicit save and auto-enter edit mode for a single webhook; members show the create form above the list, always expanded.
-- [ ] F20 Naming: "Do przypisania" vs "Pliki w Skrzynce" vs "Masowy import" vs "Import"; "Dokumenty niezależne". Wording is shown to the user before implementing.
+- [x] F18 Household settings are split: Backup and Historia under "Ustawienia", Członkowie and data dictionaries under "Moje konto". Target: "Ustawienia" holds everything about the active household (dictionaries, members, backup, history); "Moje konto" holds the user's households list, security, and webhooks. Remove the card-in-card nesting of dictionaries. Navigation proposal is shown to the user before implementing.
+- [x] F18b Inline "add" fields in households and data dictionaries rely on placeholders ("Np. Garaż"); give them labels in the rebuild.
+- [x] F19 Webhooks mix autosaving checkboxes with an explicit save and auto-enter edit mode for a single webhook; members show the create form above the list, always expanded.
+- [x] F20 Naming: "Do przypisania" vs "Pliki w Skrzynce" vs "Masowy import" vs "Import"; "Dokumenty niezależne". Wording is shown to the user before implementing.
 
 ## Risks and verification
 

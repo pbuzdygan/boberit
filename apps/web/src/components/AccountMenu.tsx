@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { AccountSection } from '../types';
+import type { SettingsSection } from '../types';
 import { FormSelect } from './FormSelect';
 import { Icon } from './Icon';
 
@@ -19,7 +19,7 @@ export function AccountMenu({
   avatarInitials: string;
   households: { id: string; name: string; role: string }[];
   onLogout: () => Promise<void>;
-  onSelect: (section: AccountSection) => void;
+  onSelect: (section: SettingsSection) => void;
   onSwitch: (id: string) => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
@@ -39,7 +39,7 @@ export function AccountMenu({
       window.document.removeEventListener('keydown', closeOnEscape);
     };
   }, [open]);
-  function choose(section: AccountSection) {
+  function choose(section: SettingsSection) {
     onSelect(section);
     setOpen(false);
   }
@@ -75,42 +75,32 @@ export function AccountMenu({
               options={households.map((household) => ({ value: household.id, label: household.name }))}
             />
           )}
-          <p className="account-menu-label">Twoje gospodarstwa domowe</p>
+          <p className="account-menu-label">Twoje konto</p>
           <button onClick={() => choose('households')} role="menuitem" type="button">
             <span className="account-menu-icon">
               <Icon name="home" />
             </span>
             <span>
-              <strong>Gospodarstwa</strong>
-              <small>Tworzenie i zmiana nazw</small>
+              <strong>Twoje gospodarstwa</strong>
+              <small>Przełączanie i nowe gospodarstwa</small>
             </span>
           </button>
-          <button onClick={() => choose('members')} role="menuitem" type="button">
-            <span className="account-menu-icon">
-              <Icon name="users" />
-            </span>
-            <span>
-              <strong>Członkowie</strong>
-              <small>Dostęp i role użytkowników</small>
-            </span>
-          </button>
-          <p className="account-menu-label">Konto</p>
           <button onClick={() => choose('security')} role="menuitem" type="button">
             <span className="account-menu-icon">
               <Icon name="shield-check" />
             </span>
             <span>
-              <strong>Bezpieczeństwo konta</strong>
-              <small>Hasło i aktywne sesje</small>
+              <strong>Bezpieczeństwo</strong>
+              <small>Hasło i zalogowane urządzenia</small>
             </span>
           </button>
-          <button onClick={() => choose('webhooks')} role="menuitem" type="button">
+          <button onClick={() => choose('integrations')} role="menuitem" type="button">
             <span className="account-menu-icon">
               <Icon name="webhook" />
             </span>
             <span>
-              <strong>Webhooki</strong>
-              <small>Integracje i powiadomienia</small>
+              <strong>Integracje</strong>
+              <small>Webhooki do innych usług</small>
             </span>
           </button>
           <button
