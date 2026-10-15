@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { mock, test } from 'node:test';
 import { addYearsToDate, fileSize, formatPurchaseValues, formatStorage, formatTimestampDate } from '../src/format.ts';
-import { eventLabel, warrantyLabel } from '../src/labels.ts';
+import { eventLabel, warrantyLabel, warrantySummary } from '../src/labels.ts';
 
 test('adding years keeps the day or clamps it to the end of the month', () => {
   assert.equal(addYearsToDate('2024-05-10', 2), '2026-05-10');
@@ -64,6 +64,23 @@ test('warranty labels follow the remaining time', () => {
       state: 'warning',
     });
     assert.equal(warrantyLabel(asset({ kind: 'fixed', expiresOn: '2027-06-11' })).state, 'good');
+  } finally {
+    mock.timers.reset();
+  }
+});
+
+test('the warranty summary states the end date', () => {
+  mock.timers.enable({ apis: ['Date'], now: new Date(2026, 5, 1, 12) });
+  try {
+    const asset = (warranty) => ({ warranty });
+    assert.equal(warrantySummary(asset(null)), 'Brak danych o gwarancji');
+    assert.equal(warrantySummary(asset({ kind: 'fixed', expiresOn: null })), 'Brak danych o gwarancji');
+    assert.equal(warrantySummary(asset({ kind: 'lifetime', expiresOn: null })), 'Gwarancja dożywotnia');
+    assert.match(warrantySummary(asset({ kind: 'fixed', expiresOn: '2026-05-31' })), /^Wygasła 31 maj 2026$/u);
+    assert.match(warrantySummary(asset({ kind: 'fixed', expiresOn: '2026-06-01' })), /^Wygasa dzisiaj · 1 cze 2026$/u);
+    assert.match(warrantySummary(asset({ kind: 'fixed', expiresOn: '2026-06-02' })), /^Wygasa za 1 dzień · /u);
+    assert.match(warrantySummary(asset({ kind: 'fixed', expiresOn: '2026-06-11' })), /^Wygasa za 10 dni · /u);
+    assert.match(warrantySummary(asset({ kind: 'fixed', expiresOn: '2027-06-11' })), /^Ważna do 11 cze 2027$/u);
   } finally {
     mock.timers.reset();
   }

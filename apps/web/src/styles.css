@@ -599,41 +599,77 @@ h2 {
   width: 14px;
   height: 14px;
 }
-.detail-status {
-  display: inline-flex;
-  align-items: center;
-  min-height: 24px;
-  padding: 0 9px;
-  border-radius: 7px;
-  font-size: var(--text-xs);
-  font-weight: 750;
-}
-.detail-status.good {
-  color: #087f60;
-  background: #e6f7f1;
-}
-.detail-status.warning {
-  color: #a8293a;
-  background: #fff0f2;
-}
-.detail-status.quiet {
-  color: #65758a;
-  background: #edf2f7;
-}
+
+/* Item detail: information and warranty first, then files and maintenance (one place for all widths). */
 .detail-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 290px;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) minmax(260px, 300px);
+  grid-template-areas:
+    'info info warranty'
+    'files maintenance warranty';
+  align-items: start;
   gap: 12px;
 }
-.detail-main {
+.detail-info {
+  grid-area: info;
+}
+.detail-warranty {
+  grid-area: warranty;
+}
+.detail-files {
+  grid-area: files;
+  align-self: stretch;
+}
+.detail-maintenance {
+  grid-area: maintenance;
+}
+@media (max-width: 1120px) {
+  .detail-layout {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      'info info'
+      'warranty warranty'
+      'files maintenance';
+  }
+}
+@media (max-width: 680px) {
+  .detail-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'info' 'warranty' 'files' 'maintenance';
+  }
+}
+.warranty-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  font-size: var(--text-md);
+  font-weight: 650;
+}
+.warranty-summary b {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: currentColor;
+}
+.detail-warranty .subtle {
+  margin-bottom: 12px;
+}
+.warranty-summary.good {
+  color: var(--success);
+}
+.warranty-summary.warning {
+  color: var(--danger);
+}
+.warranty-summary.quiet {
+  color: var(--muted);
+}
+.warranty-fields {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
-.detail-aside {
-  display: grid;
-  align-content: start;
-  gap: 12px;
-}
+
 .panel,
 .notes-card {
   padding: 17px;
@@ -766,52 +802,7 @@ textarea:focus {
   color: var(--muted);
   font-size: var(--text-sm);
 }
-.plan-form {
-  display: grid;
-  grid-template-columns: 1fr 130px auto;
-  gap: 7px;
-  margin-top: 10px;
-}
-.warranty-card {
-  padding: 17px;
-  overflow: hidden;
-  border: 1px solid #0a438a;
-  border-radius: 9px;
-  color: #fff;
-  background: linear-gradient(145deg, #001438, #003684 72%, #005ccf);
-  box-shadow: 0 10px 25px rgba(0, 30, 82, 0.16);
-}
-.warranty-card > .icon {
-  width: 24px;
-  height: 24px;
-  margin-bottom: 11px;
-  filter: brightness(0) invert(1);
-}
-.warranty-card .eyebrow {
-  color: #8ecaff;
-}
-.warranty-card h2 {
-  margin: 3px 0 6px;
-  color: #fff;
-  font-size: var(--text-xl);
-}
-.warranty-card > p:not(.eyebrow) {
-  margin-bottom: 13px;
-  color: #afc8e4;
-  font-size: var(--text-xs);
-  line-height: 1.5;
-}
-.warranty-card select,
-.warranty-card input {
-  margin-bottom: 7px;
-  border-color: rgba(167, 211, 255, 0.34);
-  color: #eff8ff;
-  background: rgba(0, 14, 47, 0.28);
-}
-.warranty-card select option {
-  color: var(--ink);
-  background: #fff;
-}
+
 .bright {
   width: 100%;
   color: #08386e;
@@ -1006,12 +997,6 @@ textarea {
   main {
     margin-left: 62px;
   }
-  .detail-layout {
-    grid-template-columns: 1fr;
-  }
-  .detail-aside {
-    grid-template-columns: 1fr 1fr;
-  }
 }
 @media (max-width: 680px) {
   .sidebar {
@@ -1066,21 +1051,11 @@ textarea {
   .detail-heading {
     align-items: flex-start;
   }
-  .detail-status {
-    flex: 0 0 auto;
-  }
+
   .field-grid {
     grid-template-columns: 1fr 1fr;
   }
-  .plan-form {
-    grid-template-columns: 1fr 1fr;
-  }
-  .plan-form .secondary {
-    grid-column: 1 / -1;
-  }
-  .detail-aside {
-    grid-template-columns: 1fr;
-  }
+
   .form-grid {
     grid-template-columns: 1fr;
   }
@@ -1267,22 +1242,6 @@ textarea {
   flex-wrap: nowrap;
 }
 
-.plan-form {
-  display: block;
-  margin-top: 12px;
-}
-.plan-form-grid {
-  display: grid;
-  grid-template-columns: minmax(150px, 1.6fr) minmax(110px, 1fr) minmax(125px, 1fr) minmax(80px, 0.7fr) minmax(
-      105px,
-      0.9fr
-    );
-  gap: 8px;
-}
-.plan-submit {
-  margin-top: 9px;
-}
-
 @media (max-width: 760px) {
   .table-head {
     display: none;
@@ -1303,13 +1262,6 @@ textarea {
   .start-attention {
     grid-template-columns: 1fr;
   }
-  .plan-form-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-  .plan-form-grid > label:first-child,
-  .plan-form-grid .span-all {
-    grid-column: 1 / -1;
-  }
 }
 @media (max-width: 520px) {
   .start-heading {
@@ -1323,13 +1275,6 @@ textarea {
   }
   .recent-row .warranty {
     display: none;
-  }
-  .plan-form-grid {
-    grid-template-columns: 1fr;
-  }
-  .plan-form-grid > label:first-child,
-  .plan-form-grid .span-all {
-    grid-column: auto;
   }
 }
 
@@ -2141,10 +2086,6 @@ textarea {
   font-size: var(--text-xs);
 }
 @media (max-width: 520px) {
-  .detail-heading-actions {
-    align-items: flex-end;
-    flex-direction: column;
-  }
   .trash-row {
     grid-template-columns: 32px minmax(0, 1fr);
   }
@@ -4479,31 +4420,27 @@ button.notification-row:hover {
 
 /* Keep the asset form usable between desktop and mobile breakpoints. */
 .detail-layout > *,
-.detail-main,
-.detail-aside,
-.detail-main .panel,
-.warranty-card,
 .notes-card {
   min-width: 0;
 }
 .notes-card p {
   overflow-wrap: anywhere;
 }
-@media (min-width: 681px) and (max-width: 1120px) {
-  .detail-layout {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .detail-aside {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-/* Shared form for item and warranty data. */
+/* One save button in the item heading for the item data and the warranty. */
 .save-asset-changes {
-  width: auto;
-  min-width: 112px;
-  color: #08386e;
-  border-color: #cfe2f4;
-  background: #f4f9ff;
+  min-width: 128px;
+  white-space: nowrap;
+}
+/* On phones the item actions move below the title, so a long name keeps the full width. */
+@media (max-width: 680px) {
+  .asset-heading {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .asset-heading .detail-heading-actions {
+    justify-content: space-between;
+  }
 }
 .save-asset-changes:disabled {
   cursor: default;
@@ -4531,17 +4468,6 @@ button.notification-row:hover {
 }
 
 /* Item detail layout. */
-@media (min-width: 681px) {
-  .detail-main {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .detail-main > .panel:first-child {
-    grid-column: 1 / -1;
-  }
-  .detail-aside {
-    grid-template-columns: 1fr;
-  }
-}
 
 /* Compact item data and a maintenance form sized to half of the view. */
 .asset-info-grid {
@@ -4641,64 +4567,15 @@ button.notification-row:hover {
   background: #e4f2ff;
   font-weight: 700;
 }
-.warranty-card {
-  overflow: visible;
-}
-.warranty-card > .warranty-kind-select {
-  margin-bottom: 7px;
-}
-.warranty-kind-select .form-select-trigger {
-  border-color: rgba(167, 211, 255, 0.34);
-  color: #eff8ff;
-  background: rgba(0, 14, 47, 0.28);
-}
-.warranty-kind-select .form-select-chevron {
-  border-color: #c5dcf5;
-}
-.detail-main > .panel:nth-child(3) {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-}
-.detail-main > .panel:nth-child(3) .plan-form {
-  order: 2;
-  padding-top: 15px;
-  border-top: 1px solid var(--line);
-}
-.detail-main > .panel:nth-child(3) .plan-form::before {
-  display: block;
-  margin-bottom: 9px;
-  color: #263f5b;
-  content: 'Dodaj czynność';
-  font-size: var(--text-lg);
-  font-weight: 700;
-}
-.detail-main > .panel:nth-child(3) .plan-form-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-.detail-main > .panel:nth-child(3) .plan-form-grid > label:first-child,
-.detail-main > .panel:nth-child(3) .plan-form-grid > .span-all {
-  grid-column: 1 / -1;
-}
-.detail-main > .panel:nth-child(3) .maintenance-history {
-  order: 3;
-}
-.detail-main > .panel:nth-child(3) .plan-submit {
-  width: 100%;
-}
+
 @media (max-width: 760px) {
   .asset-info-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 @media (max-width: 520px) {
-  .asset-info-grid,
-  .detail-main > .panel:nth-child(3) .plan-form-grid {
+  .asset-info-grid {
     grid-template-columns: 1fr;
-  }
-  .detail-main > .panel:nth-child(3) .plan-form-grid > label:first-child,
-  .detail-main > .panel:nth-child(3) .plan-form-grid > .span-all {
-    grid-column: auto;
   }
 }
 

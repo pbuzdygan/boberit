@@ -6,6 +6,7 @@ import {
   type MaintenancePlan,
 } from '@boberit/shared';
 import type { IconName } from './components/Icon';
+import { formatDate } from './format.ts';
 import type { OcrStatus } from './types';
 
 export function intervalLabel(plan: MaintenancePlan): string {
@@ -37,6 +38,20 @@ export function warrantyLabel(asset: AssetSummary): { text: string; state: 'good
     text: `Do ${new Intl.DateTimeFormat('pl-PL', { year: 'numeric', month: 'short' }).format(new Date(`${warranty.expiresOn}T12:00:00`))}`,
     state: 'good',
   };
+}
+
+/** One sentence about the warranty for the item detail, including the end date when there is one. */
+export function warrantySummary(asset: AssetSummary): string {
+  const warranty = asset.warranty;
+  if (!warranty || warranty.kind === 'unknown' || (warranty.kind === 'fixed' && !warranty.expiresOn))
+    return 'Brak danych o gwarancji';
+  if (warranty.kind === 'lifetime') return 'Gwarancja dożywotnia';
+  const days = daysUntil(warranty.expiresOn!);
+  const date = formatDate(warranty.expiresOn);
+  if (days < 0) return `Wygasła ${date}`;
+  if (days === 0) return `Wygasa dzisiaj · ${date}`;
+  if (days <= 30) return `Wygasa za ${days} ${days === 1 ? 'dzień' : 'dni'} · ${date}`;
+  return `Ważna do ${date}`;
 }
 
 export const itemStatusMeta: Record<ItemStatus, { label: string; className: string }> = {

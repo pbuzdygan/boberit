@@ -1,26 +1,27 @@
 import type { IntervalUnit, MaintenancePlan, ScheduleKind } from '@boberit/shared';
 import { FormEvent, useId, useState } from 'react';
+import { newPlanInput, type PlanInput } from '../assetForm';
 import { useDialog } from '../hooks/useDialog';
 import { FormSelect } from './FormSelect';
 import { Icon } from './Icon';
 
+/** Creates a maintenance plan (`plan` is null) or edits an existing one. */
 export function MaintenancePlanDialog({
   plan,
   onClose,
   onSave,
 }: {
-  plan: MaintenancePlan;
+  plan: MaintenancePlan | null;
   onClose: () => void;
-  onSave: (
-    input: Pick<MaintenancePlan, 'title' | 'scheduleKind' | 'intervalValue' | 'intervalUnit' | 'nextDueOn' | 'notes'>,
-  ) => Promise<void>;
+  onSave: (input: PlanInput) => Promise<void>;
 }) {
-  const [title, setTitle] = useState(plan.title);
-  const [scheduleKind, setScheduleKind] = useState<ScheduleKind>(plan.scheduleKind);
-  const [intervalValue, setIntervalValue] = useState(String(plan.intervalValue ?? 1));
-  const [intervalUnit, setIntervalUnit] = useState<IntervalUnit>(plan.intervalUnit ?? 'months');
-  const [nextDueOn, setNextDueOn] = useState(plan.nextDueOn ?? '');
-  const [notes, setNotes] = useState(plan.notes ?? '');
+  const isNew = plan === null;
+  const [title, setTitle] = useState(plan?.title ?? '');
+  const [scheduleKind, setScheduleKind] = useState<ScheduleKind>(plan?.scheduleKind ?? 'recurring');
+  const [intervalValue, setIntervalValue] = useState(String(plan?.intervalValue ?? (isNew ? 3 : 1)));
+  const [intervalUnit, setIntervalUnit] = useState<IntervalUnit>(plan?.intervalUnit ?? 'months');
+  const [nextDueOn, setNextDueOn] = useState(plan?.nextDueOn ?? '');
+  const [notes, setNotes] = useState(plan?.notes ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const dialog = useDialog<HTMLFormElement>(onClose);
@@ -30,16 +31,17 @@ export function MaintenancePlanDialog({
     setBusy(true);
     setError('');
     try {
-      await onSave({
+      const input = newPlanInput({
         title: title.trim(),
-        scheduleKind,
-        intervalValue: scheduleKind === 'recurring' ? Math.max(1, Number(intervalValue) || 1) : null,
-        intervalUnit: scheduleKind === 'recurring' ? intervalUnit : null,
-        nextDueOn: nextDueOn || null,
-        notes: notes.trim() || null,
+        kind: scheduleKind,
+        interval: intervalValue,
+        unit: intervalUnit,
+        dueOn: nextDueOn,
+        notes: notes.trim(),
       });
+      await onSave({ ...input, nextDueOn: nextDueOn || null });
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Nie udało się zapisać zmian.');
+      setError(reason instanceof Error ? reason.message : 'Nie udało się zapisać planu.');
       setBusy(false);
     }
   }
@@ -56,7 +58,7 @@ export function MaintenancePlanDialog({
         <header>
           <div>
             <p className="eyebrow">Konserwacja</p>
-            <h2 id={titleId}>Edytuj plan</h2>
+            <h2 id={titleId}>{isNew ? 'Nowy plan' : 'Edytuj plan'}</h2>
           </div>
           <button className="icon-button" onClick={onClose} type="button">
             <Icon label="Zamknij" name="x" />
@@ -64,7 +66,13 @@ export function MaintenancePlanDialog({
         </header>
         <label>
           Nazwa czynności
-          <input autoFocus required value={title} onChange={(event) => setTitle(event.target.value)} />
+          <input
+            autoFocus
+            placeholder="np. Wymiana filtra"
+            required
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+          />
         </label>
         <div className="form-grid">
           <FormSelect
@@ -78,7 +86,13 @@ export function MaintenancePlanDialog({
           />
           <label>
             Następny termin
-            <input value={nextDueOn} onChange={(event) => setNextDueOn(event.target.value)} type="date" />
+            {/* A new plan needs its first date; an existing one may have none after completion. */}
+            <input
+              required={isNew}
+              value={nextDueOn}
+              onChange={(event) => setNextDueOn(event.target.value)}
+              type="date"
+            />
           </label>
           {scheduleKind === 'recurring' && (
             <>
@@ -118,7 +132,7 @@ export function MaintenancePlanDialog({
             Anuluj
           </button>
           <button className="primary" disabled={busy || !title.trim()} type="submit">
-            {busy ? 'Zapisywanie…' : 'Zapisz zmiany'}
+            {busy ? 'Zapisywanie…' : isNew ? 'Dodaj plan' : 'Zapisz zmiany'}
           </button>
         </footer>
       </form>

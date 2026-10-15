@@ -196,7 +196,7 @@ test('item edit fills the warranty date, guards unsaved changes, and saves', asy
   // A purchase date proposes a fixed warranty ending two years later.
   await page.getByLabel('Data zakupu').fill('2026-01-15');
   await expect(page.getByRole('button', { name: 'Rodzaj gwarancji' })).toHaveText('Z określoną datą');
-  await expect(page.locator('.warranty-card input[type="date"]')).toHaveValue('2028-01-15');
+  await expect(page.getByLabel('Koniec gwarancji')).toHaveValue('2028-01-15');
   await expect(save).toBeEnabled();
 
   const dialogs = recordDialogs(page, false);
@@ -218,7 +218,7 @@ test('item edit fills the warranty date, guards unsaved changes, and saves', asy
   await nav(page, 'Przedmioty');
   await page.getByText('Odkurzacz testowy').first().click();
   await expect(page.getByLabel('Data zakupu')).toHaveValue('2026-01-15');
-  await expect(page.locator('.warranty-card input[type="date"]')).toHaveValue('2028-01-15');
+  await expect(page.getByLabel('Koniec gwarancji')).toHaveValue('2028-01-15');
 });
 
 test('search finds items and documents and returns to the previous view', async ({ page }) => {
@@ -250,13 +250,14 @@ test('a maintenance plan added from the item detail appears, and logout returns 
   await page.getByText('Odkurzacz testowy').first().click();
   await expect(page.getByText('Brak planów konserwacji.')).toBeVisible();
 
-  const form = page.locator('form.plan-form');
-  await form.getByLabel('Nazwa czynności').fill('Wymiana filtra');
-  await form.getByLabel('Następny termin').fill(isoDate(40));
-  await form.getByRole('button', { name: 'Dodaj plan' }).click();
+  await page.locator('.detail-maintenance').getByRole('button', { name: 'Dodaj plan' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Nowy plan' });
+  await dialog.getByLabel('Nazwa czynności').fill('Wymiana filtra');
+  await dialog.getByLabel('Następny termin').fill(isoDate(40));
+  await dialog.getByRole('button', { name: 'Dodaj plan' }).click();
   await expect(page.locator('.toast')).toHaveText('Plan czynności został dodany.');
+  await expect(dialog).toBeHidden();
   await expect(page.locator('.plan', { hasText: 'Wymiana filtra' })).toContainText('Co 3 miesiące');
-  await expect(form.getByLabel('Nazwa czynności')).toHaveValue('');
 
   await page.getByTitle('Konto użytkownika').click();
   await page.getByRole('menuitem', { name: 'Wyloguj się' }).click();

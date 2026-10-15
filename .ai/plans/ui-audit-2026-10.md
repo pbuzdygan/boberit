@@ -39,11 +39,11 @@ Audit from 2026-10-15 (desktop 1366 px, phone 390 px, isolated instance with dem
 - [x] F16 Timeline: date tiles lack the year for dates outside the current year; "Nadchodzące terminy" also counts overdue entries; filters lack counts.
 - [x] Timeline decision (approved): a recurring plan completed at least once shows its next due date on Terminy (today it is hidden until due). Start/notification reminders keep the 30-day window.
 
-### Step 6 — item detail
+### Step 6 — item detail (done: variant A, save button in the heading)
 
-- [ ] F12b Warranty card fields (scope, end date) have no visible labels; label them in the redesign.
-- [ ] F12c Plan rows: actions moved to a second row in step 4 (titles wrapped at the larger text size); revisit in the redesign.
-- [ ] F12 Warranty card is a dark gradient with shadow, unlike other panels, and on phones sits below the whole plan form; the add-plan form is always expanded; plan rows are cramped. Needs approval of the layout before implementing.
+- [x] F12b Warranty card fields (scope, end date) have no visible labels; label them in the redesign.
+- [x] F12c Plan rows: actions moved to a second row in step 4 (titles wrapped at the larger text size); revisit in the redesign.
+- [x] F12 Warranty card is a dark gradient with shadow, unlike other panels, and on phones sits below the whole plan form; the add-plan form is always expanded; plan rows are cramped. Needs approval of the layout before implementing.
 
 ### Step 7 — phone layout
 
