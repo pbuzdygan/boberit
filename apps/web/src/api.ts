@@ -1,4 +1,5 @@
 import type {
+  AppInformation,
   AssetFile,
   AssetFileKind,
   AssetOption,
@@ -63,6 +64,8 @@ async function emptyRequest(path: string, init: RequestInit): Promise<void> {
 }
 
 export const api = {
+  about: () => request<ApiEnvelope<AppInformation>>('/settings/about'),
+  checkUpdates: () => request<ApiEnvelope<AppInformation>>('/settings/about/check', { method: 'POST' }),
   setup: () => request<ApiEnvelope<{ needsSetup: boolean }>>('/auth/setup'),
   register: (input: { setupToken: string; login: string; email: string; password: string; householdName: string }) =>
     request<ApiEnvelope<{ user: { login: string }; token: string }>>('/auth/register', {

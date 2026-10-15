@@ -18,6 +18,11 @@ ENV NODE_ENV=production
 ENV APP_DATA_DIR=/data
 ENV WEB_DIST=/app/apps/web/dist
 ENV MALLOC_ARENA_MAX=2
+ARG APP_VERSION=local
+ARG APP_RELEASE_CHANNEL=local
+ENV APP_VERSION=${APP_VERSION}
+ENV APP_RELEASE_CHANNEL=${APP_RELEASE_CHANNEL}
+LABEL org.opencontainers.image.version=${APP_VERSION}
 
 # Refresh packages inherited from the pinned base image as well as OCR tools.
 RUN apt-get update \

@@ -16,6 +16,7 @@ import { householdsRoutes } from './routes/households.js';
 import { dictionariesRoutes } from './routes/dictionaries.js';
 import { authRoutes } from './routes/auth.js';
 import { settingsRoutes } from './routes/settings.js';
+import { aboutRoutes } from './routes/about.js';
 import { webhooksRoutes } from './routes/webhooks.js';
 import { assetsRoutes } from './routes/assets.js';
 import { documentsRoutes } from './routes/documents.js';
@@ -92,6 +93,7 @@ for (const routes of [
   dictionariesRoutes,
   authRoutes,
   settingsRoutes,
+  aboutRoutes,
   webhooksRoutes,
   backupRoutes,
   assetsRoutes,

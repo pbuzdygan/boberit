@@ -13,6 +13,7 @@ import {
   recordDialogs,
   test,
 } from './fixtures.mjs';
+import { mkdir } from 'node:fs/promises';
 
 test.describe.configure({ mode: 'serial' });
 
@@ -334,4 +335,75 @@ test('settings: categories are chips edited in place, webhooks are saved from on
   const card = page.locator('.webhook-cards li', { hasText: 'Test hook' }).first();
   await expect(card).toContainText('Wykonano konserwację');
   await expect(card).toContainText('Utworzono przedmiot');
+});
+
+test('about shows real local build metadata without checking external releases', async ({ page }) => {
+  await login(page, 'owner');
+  await nav(page, 'Ustawienia');
+  await settingsSection(page, 'Informacje');
+  await expect(page.getByRole('heading', { name: 'Informacje', exact: true })).toBeVisible();
+  await expect(page.getByRole('status', { name: 'Stan aktualizacji' })).toContainText('Wersja lokalna');
+  await expect(page.getByRole('button', { name: 'Sprawdź ponownie' })).toBeDisabled();
+});
+
+test('about handles checking, available updates and failures on desktop and phone', async ({ page }) => {
+  const initial = {
+    version: '0.2.0',
+    channel: 'main',
+    status: 'unchecked',
+    checkedAt: null,
+    latestVersion: null,
+    releaseUrl: null,
+  };
+  let status = 'current';
+  let finishCheck;
+  await page.route('**/api/v1/settings/about', (route) => route.fulfill({ json: { data: initial } }));
+  await page.route('**/api/v1/settings/about/check', async (route) => {
+    if (status === 'waiting')
+      await new Promise((resolve) => {
+        finishCheck = resolve;
+      });
+    await route.fulfill({
+      json: {
+        data: {
+          ...initial,
+          status: status === 'waiting' ? 'current' : status,
+          checkedAt: '2026-10-15T10:00:00Z',
+          latestVersion: '0.3.0',
+          releaseUrl: 'https://github.com/pbuzdygan/boberit/releases/tag/0.3.0',
+        },
+      },
+    });
+  });
+  await login(page, 'owner');
+  await mkdir('.tmp/about', { recursive: true });
+  for (const width of [1366, 390]) {
+    await page.setViewportSize({ width, height: 860 });
+    if (width === 1366) await nav(page, 'Ustawienia');
+    else await page.locator('.settings-back').click();
+    await settingsSection(page, 'Informacje');
+    await expect(page.getByRole('heading', { name: 'Boberit v0.2.0' })).toBeVisible();
+    await expect(page.getByRole('status', { name: 'Stan aktualizacji' })).toContainText('Masz aktualną wersję');
+    await expect(page.getByText(/Kanał wydania: main/)).toBeVisible();
+    await page.screenshot({ path: `.tmp/about/${width}-current.png`, fullPage: true });
+    finishCheck = undefined;
+    status = 'waiting';
+    await page.getByRole('button', { name: 'Sprawdź ponownie' }).click();
+    await expect(page.getByRole('button', { name: 'Sprawdzanie…' })).toBeDisabled();
+    await expect.poll(() => typeof finishCheck).toBe('function');
+    finishCheck();
+    await expect(page.getByRole('status', { name: 'Stan aktualizacji' })).toContainText('Masz aktualną wersję');
+    status = 'available';
+    await page.getByRole('button', { name: 'Sprawdź ponownie' }).click();
+    await expect(page.getByRole('status', { name: 'Stan aktualizacji' })).toContainText('Dostępna wersja 0.3.0');
+    await expect(page.getByRole('link', { name: 'Opis wydania' })).toHaveAttribute('href', /releases\/tag\/0.3.0$/);
+    await page.screenshot({ path: `.tmp/about/${width}-available.png`, fullPage: true });
+    status = 'error';
+    await page.getByRole('button', { name: 'Sprawdź ponownie' }).click();
+    await expect(page.getByRole('status', { name: 'Stan aktualizacji' })).toContainText('Nie udało się sprawdzić');
+    await expect(page.getByRole('link', { name: 'Opis wydania' })).toHaveCount(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: `.tmp/about/${width}-error.png`, fullPage: true });
+    status = 'current';
+  }
 });

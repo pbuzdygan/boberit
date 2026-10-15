@@ -1,5 +1,6 @@
 export type IconName =
   | 'home'
+  | 'info-circle'
   | 'package'
   | 'search'
   | 'plus'

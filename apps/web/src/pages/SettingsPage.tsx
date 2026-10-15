@@ -1,6 +1,7 @@
 import { type IconName, Icon } from '../components/Icon';
 import type { HouseholdMembership, SettingsSection } from '../types';
 import { ActivitySettings } from './ActivitySettings';
+import { AboutSettings } from './AboutSettings';
 import { BackupSettings } from './BackupSettings';
 import { DataSettings } from './DataSettings';
 import { GeneralSettings } from './GeneralSettings';
@@ -98,6 +99,9 @@ export function SettingsPage({
       <nav aria-label="Sekcje ustawień" className="settings-menu">
         {menuGroup('Gospodarstwo', household?.name, householdItems)}
         {menuGroup('Twoje konto', account?.login, accountItems)}
+        {menuGroup('Aplikacja', undefined, [
+          { section: 'about', label: 'Informacje', hint: 'Wersja i aktualizacje', icon: 'info-circle' },
+        ])}
       </nav>
       <div className="settings-main">
         <button className="back settings-back" onClick={() => onSection(null)} type="button">
@@ -126,6 +130,8 @@ export function SettingsPage({
           />
         ) : current === 'security' ? (
           <SecuritySettings account={account} />
+        ) : current === 'about' ? (
+          <AboutSettings />
         ) : (
           <WebhookSettings />
         )}

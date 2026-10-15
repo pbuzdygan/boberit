@@ -13,6 +13,16 @@
 
 Keep `APP_ENC_KEY` in an environment variable or in the Git-ignored `.env` file; Compose refuses to start without it. Keep a secure copy of the key separately from Boberit backups: backups do not contain it, and losing or changing it makes stored webhook secrets undecryptable (webhooks with a secret must then be saved again) and invalidates all active sessions.
 
+## Application information and updates
+
+**Ustawienia → Informacje** (Settings → About) shows the installed version, release channel, and the last successful update check in your browser's time zone. Opening this section checks for updates; **Sprawdź ponownie** checks again. Results, including connection failures, are cached for one minute across all users. No background polling runs elsewhere in the app.
+
+The server contacts GitHub Releases and GHCR for `pbuzdygan/boberit` over HTTPS, without sending household data or account credentials. Stable (`main`) installations check stable releases; development (`dev`) installations check `devX.Y.Z` prereleases. A newer release is offered only after its versioned container image is available in GHCR. Connection errors and releases whose images are not yet available have separate messages.
+
+Release images receive `APP_VERSION` (the release tag) and `APP_RELEASE_CHANNEL` (`main` or `dev`) from the release workflow as Docker build arguments. Builds without valid release metadata show a local version and do not contact external services. Custom local builds can supply these build arguments when they intentionally represent an existing release. The changelog is not used to identify the running version.
+
+The app only reports updates. An administrator installs them with Docker after creating a backup.
+
 ## Time zone
 
 Dates such as purchase dates, warranty expiry, and maintenance due dates are calendar dates without a time. The web app shows deadlines ("today", "in 6 days") using the browser's time zone. The server uses `TZ` only where it has to decide what "today" is on its own, currently the completion date of a maintenance task when the client sends none. Set `TZ` to the household's zone (for example `TZ=Europe/Warsaw` in `.env`) so that server-side dates match what users see; the default `UTC` can be a day off around midnight. Timestamps such as creation times are always stored in UTC.

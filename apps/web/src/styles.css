@@ -4385,6 +4385,31 @@ button.notification-row:hover {
   font-size: var(--text-sm);
   line-height: 1.5;
 }
+.about-details {
+  display: grid;
+  gap: 16px;
+}
+.about-details p {
+  margin: 0;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.about-details .about-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+  font-weight: 600;
+}
+.about-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.about-details .form-error {
+  color: var(--danger);
+}
 .settings-block--danger {
   border-color: #efc9cf;
   box-shadow: inset 4px 0 var(--danger);

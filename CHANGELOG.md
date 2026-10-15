@@ -27,6 +27,7 @@ Changes are described from the user's perspective, without implementation detail
 - "OCR of pending documents" processes up to 25 documents per run, about one minute at most, and reports how many are left, so long runs no longer time out.
 - Larger text, clearer form labels, and consistent icons make the app easier to read and navigate.
 - Settings bring household and account options together, making members, categories, backups, security, and integrations easier to find.
+- The new About section in Settings shows your installed version and release channel, and lets you check for available updates and open their release notes.
 - Item details give warranty information more room and let you add maintenance plans from a separate dialog.
 - Phone layouts keep important actions within reach and show warranty information directly in the item list.
 - Dialogs and file pickers work with the keyboard, and screen readers announce action results.

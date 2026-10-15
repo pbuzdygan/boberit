@@ -2,9 +2,9 @@ import type { AssetSummary, MaintenancePlan } from '@boberit/shared';
 
 export type View =
   'start' | 'items' | 'timeline' | 'inbox' | 'binder' | 'document-ocr' | 'trash' | 'settings' | 'search';
-/** Sections of the settings page: the active household first, then the signed-in account. */
+/** Settings sections: active household, signed-in account, then application information. */
 export type SettingsSection =
-  'general' | 'members' | 'data' | 'backup' | 'activity' | 'households' | 'security' | 'integrations';
+  'general' | 'members' | 'data' | 'backup' | 'activity' | 'households' | 'security' | 'integrations' | 'about';
 export type TimelineFilter = 'all' | 'maintenance' | 'warranty';
 export type CollectionFilter = 'all' | 'warranty' | 'draft';
 export type ReminderEntry = {

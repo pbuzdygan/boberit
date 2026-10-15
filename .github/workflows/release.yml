@@ -66,6 +66,9 @@ jobs:
           # Re-run apt update/upgrade for every release instead of reusing old OS packages.
           no-cache-filters: runtime
           push: true
+          build-args: |
+            APP_VERSION=${{ github.event.release.tag_name }}
+            APP_RELEASE_CHANNEL=${{ github.event.release.target_commitish }}
           tags: |
             ${{ steps.image.outputs.name }}:${{ steps.image.outputs.channel }}
             ${{ steps.image.outputs.name }}:${{ github.event.release.tag_name }}

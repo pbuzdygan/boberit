@@ -65,6 +65,16 @@ describe('HTTP hardening on a running server', () => {
   });
   after(() => instance?.stop());
 
+  test('application information and update checks require a session, and local builds stay unchecked', async () => {
+    assert.equal((await instance.api(null, 'GET', '/settings/about')).status, 401);
+    assert.equal((await instance.api(null, 'POST', '/settings/about/check')).status, 401);
+    const info = await instance.ok(token, 'GET', '/settings/about');
+    assert.equal(info.version, null);
+    assert.equal(info.channel, null);
+    assert.equal(info.status, 'unchecked');
+    assert.deepEqual(await instance.ok(token, 'POST', '/settings/about/check'), info);
+  });
+
   test('the app shell and API send security headers and a script-restricting CSP', async () => {
     for (const path of ['/', '/api/v1/health']) {
       const response = await fetch(instance.baseUrl + path);
