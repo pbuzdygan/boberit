@@ -20,7 +20,7 @@
     "start": "npm run start --workspace @boberit/server"
   },
   "devDependencies": {
-    "@playwright/test": "1.64.0",
-    "prettier": "3.9.10"
+    "@playwright/test": "1.65.1",
+    "prettier": "3.10.1"
   }
 }
